@@ -1,0 +1,13 @@
+# Present in tree: editable install metadata
+*.egg-info/
+
+# Present in tree: convert_xdf / demo CSV exports
+examples/out/*
+sample_data/*
+
+# Created as soon as you import or run Python (not committed)
+__pycache__/
+*.py[cod]
+
+# Present on disk in this repo (macOS)
+.DS_Store

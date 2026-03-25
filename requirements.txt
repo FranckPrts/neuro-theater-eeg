@@ -1,0 +1,2 @@
+# XDF / LSL recordings (pulls numpy)
+pyxdf>=1.16.0

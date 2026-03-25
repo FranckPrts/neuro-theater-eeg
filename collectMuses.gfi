@@ -1,0 +1,143 @@
+links:
+- node_in: extendedtable0
+  node_out: lslclient0
+  slot_in: array_input1
+  slot_out: out
+- node_in: extendedtable0
+  node_out: lslclient1
+  slot_in: array_input2
+  slot_out: out
+- node_in: extendedtable0
+  node_out: lslclient2
+  slot_in: array_input3
+  slot_out: out
+- node_in: extendedtable0
+  node_out: lslclient3
+  slot_in: array_input4
+  slot_out: out
+nodes:
+  audiostream0:
+    _type: AudioStream
+    category: inputs
+    gui_kwargs:
+      pos:
+      - 306
+      - 112
+    params:
+      audio:
+        convert_to_mono: true
+        device: MacBook Pro Microphone
+        sampling_rate: '44100'
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+  extendedtable0:
+    _type: ExtendedTable
+    category: inputs
+    gui_kwargs:
+      pos:
+      - 544
+      - 310
+    params:
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+      table:
+        param1: value1
+        param10: value10
+        param2: value2
+        param3: value3
+        param4: value4
+        param5: value5
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+  lslclient0:
+    _type: LSLClient
+    category: inputs
+    gui_kwargs:
+      pos:
+      - -26
+      - 327
+    params:
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+      lsl_stream:
+        refresh: true
+        source_name: 728F5034-C233-D39E-11A9-C94E82C91DD0
+        stream_name: Muse
+  lslclient1:
+    _type: LSLClient
+    category: inputs
+    gui_kwargs:
+      pos:
+      - -28
+      - 501
+    params:
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+      lsl_stream:
+        refresh: true
+        source_name: MuseAC8CD4BB-830A-61D4-580A-C280E1366463
+        stream_name: Muse
+  lslclient2:
+    _type: LSLClient
+    category: inputs
+    gui_kwargs:
+      pos:
+      - 175
+      - 327
+    params:
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+      lsl_stream:
+        refresh: false
+        source_name: Muse38BAC533-2E83-526D-7D3B-C4D6E237411B
+        stream_name: ''
+  lslclient3:
+    _type: LSLClient
+    category: inputs
+    gui_kwargs:
+      pos:
+      - 172
+      - 496
+    params:
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+      lsl_stream:
+        refresh: false
+        source_name: Muse
+        stream_name: ''
+  lslout0:
+    _type: LSLOut
+    category: outputs
+    gui_kwargs:
+      pos:
+      - 781
+      - 796
+    params:
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+      lsl:
+        source_name: goofi
+        stream_name: stream-test
+  writecsv0:
+    _type: WriteCsv
+    category: outputs
+    gui_kwargs:
+      pos:
+      - 787
+      - 571
+    params:
+      Write:
+        filename: output.csv
+        write: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
