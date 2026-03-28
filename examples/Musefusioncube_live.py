@@ -3,7 +3,11 @@ Muse IMU (LSL) → complementary filter → live 3D cube (matplotlib)
 -----------------------------------------------------------------
 Discovers streams, groups them by LSL ``source_id`` (sorted keys), auto-picks
 ACC + GYRO per headset (muselsl-style types), then shows one or two live
-wireframe cubes. For manual single-stream picking use ``lsl_stream_picker.py``.
+wireframe cubes. **Reset cube** zeros roll/pitch (upright in the plot). Each
+column shows an **LSL connection** line (green while samples arrive, red if
+stale) and **cumulative seconds lost** while that link is down (after the first
+packet). **Sliders** adjust complementary **α** and **gyro scale** live. For
+manual single-stream picking use ``lsl_stream_picker.py``.
 
 Activate the project conda env (default name ``neurotheater``):
 
@@ -25,12 +29,16 @@ Config (edit below):
     MAX_FUSION_STEPS_PER_FRAME — cap gyro steps per frame (CPU bound)
     DT_MIN, DT_MAX             — clamp for delta-time between gyro samples
     DUAL_FIGSIZE               — (width, height) inches when two cubes
+    CONN_STALE_SEC             — no samples for this long ⇒ show disconnected
+    GYRO_SCALE_DEFAULT         — initial gyro integration gain (slider default)
+    SLIDER_GYRO_SCALE_MAX      — upper bound for gyro-scale slider
 """
 
 from __future__ import annotations
 
 import math
 import sys
+import time
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -43,8 +51,11 @@ UPDATE_HZ = 30.0
 MAX_FUSION_STEPS_PER_FRAME = 20
 DT_MIN = 1e-4
 DT_MAX = 0.1
-DUAL_FIGSIZE = (12.0, 5.0)
-SINGLE_FIGSIZE = (7.0, 6.0)
+DUAL_FIGSIZE = (12.0, 6.2)
+SINGLE_FIGSIZE = (7.0, 7.0)
+CONN_STALE_SEC = 0.75
+GYRO_SCALE_DEFAULT = 1.0
+SLIDER_GYRO_SCALE_MAX = 3.0
 # muselsl / CSV pipeline may disagree on gyro units; tune if motion scale feels off
 # ───────────────────────────────────────────────────────────────────────────────
 
@@ -183,7 +194,18 @@ def wireframe_segments(R: np.ndarray) -> list[np.ndarray]:
 
 
 class FusionState:
-    __slots__ = ("roll", "pitch", "t_prev", "ax", "ay", "az", "have_acc")
+    __slots__ = (
+        "roll",
+        "pitch",
+        "t_prev",
+        "ax",
+        "ay",
+        "az",
+        "have_acc",
+        "last_data_wall",
+        "ever_had_data",
+        "lost_conn_sec_total",
+    )
 
     def __init__(self) -> None:
         self.roll = 0.0
@@ -191,6 +213,19 @@ class FusionState:
         self.t_prev: float | None = None
         self.ax = self.ay = self.az = 0.0
         self.have_acc = False
+        self.last_data_wall: float | None = None
+        self.ever_had_data = False
+        self.lost_conn_sec_total = 0.0
+
+    def reset_orientation(self) -> None:
+        """Cube upright in plot frame; next gyro dt uses nominal step."""
+        self.roll = 0.0
+        self.pitch = 0.0
+        self.t_prev = None
+
+    def mark_data(self) -> None:
+        self.last_data_wall = time.monotonic()
+        self.ever_had_data = True
 
 
 def drain_acc_latest(inlet_acc, st: FusionState) -> None:
@@ -200,22 +235,27 @@ def drain_acc_latest(inlet_acc, st: FusionState) -> None:
             break
         st.ax, st.ay, st.az = float(sample[0]), float(sample[1]), float(sample[2])
         st.have_acc = True
+        st.mark_data()
 
 
-def fuse_on_gyro_samples(inlet_gyro, st: FusionState, alpha: float) -> None:
+def fuse_on_gyro_samples(
+    inlet_gyro, st: FusionState, alpha: float, gyro_scale: float
+) -> None:
     if not st.have_acc:
         return
     for _ in range(MAX_FUSION_STEPS_PER_FRAME):
         sample, ts = inlet_gyro.pull_sample(timeout=0.0)
         if sample is None:
             break
-        gx, gy = float(sample[0]), float(sample[1])
+        gx = float(sample[0]) * gyro_scale
+        gy = float(sample[1]) * gyro_scale
         if st.t_prev is None:
             dt = 1.0 / 52.0
         else:
             dt = float(ts) - st.t_prev
             dt = max(DT_MIN, min(DT_MAX, dt))
         st.t_prev = float(ts)
+        st.mark_data()
 
         st.roll += gx * dt
         st.pitch += gy * dt
@@ -237,6 +277,9 @@ class MuseTracker:
     color: str
     state: FusionState = field(default_factory=FusionState)
     lc: object | None = None
+    status_ax: object | None = None
+    status_text: object | None = None
+    viz_prev_wall: float | None = field(default=None, repr=False)
 
 
 def _short_sid(sid: str, max_len: int = 28) -> str:
@@ -250,23 +293,62 @@ def confirm(prompt: str) -> bool:
     return raw in ("", "y", "yes")
 
 
-def run_visualizer(trackers: list[MuseTracker], alpha: float) -> None:
+def _is_connection_live(st: FusionState, now: float) -> bool:
+    if st.last_data_wall is None:
+        return False
+    return (now - st.last_data_wall) <= CONN_STALE_SEC
+
+
+def _connection_status_lines(st: FusionState, now: float) -> tuple[str, str]:
+    """(multiline message, matplotlib color) for status under each cube."""
+    lost = st.lost_conn_sec_total
+    if st.last_data_wall is None:
+        return f"Waiting for data…\nLost: {lost:.1f} s", "#888888"
+    age = now - st.last_data_wall
+    if age <= CONN_STALE_SEC:
+        return f"● LSL live\nLost: {lost:.1f} s", "#2ca02c"
+    return f"○ No data ({age:.1f}s)\nLost: {lost:.1f} s", "#c23b22"
+
+
+def run_visualizer(trackers: list[MuseTracker]) -> None:
     import matplotlib.pyplot as plt
     from matplotlib.animation import FuncAnimation
+    from matplotlib.gridspec import GridSpec
+    from matplotlib.widgets import Button, Slider
     from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
     n = len(trackers)
-    if n == 1:
-        fig = plt.figure(figsize=SINGLE_FIGSIZE)
-        trackers[0].ax3d = fig.add_subplot(111, projection="3d")
-    else:
-        fig, axes = plt.subplots(
-            1, n, subplot_kw={"projection": "3d"}, figsize=DUAL_FIGSIZE
+    figsize = SINGLE_FIGSIZE if n == 1 else DUAL_FIGSIZE
+    fig = plt.figure(figsize=figsize)
+    gs = GridSpec(2, n, figure=fig, height_ratios=[12, 1], hspace=0.32, top=0.90, bottom=0.30)
+
+    for i, tr in enumerate(trackers):
+        tr.ax3d = fig.add_subplot(gs[0, i], projection="3d")
+        tr.status_ax = fig.add_subplot(gs[1, i])
+        tr.status_ax.set_axis_off()
+        tr.status_text = tr.status_ax.text(
+            0.5,
+            0.5,
+            "",
+            ha="center",
+            va="center",
+            fontsize=9,
+            linespacing=1.2,
+            transform=tr.status_ax.transAxes,
         )
-        for i, tr in enumerate(trackers):
-            tr.ax3d = axes[i]
 
     fig.suptitle("Live sensor-fused orientation — close window to quit")
+    total_lost_txt = None
+    if n > 1:
+        total_lost_txt = fig.text(
+            0.98,
+            0.98,
+            "",
+            ha="right",
+            va="top",
+            fontsize=9,
+            transform=fig.transFigure,
+        )
 
     for tr in trackers:
         ax3d = tr.ax3d
@@ -287,14 +369,64 @@ def run_visualizer(trackers: list[MuseTracker], alpha: float) -> None:
         )
         ax3d.add_collection3d(tr.lc)
 
+    def _on_reset(_event) -> None:
+        for tr in trackers:
+            tr.state.reset_orientation()
+            R = rotation_matrix(tr.state.roll, tr.state.pitch)
+            tr.lc.set_segments(wireframe_segments(R))
+        fig.canvas.draw_idle()
+
+    btn_ax = fig.add_axes((0.02, 0.06, 0.14, 0.04))
+    reset_btn = Button(btn_ax, "Reset cube")
+    reset_btn.on_clicked(_on_reset)
+
+    slider_w, slider_h = 0.52, 0.028
+    slider_x = 0.22
+    alpha_ax = fig.add_axes((slider_x, 0.19, slider_w, slider_h))
+    gyro_ax = fig.add_axes((slider_x, 0.13, slider_w, slider_h))
+    s_alpha = Slider(
+        alpha_ax,
+        "α (gyro trust)",
+        0.0,
+        1.0,
+        valinit=ALPHA,
+        valstep=0.01,
+    )
+    s_gyro = Slider(
+        gyro_ax,
+        "Gyro scale",
+        0.05,
+        SLIDER_GYRO_SCALE_MAX,
+        valinit=GYRO_SCALE_DEFAULT,
+        valstep=0.01,
+    )
+    fig._muse_widgets = (s_alpha, s_gyro, reset_btn)
+
     interval_ms = max(1, int(1000.0 / UPDATE_HZ))
 
     def _update(_frame: int):
+        now = time.monotonic()
         for tr in trackers:
+            st = tr.state
+            if tr.viz_prev_wall is None:
+                tr.viz_prev_wall = now
+            dt_anim = max(0.0, min(now - tr.viz_prev_wall, 2.0))
+            tr.viz_prev_wall = now
+            if st.ever_had_data and not _is_connection_live(st, now):
+                st.lost_conn_sec_total += dt_anim
+
             drain_acc_latest(tr.inlet_acc, tr.state)
-            fuse_on_gyro_samples(tr.inlet_gyro, tr.state, alpha)
+            fuse_on_gyro_samples(
+                tr.inlet_gyro, tr.state, s_alpha.val, s_gyro.val
+            )
             R = rotation_matrix(tr.state.roll, tr.state.pitch)
             tr.lc.set_segments(wireframe_segments(R))
+            msg, col = _connection_status_lines(st, now)
+            tr.status_text.set_text(msg)
+            tr.status_text.set_color(col)
+        if total_lost_txt is not None:
+            t_sum = sum(t.state.lost_conn_sec_total for t in trackers)
+            total_lost_txt.set_text(f"Σ lost (session): {t_sum:.1f} s")
         return tuple(tr.lc for tr in trackers)
 
     _anim = FuncAnimation(
@@ -374,7 +506,7 @@ def main() -> int:
 
     print(f"Live cube{prompt_extra} (close the figure window to exit).")
     try:
-        run_visualizer(trackers, ALPHA)
+        run_visualizer(trackers)
     except KeyboardInterrupt:
         print("\nStopped.")
     return 0
