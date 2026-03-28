@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# NeuroTheater — cd to project root and activate Conda env "NeuroTheater"
-# Usage: source ./activate_neurotheater.sh
-#        (activation only persists when sourced, not when run as ./activate_neurotheater.sh)
+# neurotheater — cd to neuro-theater-eeg root and activate Conda env "neurotheater"
+# Usage: source ./run_env_neurtheater.sh
+#        (activation only persists when sourced, not when run as ./run_env_neurtheater.sh)
 
-NTA_CONDA_ENV="${NTA_CONDA_ENV:-NeuroTheater}"
+NTA_CONDA_ENV="${NTA_CONDA_ENV:-neurotheater}"
 
 if [[ -n "${ZSH_VERSION:-}" ]]; then
   case ${ZSH_EVAL_CONTEXT:-} in
     *:file) ;;
     *)
-      echo "Source this file so the venv stays active in your terminal:" >&2
-      echo "  source $(cd "$(dirname "$0")" && pwd)/activate_neurotheater.sh" >&2
+      echo "Source this file so the env stays active in your terminal:" >&2
+      echo "  source $(cd "$(dirname "$0")" && pwd)/run_env_neurtheater.sh" >&2
       exit 1
       ;;
   esac
   ROOT="$(cd "$(dirname "${(%):-%x}")" && pwd)"
 elif [[ -n "${BASH_VERSION:-}" ]]; then
   if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    echo "Source this file so the venv stays active in your terminal:" >&2
-    echo "  source $(cd "$(dirname "$0")" && pwd)/activate_neurotheater.sh" >&2
+    echo "Source this file so the env stays active in your terminal:" >&2
+    echo "  source $(cd "$(dirname "$0")" && pwd)/run_env_neurtheater.sh" >&2
     exit 1
   fi
   ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -68,4 +68,4 @@ if ! conda activate "$NTA_CONDA_ENV"; then
   return 1 2>/dev/null || exit 1
 fi
 
-echo "NeuroTheater: $(python --version 2>&1) — $(command -v python)"
+echo "neurotheater: $(python --version 2>&1) — $(command -v python)"

@@ -1,0 +1,384 @@
+"""
+Muse IMU (LSL) → complementary filter → live 3D cube (matplotlib)
+-----------------------------------------------------------------
+Discovers streams, groups them by LSL ``source_id`` (sorted keys), auto-picks
+ACC + GYRO per headset (muselsl-style types), then shows one or two live
+wireframe cubes. For manual single-stream picking use ``lsl_stream_picker.py``.
+
+Activate the project conda env (default name ``neurotheater``):
+
+    source neuro-theater-eeg/run_env_neurtheater.sh
+
+From ``neuro-theater-eeg/`` install deps:
+
+    pip install -e ".[lsl]"
+
+Each headset must expose an ACC-like and GYRO-like stream with **≥3 channels**
+(x, y, z). Only **1–2** Muses with a full IMU pair are supported; if more
+headsets qualify, exit with an error (see ``MAX_MUSES``).
+
+Config (edit below):
+    WAIT_SEC                   — LSL discovery window (seconds)
+    MAX_MUSES                  — max headsets with IMU pairs (plan: 2)
+    ALPHA                      — complementary blend (same as offline)
+    UPDATE_HZ                  — matplotlib redraw rate
+    MAX_FUSION_STEPS_PER_FRAME — cap gyro steps per frame (CPU bound)
+    DT_MIN, DT_MAX             — clamp for delta-time between gyro samples
+    DUAL_FIGSIZE               — (width, height) inches when two cubes
+"""
+
+from __future__ import annotations
+
+import math
+import sys
+from dataclasses import dataclass, field
+
+import numpy as np
+
+# ── CONFIG ────────────────────────────────────────────────────────────────────
+WAIT_SEC = 5.0
+MAX_MUSES = 2
+ALPHA = 0.97
+UPDATE_HZ = 30.0
+MAX_FUSION_STEPS_PER_FRAME = 20
+DT_MIN = 1e-4
+DT_MAX = 0.1
+DUAL_FIGSIZE = (12.0, 5.0)
+SINGLE_FIGSIZE = (7.0, 6.0)
+# muselsl / CSV pipeline may disagree on gyro units; tune if motion scale feels off
+# ───────────────────────────────────────────────────────────────────────────────
+
+_ACC_TYPES = frozenset({"ACC", "ACCELEROMETER"})
+_GYRO_TYPES = frozenset({"GYRO", "GYROSCOPE"})
+
+
+def _norm_stream_type(info) -> str:
+    return info.type().strip().upper()
+
+
+# Cube unit vertices (same ordering as Musefusioncube.py), scaled by 0.5
+_BASE_VERTS = (
+    np.array(
+        [
+            [-1, -1, -1],
+            [1, -1, -1],
+            [1, 1, -1],
+            [-1, 1, -1],
+            [-1, -1, 1],
+            [1, -1, 1],
+            [1, 1, 1],
+            [-1, 1, 1],
+        ],
+        dtype=float,
+    )
+    * 0.5
+)
+
+_CUBE_EDGES = [
+    (0, 1),
+    (1, 2),
+    (2, 3),
+    (3, 0),
+    (4, 5),
+    (5, 6),
+    (6, 7),
+    (7, 4),
+    (0, 4),
+    (1, 5),
+    (2, 6),
+    (3, 7),
+]
+
+_TRACK_COLORS = ("steelblue", "darkorange")
+
+
+def discover_streams(wait_sec: float):
+    import pylsl
+
+    return pylsl.resolve_streams(wait_time=wait_sec)
+
+
+def group_streams_by_source_id(streams) -> dict[str, list]:
+    """Group StreamInfo objects by ``source_id``; keys sorted alphabetically."""
+    buckets: dict[str, list] = {}
+    for s in streams:
+        sid = s.source_id().strip() or "(unknown)"
+        buckets.setdefault(sid, []).append(s)
+    return dict(sorted(buckets.items()))
+
+
+def find_imu_pair(infos: list) -> tuple | None:
+    """First ACC + first GYRO stream with channel_count >= 3, or None."""
+    acc = gyro = None
+    for s in infos:
+        if s.channel_count() < 3:
+            continue
+        t = _norm_stream_type(s)
+        if t in _ACC_TYPES and acc is None:
+            acc = s
+        elif t in _GYRO_TYPES and gyro is None:
+            gyro = s
+    if acc is None or gyro is None:
+        return None
+    return (acc, gyro)
+
+
+def describe_imu_gap(source_id: str, infos: list) -> str:
+    has_acc = any(
+        s.channel_count() >= 3 and _norm_stream_type(s) in _ACC_TYPES for s in infos
+    )
+    has_gyro = any(
+        s.channel_count() >= 3 and _norm_stream_type(s) in _GYRO_TYPES for s in infos
+    )
+    if has_acc and has_gyro:
+        return f"source_id={source_id!r}: IMU streams present but pairing failed (unexpected)."
+    if not has_acc and not has_gyro:
+        return (
+            f"source_id={source_id!r}: no ACC/Accelerometer or GYRO/Gyroscope stream "
+            f"with ≥3 channels."
+        )
+    if not has_acc:
+        return f"source_id={source_id!r}: missing ACC (need type ACC or Accelerometer, ≥3 ch)."
+    return f"source_id={source_id!r}: missing GYRO (need type GYRO or Gyroscope, ≥3 ch)."
+
+
+def print_streams_grouped(groups: dict[str, list]) -> None:
+    print("Streams by source_id (sorted):")
+    for sid, infos in groups.items():
+        print(f"  {sid!r}")
+        for s in infos:
+            print(
+                f"    type={s.type()!r}  channels={s.channel_count()}  "
+                f"rate={s.nominal_srate():.1f} Hz  name={s.name()!r}"
+            )
+
+
+def open_inlet_from_info(info):
+    import pylsl
+
+    if info.channel_count() < 3:
+        raise ValueError(
+            f"Stream type={info.type()!r} has {info.channel_count()} channels; need ≥3."
+        )
+    return pylsl.StreamInlet(info)
+
+
+def rotation_matrix(roll_deg: float, pitch_deg: float, yaw_deg: float = 0.0) -> np.ndarray:
+    r, p, y = (math.radians(x) for x in (roll_deg, pitch_deg, yaw_deg))
+    Rx = np.array(
+        [[1, 0, 0], [0, math.cos(r), -math.sin(r)], [0, math.sin(r), math.cos(r)]]
+    )
+    Ry = np.array(
+        [[math.cos(p), 0, math.sin(p)], [0, 1, 0], [-math.sin(p), 0, math.cos(p)]]
+    )
+    Rz = np.array(
+        [[math.cos(y), -math.sin(y), 0], [math.sin(y), math.cos(y), 0], [0, 0, 1]]
+    )
+    return Rz @ Ry @ Rx
+
+
+def wireframe_segments(R: np.ndarray) -> list[np.ndarray]:
+    v = (R @ _BASE_VERTS.T).T
+    return [np.vstack([v[i], v[j]]) for i, j in _CUBE_EDGES]
+
+
+class FusionState:
+    __slots__ = ("roll", "pitch", "t_prev", "ax", "ay", "az", "have_acc")
+
+    def __init__(self) -> None:
+        self.roll = 0.0
+        self.pitch = 0.0
+        self.t_prev: float | None = None
+        self.ax = self.ay = self.az = 0.0
+        self.have_acc = False
+
+
+def drain_acc_latest(inlet_acc, st: FusionState) -> None:
+    while True:
+        sample, _ts = inlet_acc.pull_sample(timeout=0.0)
+        if sample is None:
+            break
+        st.ax, st.ay, st.az = float(sample[0]), float(sample[1]), float(sample[2])
+        st.have_acc = True
+
+
+def fuse_on_gyro_samples(inlet_gyro, st: FusionState, alpha: float) -> None:
+    if not st.have_acc:
+        return
+    for _ in range(MAX_FUSION_STEPS_PER_FRAME):
+        sample, ts = inlet_gyro.pull_sample(timeout=0.0)
+        if sample is None:
+            break
+        gx, gy = float(sample[0]), float(sample[1])
+        if st.t_prev is None:
+            dt = 1.0 / 52.0
+        else:
+            dt = float(ts) - st.t_prev
+            dt = max(DT_MIN, min(DT_MAX, dt))
+        st.t_prev = float(ts)
+
+        st.roll += gx * dt
+        st.pitch += gy * dt
+
+        ax, ay, az = st.ax, st.ay, st.az
+        a_roll = math.degrees(math.atan2(ay, az))
+        a_pitch = math.degrees(math.atan2(-ax, math.sqrt(ay * ay + az * az)))
+
+        st.roll = alpha * st.roll + (1.0 - alpha) * a_roll
+        st.pitch = alpha * st.pitch + (1.0 - alpha) * a_pitch
+
+
+@dataclass
+class MuseTracker:
+    source_id: str
+    inlet_acc: object
+    inlet_gyro: object
+    ax3d: object
+    color: str
+    state: FusionState = field(default_factory=FusionState)
+    lc: object | None = None
+
+
+def _short_sid(sid: str, max_len: int = 28) -> str:
+    if len(sid) <= max_len:
+        return sid
+    return sid[: max_len - 1] + "…"
+
+
+def confirm(prompt: str) -> bool:
+    raw = input(f"{prompt} [Y/n]: ").strip().lower()
+    return raw in ("", "y", "yes")
+
+
+def run_visualizer(trackers: list[MuseTracker], alpha: float) -> None:
+    import matplotlib.pyplot as plt
+    from matplotlib.animation import FuncAnimation
+    from mpl_toolkits.mplot3d.art3d import Line3DCollection
+
+    n = len(trackers)
+    if n == 1:
+        fig = plt.figure(figsize=SINGLE_FIGSIZE)
+        trackers[0].ax3d = fig.add_subplot(111, projection="3d")
+    else:
+        fig, axes = plt.subplots(
+            1, n, subplot_kw={"projection": "3d"}, figsize=DUAL_FIGSIZE
+        )
+        for i, tr in enumerate(trackers):
+            tr.ax3d = axes[i]
+
+    fig.suptitle("Live sensor-fused orientation — close window to quit")
+
+    for tr in trackers:
+        ax3d = tr.ax3d
+        ax3d.set_title(_short_sid(tr.source_id))
+        ax3d.set_xlim(-1, 1)
+        ax3d.set_ylim(-1, 1)
+        ax3d.set_zlim(-1, 1)
+        ax3d.set_xlabel("X")
+        ax3d.set_ylabel("Y")
+        ax3d.set_zlabel("Z")
+        try:
+            ax3d.set_box_aspect((1, 1, 1))
+        except AttributeError:
+            pass
+        R0 = rotation_matrix(tr.state.roll, tr.state.pitch)
+        tr.lc = Line3DCollection(
+            wireframe_segments(R0), colors=tr.color, linewidths=1.5
+        )
+        ax3d.add_collection3d(tr.lc)
+
+    interval_ms = max(1, int(1000.0 / UPDATE_HZ))
+
+    def _update(_frame: int):
+        for tr in trackers:
+            drain_acc_latest(tr.inlet_acc, tr.state)
+            fuse_on_gyro_samples(tr.inlet_gyro, tr.state, alpha)
+            R = rotation_matrix(tr.state.roll, tr.state.pitch)
+            tr.lc.set_segments(wireframe_segments(R))
+        return tuple(tr.lc for tr in trackers)
+
+    _anim = FuncAnimation(
+        fig, _update, interval=interval_ms, blit=False, cache_frame_data=False
+    )
+    plt.show()
+
+
+def main() -> int:
+    try:
+        streams = discover_streams(WAIT_SEC)
+    except Exception as e:
+        print(f"Discovery failed: {e}", file=sys.stderr)
+        return 1
+
+    print(f"Discovery (waited {WAIT_SEC}s).")
+    if not streams:
+        print("No LSL streams found (is a source running?).")
+        return 0
+
+    groups = group_streams_by_source_id(streams)
+    print_streams_grouped(groups)
+
+    ready: list[tuple[str, object, object]] = []
+    for sid, infos in groups.items():
+        pair = find_imu_pair(infos)
+        if pair is not None:
+            ready.append((sid, pair[0], pair[1]))
+        else:
+            print(describe_imu_gap(sid, infos), file=sys.stderr)
+
+    if not ready:
+        print(
+            "No headset found with both ACC and GYRO (≥3 channels each).",
+            file=sys.stderr,
+        )
+        return 1
+
+    if len(ready) > MAX_MUSES:
+        sids = [r[0] for r in ready]
+        print(
+            f"This script supports at most {MAX_MUSES} headset(s) with IMU pairs; "
+            f"found {len(ready)}: {sids}. Stop extra streams or raise MAX_MUSES.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if len(ready) == 1:
+        if not confirm("Start streaming"):
+            print("Cancelled.")
+            return 0
+        prompt_extra = ""
+    else:
+        if not confirm("Start streaming both headsets"):
+            print("Cancelled.")
+            return 0
+        prompt_extra = " both"
+
+    trackers: list[MuseTracker] = []
+    try:
+        for i, (sid, acc_info, gyro_info) in enumerate(ready):
+            inlet_acc = open_inlet_from_info(acc_info)
+            inlet_gyro = open_inlet_from_info(gyro_info)
+            color = _TRACK_COLORS[i % len(_TRACK_COLORS)]
+            trackers.append(
+                MuseTracker(
+                    source_id=sid,
+                    inlet_acc=inlet_acc,
+                    inlet_gyro=inlet_gyro,
+                    ax3d=None,
+                    color=color,
+                )
+            )
+    except ValueError as e:
+        print(e, file=sys.stderr)
+        return 1
+
+    print(f"Live cube{prompt_extra} (close the figure window to exit).")
+    try:
+        run_visualizer(trackers, ALPHA)
+    except KeyboardInterrupt:
+        print("\nStopped.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

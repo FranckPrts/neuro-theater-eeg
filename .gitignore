@@ -11,3 +11,4 @@ __pycache__/
 
 # Present on disk in this repo (macOS)
 .DS_Store
+goofi-files/solaris.gfi
