@@ -36,12 +36,17 @@ Config (edit below):
 
 from __future__ import annotations
 
+import json
 import math
 import sys
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
+
+# Repo-root ``nickname.json`` (sibling of ``examples/``); read only when building titles.
+_NICKNAME_JSON = Path(__file__).resolve().parents[1] / "nickname.json"
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 WAIT_SEC = 5.0
@@ -268,9 +273,50 @@ def fuse_on_gyro_samples(
         st.pitch = alpha * st.pitch + (1.0 - alpha) * a_pitch
 
 
+def _headset_label_map() -> dict[str, tuple[str, str]]:
+    """``source_id`` → ``(nickname, hardware)`` from ``nickname.json``; empty if absent."""
+    if not _NICKNAME_JSON.is_file():
+        return {}
+    try:
+        data = json.loads(_NICKNAME_JSON.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeError):
+        return {}
+    out: dict[str, tuple[str, str]] = {}
+    for row in data.get("headsets") or []:
+        if not isinstance(row, dict):
+            continue
+        sid = str(row.get("source_id") or "").strip()
+        nick = str(row.get("nickname") or "").strip()
+        hw = str(row.get("hardware_sticker") or "").strip()
+        if not sid or (not nick and not hw):
+            continue
+        out[sid] = (nick, hw)
+    return out
+
+
+def _cube_title(
+    source_id: str, labels: dict[str, tuple[str, str]], *, max_len: int = 40
+) -> str:
+    sid = source_id.strip()
+    pair = labels.get(sid)
+    if not pair:
+        return sid if len(sid) <= max_len else sid[: max_len - 1] + "…"
+    nick, hw = pair
+    if nick and hw:
+        text = f"{nick} · {hw}"
+    elif nick:
+        text = nick
+    elif hw:
+        text = hw
+    else:
+        return sid if len(sid) <= max_len else sid[: max_len - 1] + "…"
+    return text if len(text) <= max_len else text[: max_len - 1] + "…"
+
+
 @dataclass
 class MuseTracker:
     source_id: str
+    display_title: str
     inlet_acc: object
     inlet_gyro: object
     ax3d: object
@@ -280,12 +326,6 @@ class MuseTracker:
     status_ax: object | None = None
     status_text: object | None = None
     viz_prev_wall: float | None = field(default=None, repr=False)
-
-
-def _short_sid(sid: str, max_len: int = 28) -> str:
-    if len(sid) <= max_len:
-        return sid
-    return sid[: max_len - 1] + "…"
 
 
 def confirm(prompt: str) -> bool:
@@ -352,7 +392,7 @@ def run_visualizer(trackers: list[MuseTracker]) -> None:
 
     for tr in trackers:
         ax3d = tr.ax3d
-        ax3d.set_title(_short_sid(tr.source_id))
+        ax3d.set_title(tr.display_title)
         ax3d.set_xlim(-1, 1)
         ax3d.set_ylim(-1, 1)
         ax3d.set_zlim(-1, 1)
@@ -485,6 +525,7 @@ def main() -> int:
             return 0
         prompt_extra = " both"
 
+    labels = _headset_label_map()
     trackers: list[MuseTracker] = []
     try:
         for i, (sid, acc_info, gyro_info) in enumerate(ready):
@@ -494,6 +535,7 @@ def main() -> int:
             trackers.append(
                 MuseTracker(
                     source_id=sid,
+                    display_title=_cube_title(sid, labels),
                     inlet_acc=inlet_acc,
                     inlet_gyro=inlet_gyro,
                     ax3d=None,

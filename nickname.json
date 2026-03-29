@@ -1,0 +1,35 @@
+{
+  "defaults": {
+    "stream_id": "Muse"
+  },
+  "headsets": [
+    {
+      "hardware_sticker": "22FC",
+      "nickname": "Harey",
+      "mac": "AC8CD4BB-830A-61D4-580A-C280E1366463",
+      "source_id": "MuseAC8CD4BB-830A-61D4-580A-C280E1366463",
+      "stream_id": "Muse"
+    },
+    {
+      "hardware_sticker": "1CD4",
+      "nickname": "Berton",
+      "mac": "728F5034-C233-D39E-11A9-C94E82C91DD0",
+      "source_id": "Muse728F5034-C233-D39E-11A9-C94E82C91DD0",
+      "stream_id": "Muse"
+    },
+    {
+      "hardware_sticker": "",
+      "nickname": "",
+      "mac": "",
+      "source_id": "",
+      "stream_id": "Muse"
+    },
+    {
+      "hardware_sticker": "",
+      "nickname": "",
+      "mac": "",
+      "source_id": "",
+      "stream_id": "Muse"
+    }
+  ]
+}

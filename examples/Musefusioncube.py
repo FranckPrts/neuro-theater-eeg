@@ -14,10 +14,15 @@ File names (edit below if yours differ):
   GYRO_CSV  : run__4__GYRO__Muse....csv
 """
 
+import json
 import math
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+
+_NICKNAME_JSON = Path(__file__).resolve().parents[1] / "nickname.json"
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 ACCEL_CSV = "./out/run__14__ACC__Muse728F5034-C233-D39E-11A9-C94E82C91DD0.csv"
@@ -50,6 +55,61 @@ def load(path, prefix):
         f"{prefix}_z":   pd.to_numeric(df[value_cols[2]], errors="coerce"),
     })
     return out.dropna().reset_index(drop=True)
+
+
+def peek_source_id(csv_path: str) -> str | None:
+    """First ``source_id`` from a Muse export CSV, if present."""
+    p = Path(csv_path)
+    if not p.is_file():
+        return None
+    df = pd.read_csv(p, header=0, nrows=1)
+    df.columns = [c.strip().lower() for c in df.columns]
+    if "source_id" not in df.columns:
+        return None
+    raw = df["source_id"].iloc[0]
+    if pd.isna(raw):
+        return None
+    s = str(raw).strip()
+    return s or None
+
+
+def _headset_label_map() -> dict[str, tuple[str, str]]:
+    if not _NICKNAME_JSON.is_file():
+        return {}
+    try:
+        data = json.loads(_NICKNAME_JSON.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeError):
+        return {}
+    out: dict[str, tuple[str, str]] = {}
+    for row in data.get("headsets") or []:
+        if not isinstance(row, dict):
+            continue
+        sid = str(row.get("source_id") or "").strip()
+        nick = str(row.get("nickname") or "").strip()
+        hw = str(row.get("hardware_sticker") or "").strip()
+        if not sid or (not nick and not hw):
+            continue
+        out[sid] = (nick, hw)
+    return out
+
+
+def _cube_title(
+    source_id: str, labels: dict[str, tuple[str, str]], *, max_len: int = 48
+) -> str:
+    sid = source_id.strip()
+    pair = labels.get(sid)
+    if not pair:
+        return sid if len(sid) <= max_len else sid[: max_len - 1] + "…"
+    nick, hw = pair
+    if nick and hw:
+        text = f"{nick} · {hw}"
+    elif nick:
+        text = nick
+    elif hw:
+        text = hw
+    else:
+        return sid if len(sid) <= max_len else sid[: max_len - 1] + "…"
+    return text if len(text) <= max_len else text[: max_len - 1] + "…"
 
 
 def complementary_filter(acc, gyro):
@@ -110,7 +170,7 @@ def make_cube_faces(R):
     return x, y, z, i, j, k
 
 
-def animate(df):
+def animate(df, *, plot_title: str):
     frames, sliders_steps = [], []
     rows = df.iloc[::EVERY_N].reset_index(drop=True)
 
@@ -137,7 +197,7 @@ def animate(df):
                         color="steelblue", opacity=0.8, flatshading=True)],
         frames=frames,
         layout=go.Layout(
-            title="Muse 2 — Sensor-Fused Head Orientation",
+            title=plot_title,
             scene=dict(
                 xaxis=dict(range=[-1,1], showbackground=False),
                 yaxis=dict(range=[-1,1], showbackground=False),
@@ -165,16 +225,23 @@ def animate(df):
 
 if __name__ == "__main__":
     print("Loading CSVs…")
-    acc  = load(ACCEL_CSV, "acc")
-    gyro = load(GYRO_CSV,  "gyro")
+    acc = load(ACCEL_CSV, "acc")
+    gyro = load(GYRO_CSV, "gyro")
 
     print(f"  Accel rows : {len(acc)}")
     print(f"  Gyro rows  : {len(gyro)}")
+
+    sid = peek_source_id(ACCEL_CSV)
+    labels = _headset_label_map()
+    headset_line = (
+        _cube_title(sid, labels) if sid else "source unknown (no source_id in accel CSV)"
+    )
+    plot_title = f"Muse — sensor-fused orientation — {headset_line}"
 
     print("Running complementary filter…")
     df = complementary_filter(acc, gyro)
     print(f"  Fused frames : {len(df)}  →  animating every {EVERY_N}th ({len(df)//EVERY_N} frames)")
 
     print("Opening Plotly window…")
-    animate(df)
+    animate(df, plot_title=plot_title)
 # %%
