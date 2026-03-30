@@ -10,6 +10,7 @@ Tools for working with **XDF** recordings (for example from **LSL** / **Muse** s
 | `neuro-theater-eeg/examples/` | Runnable demos and a small CLI to turn XDF → CSV |
 | `neuro-theater-eeg/collectMuses.gfi` | Example **goofi-pipe** graph: multiple Muse **LSL** clients, mic, optional CSV / LSL out |
 | `neuro-theater-eeg/scripts/patch_muselsl_asyncio.sh` | Optional **muselsl** patch for **Python 3.10+** (Bleak / asyncio) |
+| `neuro-theater-eeg/scripts/muse_stream_resilient.sh` | **Side note:** quick helper to run **muselsl stream** with retries, `nickname.json` lookup, and Conda activation (see below) |
 | `neuro-theater-eeg/run_env_neurtheater.sh` | Helper to `source` and activate a Conda env named **`NeuroTheater`** (adjust if you use another name) |
 
 There is no separate `docs/` folder in this tree yet; acquisition notes (Muse, muselsl, goofi-pipe, LSL) are summarized below so you do not need a second markdown file for the same story.
@@ -109,6 +110,8 @@ This package does **not** stream from the Muse by itself. A typical path is:
 If you use **muselsl** on **Python 3.10+** and hit asyncio / Bleak issues, see **`neuro-theater-eeg/scripts/patch_muselsl_asyncio.sh`** (re-run after upgrading muselsl in that environment).
 
 To activate a Conda environment consistently, **`source neuro-theater-eeg/run_env_neurtheater.sh`** (must be sourced, not executed as a normal subprocess, so the activation sticks). Override the env name with `NTA_CONDA_ENV` if needed.
+
+**`scripts/muse_stream_resilient.sh`** is a small, **unofficial** convenience on top of that stack: it sources **`run_env_neurtheater.sh`**, resolves a headset **MAC** from **`nickname.json`** (by nickname or `hardware_sticker`, or you pass the full UUID), runs **`muselsl stream`** with default **`--ppg --acc --gyro`** (override tail after `--`), and restarts when the process exits or logs a disconnect. Flags **`-n` / `--max-retries`** and **`-i` / `--interval`** cap backoff behavior. After **`muselsl`** starts, it prints discovered **LSL** outlets to **stderr** (lines prefixed **`[muse_stream_resilient][lsl]`**): stream **`name`**, **`type`** (EEG / ACC / GYRO / PPG / …), **`source_id`** (maps to Goofi **`source_name`**), channel count, and rate. That needs **`pylsl`** and a working **`liblsl`** in the same environment; if **`pylsl`** is missing, listing is skipped with a one-line message. Set **`NTA_LSL_DISCOVER=0`** to disable listing (e.g. automation). Optional naming toggle: **`--name-with-type`** (or **`NTA_MUSE_NAME_WITH_TYPE=1`**) patches the launch so outlets are published as names like **`Muse_EEG`**, **`Muse_GYRO`**, **`Muse_ACC`**; this helps Goofi flows that only match **`source_name` + `stream_name`**, but it intentionally breaks compatibility with tools that expect stream name exactly **`Muse`**. For a manual second terminal without coupling to this script, run **`examples/lsl_stream_picker.py`**. Treat the script as a **quick-and-dirty** way to keep a stream up while you **experiment with geoscope data** and related LSL paths—not a supported product surface of this package. Run **`bash scripts/muse_stream_resilient.sh --help`** from **`neuro-theater-eeg`** for usage.
 
 ---
 

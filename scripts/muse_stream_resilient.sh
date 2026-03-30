@@ -2,6 +2,16 @@
 # Run muselsl stream for a Muse headset, restarting after disconnect or process exit.
 # Resolves --address from nickname.json by nickname, hardware_sticker, or full MAC UUID.
 #
+# After muselsl starts, a background pass lists LSL outlets on stderr (prefix
+# [muse_stream_resilient][lsl]) so you can set Goofi LSLClient source_name (LSL
+# source_id) and stream type (EEG / ACC / GYRO / ...). Requires pylsl + liblsl in the
+# same env. Set NTA_LSL_DISCOVER=0 to skip.
+#
+# Optional naming mode: --name-with-type (or NTA_MUSE_NAME_WITH_TYPE=1) publishes
+# streams as Muse_<TYPE> (e.g., Muse_EEG) instead of plain Muse. This is intended for
+# clients that only match source_name + stream_name and may break flows expecting
+# name='Muse'.
+#
 # Usage:
 #   muse_stream_resilient.sh [options] DEVICE [-- extra muselsl stream flags...]
 #
@@ -25,6 +35,8 @@ NICKNAME_JSON=""
 DEVICE=""
 MUSEL_EXTRA=()
 PASSTHROUGH=false
+NAME_WITH_TYPE_RAW="${NTA_MUSE_NAME_WITH_TYPE:-0}"
+NAME_WITH_TYPE=false
 
 usage() {
   sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
@@ -34,9 +46,13 @@ Options:
   -n, --max-retries N   Max times to launch muselsl (including the first). 0 = unlimited.
   -i, --interval SEC    Seconds to wait before the next attempt after exit/disconnect.
   -f, --nickname-json PATH   Path to nickname.json (default: repo root nickname.json)
+  --name-with-type      Publish stream names as Muse_<TYPE> (e.g., Muse_EEG)
   -h, --help            Show this help.
 
 Conda env: sources ${REPO_ROOT}/run_env_neurtheater.sh (default env: neurotheater; set NTA_CONDA_ENV to override).
+
+Env: NTA_LSL_DISCOVER=0 disables post-connect LSL stream listing on stderr.
+Env: NTA_MUSE_NAME_WITH_TYPE=1 enables Muse_<TYPE> stream naming mode.
 
 If you omit "--", default muselsl flags after stream are: --ppg --acc --gyro
 EOF
@@ -67,6 +83,10 @@ while [[ $# -gt 0 ]]; do
     --nickname-json)
       NICKNAME_JSON="$2"
       shift 2
+      ;;
+    --name-with-type)
+      NAME_WITH_TYPE=true
+      shift
       ;;
     -h | --help)
       usage
@@ -123,6 +143,14 @@ fi
 
 if ! $PASSTHROUGH; then
   MUSEL_EXTRA=(--ppg --acc --gyro)
+fi
+
+if ! $NAME_WITH_TYPE; then
+  case "$(printf '%s' "$NAME_WITH_TYPE_RAW" | tr '[:upper:]' '[:lower:]')" in
+    1 | true | yes | on)
+      NAME_WITH_TYPE=true
+      ;;
+  esac
 fi
 
 resolve_mac() {
@@ -192,7 +220,8 @@ MAC="$(resolve_mac)" || exit 1
 RUNNER_EXIT_DISCONNECT=2
 
 run_muselsl_session() {
-  python3 - "$MAC" "$RUNNER_EXIT_DISCONNECT" "${MUSEL_EXTRA[@]}" <<'PY'
+  python3 - "$MAC" "$RUNNER_EXIT_DISCONNECT" "$NAME_WITH_TYPE" "${MUSEL_EXTRA[@]}" <<'PY'
+import os
 import re
 import signal
 import subprocess
@@ -202,9 +231,14 @@ import time
 
 mac = sys.argv[1]
 code_disconnect = int(sys.argv[2])
-extra = sys.argv[3:]
-args = ["muselsl", "stream", "--address", mac, *extra]
+name_with_type = sys.argv[3].strip().lower() in {"1", "true", "yes", "on"}
+extra = sys.argv[4:]
+args: list[str] = []
 pat = re.compile(r"disconnected", re.I)
+LSL_PREFIX = "[muse_stream_resilient][lsl]"
+LSL_DISCOVER_ROUNDS = 20
+LSL_INITIAL_SLEEP = 2.0
+WRAP_PREFIX = "[muse_stream_resilient][name_with_type]"
 
 proc: subprocess.Popen[str] | None = None
 disconnect_seen = threading.Event()
@@ -217,6 +251,67 @@ def on_signal(signum, frame):
 
 signal.signal(signal.SIGINT, on_signal)
 signal.signal(signal.SIGTERM, on_signal)
+
+if name_with_type:
+    try:
+        import muselsl  # noqa: F401
+        import pylsl  # noqa: F401
+    except Exception as e:
+        print(
+            f"{WRAP_PREFIX} failed to enable --name-with-type: missing dependency ({e}). "
+            "Disable flag or install muselsl + pylsl in the active env.",
+            file=sys.stderr,
+            flush=True,
+        )
+        sys.exit(3)
+
+    wrapper = r'''
+import runpy
+import sys
+
+WRAP_PREFIX = "[muse_stream_resilient][name_with_type]"
+
+try:
+    import pylsl
+except Exception as e:
+    print(
+        f"{WRAP_PREFIX} failed: cannot import pylsl ({e}). "
+        "Disable --name-with-type or install pylsl/liblsl.",
+        file=sys.stderr,
+        flush=True,
+    )
+    raise
+
+_orig_streaminfo = pylsl.StreamInfo
+
+def _with_type_suffix(name, stype, *args, **kwargs):
+    base = str(name).strip() or "Muse"
+    stype_norm = str(stype).strip().upper()
+    stype_norm = stype_norm if stype_norm else "UNKNOWN"
+    stype_norm = "".join(ch if ch.isalnum() or ch in {"_", "-"} else "_" for ch in stype_norm)
+    return _orig_streaminfo(f"{base}_{stype_norm}", stype, *args, **kwargs)
+
+pylsl.StreamInfo = _with_type_suffix
+
+argv = sys.argv[1:]
+if argv and argv[0] == "--":
+    argv = argv[1:]
+sys.argv = ["muselsl", "stream", *argv]
+
+try:
+    runpy.run_module("muselsl", run_name="__main__")
+except Exception as e:
+    print(
+        f"{WRAP_PREFIX} failed while starting muselsl CLI ({e}). "
+        "This may indicate a muselsl internal API change. Disable --name-with-type or update patch logic.",
+        file=sys.stderr,
+        flush=True,
+    )
+    raise
+'''
+    args = [sys.executable, "-c", wrapper, "--", "--address", mac, *extra]
+else:
+    args = ["muselsl", "stream", "--address", mac, *extra]
 
 proc = subprocess.Popen(
     args,
@@ -237,8 +332,89 @@ def read_stdout():
             break
 
 
+def discover_and_print_lsl():
+    raw = os.environ.get("NTA_LSL_DISCOVER", "1").strip().lower()
+    if raw in ("0", "false", "no", "off"):
+        return
+    try:
+        import pylsl
+    except ImportError:
+        print(
+            f"{LSL_PREFIX} skipped: pylsl not installed "
+            f"(pip install -e '.[lsl]' or pip install pylsl).",
+            file=sys.stderr,
+            flush=True,
+        )
+        return
+
+    mac_norm = mac.replace("-", "").lower()
+
+    def sid_norm(sid: str) -> str:
+        return sid.replace("-", "").lower()
+
+    def print_stream_lines(streams_list: list) -> None:
+        print(
+            f"{LSL_PREFIX} LSL outlets — Goofi source_name ≈ source_id; modality = type",
+            file=sys.stderr,
+            flush=True,
+        )
+        for i, s in enumerate(streams_list):
+            uid = s.uid()
+            uid_short = (uid[:8] + "…") if len(uid) > 12 else uid
+            print(
+                f"{LSL_PREFIX}   [{i}]  name={s.name()!r}  type={s.type()!r}  "
+                f"channels={s.channel_count()}  rate={s.nominal_srate():.1f} Hz  "
+                f"host={s.hostname()!r}  source_id={s.source_id()!r}  uid={uid_short!r}",
+                file=sys.stderr,
+                flush=True,
+            )
+
+    time.sleep(LSL_INITIAL_SLEEP)
+    best_streams: list = []
+
+    for _ in range(LSL_DISCOVER_ROUNDS):
+        if proc.poll() is not None:
+            break
+        try:
+            found = pylsl.resolve_streams(wait_time=1.0)
+        except Exception as e:
+            print(f"{LSL_PREFIX} resolve_streams error: {e}", file=sys.stderr, flush=True)
+            return
+        if not found:
+            continue
+        best_streams = list(found)
+        matched = [s for s in best_streams if mac_norm in sid_norm(s.source_id())]
+        if matched:
+            print_stream_lines(matched)
+            return
+
+    if not best_streams:
+        if proc.poll() is not None:
+            print(
+                f"{LSL_PREFIX} muselsl exited before LSL streams appeared.",
+                file=sys.stderr,
+                flush=True,
+            )
+        else:
+            print(
+                f"{LSL_PREFIX} no streams found within wait window (liblsl installed?).",
+                file=sys.stderr,
+                flush=True,
+            )
+        return
+
+    print(
+        f"{LSL_PREFIX} warning: no stream source_id contains this headset MAC substring; "
+        f"listing all {len(best_streams)} stream(s).",
+        file=sys.stderr,
+        flush=True,
+    )
+    print_stream_lines(best_streams)
+
+
 reader = threading.Thread(target=read_stdout, daemon=True)
 reader.start()
+threading.Thread(target=discover_and_print_lsl, daemon=True).start()
 
 code = proc.wait()
 reader.join(timeout=3)
@@ -280,7 +456,7 @@ while true; do
     exit 1
   fi
   runs=$((runs + 1))
-  echo "[muse_stream_resilient] Attempt $runs → muselsl stream --address $MAC ${MUSEL_EXTRA[*]}" >&2
+  echo "[muse_stream_resilient] Attempt $runs → muselsl stream --address $MAC ${MUSEL_EXTRA[*]} (name_with_type=${NAME_WITH_TYPE})" >&2
 
   run_muselsl_session &
   SESSION_PID=$!
