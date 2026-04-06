@@ -1,0 +1,933 @@
+nodes:
+  buffer2:
+    _type: Buffer
+    category: signal
+    params:
+      buffer:
+        size: 10.0
+        axis: -1
+        unit: seconds
+        reset: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 359
+      - 670
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  buffer3:
+    _type: Buffer
+    category: signal
+    params:
+      buffer:
+        size: 10.0
+        axis: -1
+        unit: samples
+        reset: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 361
+      - 1095
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  powerbandeeg0:
+    _type: PowerBandEEG
+    category: analysis
+    params:
+      powerband:
+        power_type: absolute
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 817
+      - 672
+      viewers:
+        delta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        theta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        alpha:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        lowbeta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        highbeta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        gamma:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable0:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: 1CD4_alpha
+        param2: 1CD4_alphaSum
+        param3: 1CD4_alphaNorm
+        param4: 1CD4_alphaStd
+        param5: value5
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1354
+      - 631
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 475
+          height: 400
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  oscout0:
+    _type: OSCOut
+    category: outputs
+    params:
+      osc:
+        address: localhost
+        port: 8000
+        prefix: /goofi
+        bundle: false
+        broadcast: false
+        require_change: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1869
+      - 1042
+      viewers: {}
+  reduce1:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: sum
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1078
+      - 632
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  reduce2:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: norm
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1077
+      - 714
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  reduce3:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: std
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1075
+      - 796
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  psd0:
+    _type: PSD
+    category: signal
+    params:
+      psd:
+        method: welch
+        f_min: 1.0
+        f_max: 40.0
+        axis: -1
+      welch:
+        nperseg: 0.5
+        nperseg_unit: fraction
+        noverlap: 0.75
+        noverlap_unit: fraction_nperseg
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 601
+      - 678
+      viewers:
+        psd:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  lslclient5:
+    _type: LSLClient
+    category: inputs
+    params:
+      lsl_stream:
+        source_name: ''
+        stream_name: Muse
+        source_type: EEG
+        refresh: true
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 147
+      - 631
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  buffer0:
+    _type: Buffer
+    category: signal
+    params:
+      buffer:
+        size: 10.0
+        axis: -1
+        unit: samples
+        reset: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 360
+      - 881
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  lslclient2:
+    _type: LSLClient
+    category: inputs
+    params:
+      lsl_stream:
+        source_name: Muse38BAC533-2E83-526D-7D3B-C4D6E237411B
+        stream_name: Muse
+        source_type: PPG
+        refresh: true
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 140
+      - 1326
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  buffer1:
+    _type: Buffer
+    category: signal
+    params:
+      buffer:
+        size: 10.0
+        axis: -1
+        unit: seconds
+        reset: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 360
+      - 1307
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  writecsv0:
+    _type: WriteCsv
+    category: outputs
+    params:
+      Write:
+        filename: ./examples/run_4dsvsv_eeg.csv
+        start: true
+        stop: true
+        duration: 330.0
+        timestamps: true
+        writing_mode: default
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1868
+      - 1117
+      viewers: {}
+  extendedtable1:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: 1CD4_IMU
+        param2: 1CD4_HRV
+        param3: 1CD4_HR
+        param4: ''
+        param5: ''
+        param6: ''
+        param7: ''
+        param8: ''
+        param9: ''
+        param10: ''
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1073
+      - 901
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  lslclient0:
+    _type: LSLClient
+    category: inputs
+    params:
+      lsl_stream:
+        source_name: Muse38BAC533-2E83-526D-7D3B-C4D6E237411B
+        stream_name: Muse
+        source_type: ACC
+        refresh: true
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 148
+      - 856
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  cardiorespiratoryvariability0:
+    _type: CardioRespiratoryVariability
+    category: analysis
+    params:
+      cardiorespiratory:
+        input_type: ppg
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 973
+      - 1342
+      viewers:
+        Mean:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        SDNN:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        SDSD:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        RMSSD:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        VLF:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        LF:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        HF:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        LF/HF:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        Peaks:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        Rate:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  select0:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: PPG1
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 614
+      - 1148
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select1:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: PPG2
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 613
+      - 1231
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 315
+          height: 240
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  select2:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: PPG3
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 610
+      - 1558
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  lslclient1:
+    _type: LSLClient
+    category: inputs
+    params:
+      lsl_stream:
+        source_name: Muse38BAC533-2E83-526D-7D3B-C4D6E237411B
+        stream_name: Muse
+        source_type: GYRO
+        refresh: true
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 145
+      - 1086
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  imufusion0:
+    _type: ImuFusion
+    category: signal
+    params:
+      fusion:
+        ALPHA: 0.97
+        UPDATE_HZ: 30.0
+        output_format: quaternion_xyzw
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 691
+      - 907
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  reduce0:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: mean
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1263
+      - 1345
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  constantstring0:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: Muse:MAC
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -156
+      - 871
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  constantstring1:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: Muse38BAC533-2E83-526D-7D3B-C4D6E237411B
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -465
+      - 745
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  constantstring2:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: MuseAC8CD4BB-830A-61D4-580A-C280E1366463
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -463
+      - 846
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  constantstring3:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: Muse728F5034-C233-D39E-11A9-C94E82C91DD0
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -461
+      - 941
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  constantstring4:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: Muse1FFC5F9B-C3FD-94B9-7F96-BF02E0FFBB9C
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -464
+      - 1042
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+links:
+- node_out: buffer2
+  node_in: psd0
+  slot_out: out
+  slot_in: data
+- node_out: buffer3
+  node_in: imufusion0
+  slot_out: out
+  slot_in: gyro
+- node_out: powerbandeeg0
+  node_in: extendedtable0
+  slot_out: alpha
+  slot_in: array_input1
+- node_out: powerbandeeg0
+  node_in: reduce1
+  slot_out: alpha
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce2
+  slot_out: alpha
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce3
+  slot_out: alpha
+  slot_in: array
+- node_out: extendedtable0
+  node_in: oscout0
+  slot_out: table
+  slot_in: data
+- node_out: reduce1
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input2
+- node_out: reduce2
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input3
+- node_out: reduce3
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input4
+- node_out: psd0
+  node_in: powerbandeeg0
+  slot_out: psd
+  slot_in: data
+- node_out: lslclient5
+  node_in: buffer2
+  slot_out: out
+  slot_in: val
+- node_out: buffer0
+  node_in: imufusion0
+  slot_out: out
+  slot_in: acc
+- node_out: lslclient2
+  node_in: buffer1
+  slot_out: out
+  slot_in: val
+- node_out: buffer1
+  node_in: select1
+  slot_out: out
+  slot_in: data
+- node_out: buffer1
+  node_in: select2
+  slot_out: out
+  slot_in: data
+- node_out: buffer1
+  node_in: select0
+  slot_out: out
+  slot_in: data
+- node_out: extendedtable1
+  node_in: extendedtable0
+  slot_out: table
+  slot_in: base
+- node_out: lslclient0
+  node_in: buffer0
+  slot_out: out
+  slot_in: val
+- node_out: cardiorespiratoryvariability0
+  node_in: extendedtable1
+  slot_out: SDNN
+  slot_in: array_input2
+- node_out: cardiorespiratoryvariability0
+  node_in: reduce0
+  slot_out: Rate
+  slot_in: array
+- node_out: select1
+  node_in: cardiorespiratoryvariability0
+  slot_out: out
+  slot_in: data
+- node_out: lslclient1
+  node_in: buffer3
+  slot_out: out
+  slot_in: val
+- node_out: imufusion0
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input1
+- node_out: reduce0
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input3
+- node_out: constantstring0
+  node_in: lslclient5
+  slot_out: out
+  slot_in: source_name
+- node_out: constantstring0
+  node_in: lslclient0
+  slot_out: out
+  slot_in: source_name
+- node_out: constantstring0
+  node_in: lslclient1
+  slot_out: out
+  slot_in: source_name
+- node_out: constantstring0
+  node_in: lslclient2
+  slot_out: out
+  slot_in: source_name
+- node_out: constantstring3
+  node_in: constantstring0
+  slot_out: out
+  slot_in: overwrite

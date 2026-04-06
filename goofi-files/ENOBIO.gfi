@@ -1,29 +1,4 @@
 nodes:
-  lslclient3:
-    _type: LSLClient
-    category: inputs
-    params:
-      lsl_stream:
-        source_name: MuseAC8CD4BB-830A-61D4-580A-C280E1366463
-        stream_name: Muse_GYRO
-        refresh: true
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 206
-      - 669
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
   buffer2:
     _type: Buffer
     category: signal
@@ -40,8 +15,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 415
-      - 489
+      - 352
+      - 657
       viewers:
         out:
           viewer_idx: 0
@@ -50,79 +25,6 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  buffer3:
-    _type: Buffer
-    category: signal
-    params:
-      buffer:
-        size: 10.0
-        axis: -1
-        unit: samples
-        reset: false
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 418
-      - 707
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  join3:
-    _type: Join
-    category: array
-    params:
-      join:
-        method: concatenate
-        axis: 0
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 979
-      - 1867
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 185
-          height: 110
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  eegrecording0:
-    _type: EEGRecording
-    category: inputs
-    params:
-      recording:
-        use_example_data: true
-        example_data_subject: 1
-        file_path: ''
-        file_sfreq: 256.0
-        source_name: goofi
-        stream_name: recording
-        loop: false
-        reset: false
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -360
-      - 803
-      viewers: {}
   powerbandeeg0:
     _type: PowerBandEEG
     category: analysis
@@ -136,49 +38,49 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 982
-      - 356
+      - 772
+      - 669
       viewers:
         delta:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
         theta:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
         alpha:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
         lowbeta:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
         highbeta:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
         gamma:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   extendedtable0:
@@ -186,10 +88,10 @@ nodes:
     category: inputs
     params:
       table:
-        param1: alpha
-        param2: egg-alpha-sum
-        param3: egg-alpha-norm
-        param4: egg-alpha-std
+        param1: ENOBIO_alpha
+        param2: ENOBIO_alphaSum
+        param3: ENOBIO_alphaNorm
+        param4: ENOBIO_alphaStd
         param5: value5
         param6: value6
         param7: value7
@@ -203,13 +105,13 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1629
-      - 629
+      - 1012
+      - 759
       viewers:
         table:
           viewer_idx: 0
-          width: 175
-          height: 100
+          width: 475
+          height: 400
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -231,8 +133,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1901
-      - 756
+      - 1526
+      - 1169
       viewers: {}
   reduce1:
     _type: Reduce
@@ -248,14 +150,14 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1280
-      - 326
+      - 1013
+      - 481
       viewers:
         out:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   reduce2:
@@ -272,14 +174,14 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1278
-      - 515
+      - 1012
+      - 563
       viewers:
         out:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   reduce3:
@@ -296,14 +198,14 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1275
-      - 702
+      - 1010
+      - 645
       viewers:
         out:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   psd0:
@@ -327,8 +229,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 707
-      - 572
+      - 565
+      - 660
       viewers:
         psd:
           viewer_idx: 0
@@ -342,8 +244,9 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: MuseAC8CD4BB-830A-61D4-580A-C280E1366463
-        stream_name: Muse_EEG
+        source_name: ENOBIO-32-NE-Device (COM3)
+        stream_name: ENOBIO-EEG
+        source_type: EEG
         refresh: true
       common:
         autotrigger: true
@@ -352,109 +255,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 203
-      - 450
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  buffer0:
-    _type: Buffer
-    category: signal
-    params:
-      buffer:
-        size: 10.0
-        axis: -1
-        unit: samples
-        reset: false
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 417
-      - 924
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  lslclient2:
-    _type: LSLClient
-    category: inputs
-    params:
-      lsl_stream:
-        source_name: MuseAC8CD4BB-830A-61D4-580A-C280E1366463
-        stream_name: Muse_PPG
-        refresh: true
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 206
-      - 1111
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  buffer1:
-    _type: Buffer
-    category: signal
-    params:
-      buffer:
-        size: 10.0
-        axis: -1
-        unit: samples
-        reset: false
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 421
-      - 1149
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  join1:
-    _type: Join
-    category: array
-    params:
-      join:
-        method: concatenate
-        axis: 0
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 743
-      - 1695
+      - 142
+      - 646
       viewers:
         out:
           viewer_idx: 0
@@ -481,70 +283,16 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1871
-      - 926
+      - 1525
+      - 1244
       viewers: {}
-  writecsv1:
-    _type: WriteCsv
-    category: outputs
-    params:
-      Write:
-        filename: run_4_aux.csv
-        start: false
-        stop: true
-        duration: 330.0
-        timestamps: true
-        writing_mode: default
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 1867
-      - 1062
-      viewers: {}
-  extendedtable1:
-    _type: ExtendedTable
+  constantstring0:
+    _type: ConstantString
     category: inputs
     params:
-      table:
-        param1: GYRO
-        param2: ACC
-        param3: PPG
-        param4: ''
-        param5: ''
-        param6: ''
-        param7: ''
-        param8: ''
-        param9: ''
-        param10: ''
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 1624
-      - 985
-      viewers:
-        table:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  lslclient0:
-    _type: LSLClient
-    category: inputs
-    params:
-      lsl_stream:
-        source_name: MuseAC8CD4BB-830A-61D4-580A-C280E1366463
-        stream_name: Muse_ACC
-        refresh: true
+      constant:
+        value: ENOBIO-EEG
+        overwrite_timeout: 5.0
       common:
         autotrigger: true
         max_frequency: 30.0
@@ -552,8 +300,32 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 201
-      - 892
+      - -92
+      - 726
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  constantstring1:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: ENOBIO-32-NE-Device (COM3)
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -91
+      - 535
       viewers:
         out:
           viewer_idx: 0
@@ -563,18 +335,10 @@ nodes:
           log_scale_x: false
           log_scale_y: false
 links:
-- node_out: lslclient3
-  node_in: buffer3
-  slot_out: out
-  slot_in: val
 - node_out: buffer2
   node_in: psd0
   slot_out: out
   slot_in: data
-- node_out: buffer3
-  node_in: extendedtable1
-  slot_out: out
-  slot_in: array_input1
 - node_out: powerbandeeg0
   node_in: extendedtable0
   slot_out: alpha
@@ -592,9 +356,9 @@ links:
   slot_out: alpha
   slot_in: array
 - node_out: extendedtable0
-  node_in: writecsv0
+  node_in: oscout0
   slot_out: table
-  slot_in: table_input
+  slot_in: data
 - node_out: reduce1
   node_in: extendedtable0
   slot_out: out
@@ -615,27 +379,11 @@ links:
   node_in: buffer2
   slot_out: out
   slot_in: val
-- node_out: buffer0
-  node_in: extendedtable1
+- node_out: constantstring0
+  node_in: lslclient5
   slot_out: out
-  slot_in: array_input2
-- node_out: lslclient2
-  node_in: buffer1
+  slot_in: stream_name
+- node_out: constantstring1
+  node_in: lslclient5
   slot_out: out
-  slot_in: val
-- node_out: buffer1
-  node_in: extendedtable1
-  slot_out: out
-  slot_in: array_input3
-- node_out: join1
-  node_in: join3
-  slot_out: out
-  slot_in: a
-- node_out: extendedtable1
-  node_in: writecsv1
-  slot_out: table
-  slot_in: table_input
-- node_out: lslclient0
-  node_in: buffer0
-  slot_out: out
-  slot_in: val
+  slot_in: source_name
