@@ -15,7 +15,7 @@ Activate the project conda env (default name ``neurotheater``):
 
 From ``neuro-theater-eeg/`` install deps:
 
-    pip install -e ".[lsl]"
+    pip install -e ".[pyplot]"
 
 Each headset must expose an ACC-like and GYRO-like stream with **≥3 channels**
 (x, y, z). Only **1–2** Muses with a full IMU pair are supported; if more

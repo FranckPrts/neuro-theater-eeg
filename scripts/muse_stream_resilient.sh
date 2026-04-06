@@ -341,7 +341,7 @@ def discover_and_print_lsl():
     except ImportError:
         print(
             f"{LSL_PREFIX} skipped: pylsl not installed "
-            f"(pip install -e '.[lsl]' or pip install pylsl).",
+            f"(pip install -e '.[pyplot]' or pip install pylsl).",
             file=sys.stderr,
             flush=True,
         )

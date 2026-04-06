@@ -8,9 +8,9 @@ Activate the project conda env (default name ``neurotheater``), then install:
 
     source neuro-theater-eeg/run_env_neurtheater.sh
 
-From ``neuro-theater-eeg/``, either install the package with the LSL extra:
+From ``neuro-theater-eeg/``, either install the package with the ``pyplot`` extra:
 
-    pip install -e ".[lsl]"
+    pip install -e ".[pyplot]"
 
 or install only the binding:
 
