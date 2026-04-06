@@ -33,7 +33,7 @@ Recording from hardware is **outside** this package: you use **LSL** (and tools 
 ## Requirements
 
 - **Python 3.10+**
-- **pyxdf** (declared in `neuro-theater-eeg/pyproject.toml`; pulls **numpy**)
+- **pyxdf** (declared in `neuro-theater-eeg/pyproject.toml`; pulls **numpy**). If you install **goofi-pipe** in the same environment, you must cap **pyxdf** (see [Conda environment + local goofi-pipe](#conda-goofi-env)).
 - Optional **`pyplot`** extra: **pylsl** + **matplotlib** for live LSL examples (`examples/lsl_stream_picker.py`, `examples/Musefusioncube_live.py`) and optional LSL outlet listing in `scripts/muse_stream_resilient.sh` when **pylsl** is available.
 
 ---
@@ -63,6 +63,77 @@ pip install -r requirements.txt
 ```
 
 Installing with `pip install -e .` is recommended so `import neurotheater` works from any working directory. The `**examples/convert_xdf.py**` script also prepends the `neuro-theater-eeg` root to `sys.path`, so from that folder you can run `python examples/convert_xdf.py …` even before installing. `**examples/xdf_explorer_demo.py**` does the same for local runs.
+
+---
+
+<a id="conda-goofi-env"></a>
+
+## Conda environment + local goofi-pipe (same environment)
+
+Use this when you want **one Conda env** for both this repo and a **local editable** [goofi-pipe](https://github.com/dav0dea/goofi-pipe) checkout (graphs, `LSLClient`, etc.).
+
+**Why pin `pyxdf`:** [goofi-pipe](https://github.com/dav0dea/goofi-pipe) depends on **`numpy<2`**. Recent **pyxdf** releases (**1.17.0+**) declare **`numpy>=2.0.2`**, so `pip` will either warn or upgrade NumPy and break goofi (and packages like **biotuner**). Installing **`pyxdf>=1.16.0,<1.17`** keeps a **NumPy 1.x** stack compatible with goofi while still satisfying this package’s `pyxdf>=1.16.0` requirement.
+
+Default Conda env name in `**run_env_neurtheater.sh**` is **`neurotheater`**. Override with `**NTA_CONDA_ENV=…**` if you use another name.
+
+### Steps
+
+1. **Activate the environment** (must be sourced, not executed as `./…`):
+
+   ```bash
+   source /path/to/neuro-theater-eeg/run_env_neurtheater.sh
+   ```
+
+2. **(Optional) Reset a broken env** — only if NumPy 2 / wrong pyxdf was already installed:
+
+   ```bash
+   pip uninstall -y pyxdf numpy goofi biotuner 2>/dev/null || true
+   pip install "numpy>=1.26,<2"
+   ```
+
+3. **Install goofi-pipe (editable):**
+
+   ```bash
+   export GOOFI=/path/to/goofi-pipe
+   pip install -e "$GOOFI"
+   ```
+
+4. **Pin pyxdf to the 1.16 line** (before or after neuro-theater-eeg; re-run after `pip install -e .` if pip upgrades pyxdf):
+
+   ```bash
+   pip install "pyxdf>=1.16.0,<1.17"
+   ```
+
+5. **Install this repo (editable):**
+
+   ```bash
+   export NTEEG=/path/to/neuro-theater-eeg
+   pip install -e "$NTEEG"
+   ```
+
+   If a dependency step bumps NumPy or pyxdf again, re-apply:
+
+   ```bash
+   pip install "numpy>=1.26,<2" "pyxdf>=1.16.0,<1.17"
+   ```
+
+6. **Verify:**
+
+   ```bash
+   python -c "import numpy; print('numpy', numpy.__version__)"
+   pip show pyxdf numpy | grep -E '^Name:|^Version:'
+   python -c "import goofi; import pyxdf; import neurotheater; print('imports ok')"
+   ```
+
+   You want **NumPy 1.26.x** (or any **1.x**), **pyxdf 1.16.x**, and successful imports.
+
+7. **(Optional)** Freeze for reproducibility:
+
+   ```bash
+   pip freeze > neurotheater-goofi-lock.txt
+   ```
+
+**Rule of thumb:** install **goofi-pipe** first → **cap `pyxdf<1.17`** → **`pip install -e` neuro-theater-eeg** → if anything upgrades NumPy or pyxdf, run step 4 (or the re-apply line in step 5) again.
 
 ---
 

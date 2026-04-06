@@ -18,6 +18,7 @@
 # Examples:
 #   ./scripts/muse_stream_resilient.sh -n 10 -i 8 Berton
 #   ./scripts/muse_stream_resilient.sh 22FC -- --ppg --acc --gyro
+#   ./scripts/muse_stream_resilient.sh 22FC -- --name-with-type --ppg --acc --gyro
 #   ./scripts/muse_stream_resilient.sh AC8CD4BB-830A-61D4-580A-C280E1366463
 #
 # Activates the NeuroTheater Conda env via ../run_env_neurtheater.sh (after parsing args,
