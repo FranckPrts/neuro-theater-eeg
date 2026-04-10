@@ -30,6 +30,41 @@
       "mac": "1FFC5F9B-C3FD-94B9-7F96-BF02E0FFBB9C",
       "source_id": "Muse1FFC5F9B-C3FD-94B9-7F96-BF02E0FFBB9C",
       "stream_id": "Muse"
+    },
+    {
+      "hardware_sticker": "NT01",
+      "nickname": "Sartorius",
+      "mac": "38BAC533-2E83-526D-7D3B-C4D6E237411B",
+      "source_id": "Muse38BAC533-2E83-526D-7D3B-C4D6E237411B",
+      "stream_id": "Muse"
+    },
+    {
+      "hardware_sticker": "NT02",
+      "nickname": "Sartorius",
+      "mac": "XXXXXXXXXXX",
+      "source_id": "MuseXXXXXXXXXXX",
+      "stream_id": "Muse"
+    },
+    {
+      "hardware_sticker": "NT03",
+      "nickname": "Sartorius",
+      "mac": "XXXXXXXXXXX",
+      "source_id": "MuseXXXXXXXXXXX",
+      "stream_id": "Muse"
+    },
+    {
+      "hardware_sticker": "NT04",
+      "nickname": "Sartorius",
+      "mac": "XXXXXXXXXXX",
+      "source_id": "MuseXXXXXXXXXXX",
+      "stream_id": "Muse"
+    },
+    {
+      "hardware_sticker": "NT05",
+      "nickname": "Sartorius",
+      "mac": "XXXXXXXXXXX",
+      "source_id": "MuseXXXXXXXXXXX",
+      "stream_id": "Muse"
     }
   ]
 }
