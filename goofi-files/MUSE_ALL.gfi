@@ -131,8 +131,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1354
-      - 631
+      - 1362
+      - 648
       viewers:
         table:
           viewer_idx: 0
@@ -270,8 +270,8 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: Muse728F5034-C233-D39E-11A9-C94E82C91DD0
-        stream_name: Muse
+        source_name: EEG
+        stream_name: Muse-2615
         source_type: EEG
         refresh: true
       common:
@@ -322,8 +322,8 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: Muse38BAC533-2E83-526D-7D3B-C4D6E237411B
-        stream_name: Muse
+        source_name: PPG
+        stream_name: Muse-2615
         source_type: PPG
         refresh: true
       common:
@@ -427,9 +427,9 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: Muse38BAC533-2E83-526D-7D3B-C4D6E237411B
-        stream_name: Muse
-        source_type: ACC
+        source_name: Accelerometer
+        stream_name: Muse-2615
+        source_type: Accel
         refresh: true
       common:
         autotrigger: true
@@ -620,9 +620,9 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: Muse38BAC533-2E83-526D-7D3B-C4D6E237411B
-        stream_name: Muse
-        source_type: GYRO
+        source_name: Gyroscope
+        stream_name: Muse-2615
+        source_type: Gyro
         refresh: true
       common:
         autotrigger: true
@@ -704,8 +704,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - -156
-      - 871
+      - -255
+      - 901
       viewers:
         out:
           viewer_idx: 0
@@ -714,60 +714,12 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  constantstring1:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: Muse38BAC533-2E83-526D-7D3B-C4D6E237411B
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -465
-      - 745
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  constantstring2:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: MuseAC8CD4BB-830A-61D4-580A-C280E1366463
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -463
-      - 846
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
   constantstring3:
     _type: ConstantString
     category: inputs
     params:
       constant:
-        value: Muse728F5034-C233-D39E-11A9-C94E82C91DD0
+        value: Muse-2615
         overwrite_timeout: 5.0
       common:
         autotrigger: true
@@ -776,32 +728,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - -461
-      - 941
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  constantstring4:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: Muse1FFC5F9B-C3FD-94B9-7F96-BF02E0FFBB9C
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -464
-      - 1042
+      - -537
+      - 849
       viewers:
         out:
           viewer_idx: 0
@@ -1386,21 +1314,21 @@ links:
   slot_out: out
   slot_in: array_input3
 - node_out: constantstring0
-  node_in: lslclient5
-  slot_out: out
-  slot_in: source_name
-- node_out: constantstring0
   node_in: lslclient0
   slot_out: out
-  slot_in: source_name
+  slot_in: stream_name
 - node_out: constantstring0
   node_in: lslclient1
   slot_out: out
-  slot_in: source_name
+  slot_in: stream_name
 - node_out: constantstring0
   node_in: lslclient2
   slot_out: out
-  slot_in: source_name
+  slot_in: stream_name
+- node_out: constantstring0
+  node_in: lslclient5
+  slot_out: out
+  slot_in: stream_name
 - node_out: constantstring3
   node_in: constantstring0
   slot_out: out
