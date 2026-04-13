@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# @author: @franckPrts
 """
 Merge paired Muse recording CSVs (aux + EEG) for a single run index.
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# @author: @franckPrts
 # Reapply asyncio fix for muselsl on Python 3.10+ (pip upgrade overwrites site-packages).
 # Uses one persistent event loop (Bleak requires the same loop for connect/subscribe).
 # Run with the NeuroTheater conda env active: bash scripts/patch_muselsl_asyncio.sh

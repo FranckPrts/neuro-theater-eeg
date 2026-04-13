@@ -25,6 +25,8 @@ Config (edit below):
     PRINT_EVERY   — print every Nth successful pull (reduces terminal spam)
 """
 
+# @author: @franckPrts
+
 import sys
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────

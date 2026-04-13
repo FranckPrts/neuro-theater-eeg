@@ -1,5 +1,7 @@
 """Load and inspect XDF recordings (e.g. Muse / LSL) via pyxdf."""
 
+# @author: @franckPrts
+
 from __future__ import annotations
 
 import csv

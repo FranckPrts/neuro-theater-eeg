@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# @author: @franckPrts
 # Run muselsl stream for a Muse headset, restarting after disconnect or process exit.
 # Resolves --address from nickname.json by nickname, hardware_sticker, or full MAC UUID.
 #

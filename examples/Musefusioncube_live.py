@@ -34,6 +34,8 @@ Config (edit below):
     SLIDER_GYRO_SCALE_MAX      — upper bound for gyro-scale slider
 """
 
+# @author: @franckPrts
+
 from __future__ import annotations
 
 import json

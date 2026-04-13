@@ -8,6 +8,8 @@ The block below adds the repo root to ``sys.path`` so ``import neurotheater`` wo
 without ``pip install -e .`` (your kernel must still have dependencies, e.g. ``pyxdf``).
 """
 
+# @author: @franckPrts
+
 from pathlib import Path
 import sys
 

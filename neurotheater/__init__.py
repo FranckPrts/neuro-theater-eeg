@@ -1,5 +1,7 @@
 """NeuroTheater utilities."""
 
+# @author: @franckPrts
+
 from typing import TYPE_CHECKING, Any
 
 __all__ = ["XdfExplorer"]

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# @author: @franckPrts
 # neurotheater — cd to neuro-theater-eeg root and activate Conda env "neurotheater"
 # Usage: source ./run_env_neurtheater.sh
 #        (activation only persists when sourced, not when run as ./run_env_neurtheater.sh)

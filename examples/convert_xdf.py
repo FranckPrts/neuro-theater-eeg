@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# @author: @franckPrts
 """Convert an XDF recording to CSV (minimal CLI for collaborators).
 
 Usage (from neuro-theater-eeg after ``pip install -e .``)::

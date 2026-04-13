@@ -212,3 +212,5 @@ xdf.to_csv("out.csv", ...)  # see docstring on XdfExplorer.to_csv
 ## Version
 
 Package version **0.1.0** (see `neuro-theater-eeg/pyproject.toml`).
+
+@author: @franckPrts

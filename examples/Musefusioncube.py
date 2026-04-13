@@ -14,6 +14,8 @@ File names (edit below if yours differ):
   GYRO_CSV  : run__4__GYRO__Muse....csv
 """
 
+# @author: @franckPrts
+
 import json
 import math
 from pathlib import Path
