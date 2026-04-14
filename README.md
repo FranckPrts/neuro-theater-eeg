@@ -33,8 +33,12 @@ Recording from hardware is **outside** this package: you use **LSL** (and tools 
 ## Requirements
 
 - **Python 3.10+**
-- **pyxdf** (declared in `neuro-theater-eeg/pyproject.toml`; pulls **numpy**). If you install **goofi-pipe** in the same environment, you must cap **pyxdf** (see [Conda environment + local goofi-pipe](#conda-goofi-env)).
-- Optional **`pyplot`** extra: **pylsl** + **matplotlib** for live LSL examples (`examples/lsl_stream_picker.py`, `examples/Musefusioncube_live.py`) and optional LSL outlet listing in `scripts/muse_stream_resilient.sh` when **pylsl** is available.
+- Core package dependency: **pyxdf**
+- Optional extras in `pyproject.toml`:
+  - `osc`: **python-osc** (`osc-io/osc_recorder.py`, `osc-io/osc_replay.py`)
+  - `pyplot`: **pylsl** + **matplotlib** (LSL/live plotting flows)
+  - `examples`: **numpy** + **pandas** + **plotly** (example analysis scripts)
+  - `audio`: **pydub** (audio-related utilities)
 
 ---
 
@@ -46,16 +50,43 @@ From the machine that has the repo:
 cd neuro-theater-eeg
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
+```
+
+### Install by feature (recommended)
+
+Use one of these depending on what you want to run:
+
+```bash
+# Core package only (XDF inspection / CSV export)
 pip install -e .
 ```
 
-For the optional **`pyplot`** extra (see Requirements):
+```bash
+# OSC recorder + replay tools in osc-io/
+pip install -e ".[osc]"
+```
 
 ```bash
+# Live LSL + matplotlib helpers
 pip install -e ".[pyplot]"
 ```
 
-Or install dependencies only:
+```bash
+# Example notebooks/scripts using numpy/pandas/plotly
+pip install -e ".[examples]"
+```
+
+```bash
+# Audio utilities
+pip install -e ".[audio]"
+```
+
+```bash
+# Everything optional in one env
+pip install -e ".[osc,pyplot,examples,audio]"
+```
+
+### Dependencies only (no editable package install)
 
 ```bash
 cd neuro-theater-eeg

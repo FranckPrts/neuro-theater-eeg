@@ -17,7 +17,6 @@ Usage:
 
 import argparse
 import json
-import signal
 import sys
 import time
 from datetime import datetime, timezone
@@ -116,15 +115,13 @@ def main():
     print(f"  output : {output_path}")
     print(f"\n  Listening… press Ctrl+C to stop and save.\n")
 
-    # Graceful shutdown on Ctrl+C
-    def shutdown(sig, frame):
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
         print("\n■ Stopping…")
-        server.shutdown()
-
-    signal.signal(signal.SIGINT, shutdown)
-
-    server.serve_forever()
-    save(output_path, args.port, args.filter)
+    finally:
+        server.server_close()
+        save(output_path, args.port, args.filter)
 
 
 if __name__ == "__main__":

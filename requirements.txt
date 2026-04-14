@@ -1,3 +1,5 @@
 # @author: @franckPrts
-# XDF / LSL recordings (pulls numpy)
+# Core dependency set for XDF inspection / CSV export.
+# For feature-specific installs use extras, e.g.:
+#   pip install -e ".[osc]" / ".[pyplot]" / ".[examples]" / ".[audio]"
 pyxdf>=1.16.0

@@ -10,14 +10,24 @@ version = "0.1.0"
 description = "NeuroTheater utilities for XDF / LSL recordings"
 dependencies = [
     "pyxdf>=1.16.0",
-    "pydub>=0.25.0",
 ]
 requires-python = ">=3.10"
 
 [project.optional-dependencies]
+osc = [
+    "python-osc>=1.8.0",
+]
 pyplot = [
     "pylsl>=1.16.0",
     "matplotlib>=3.7.0",
+]
+examples = [
+    "numpy>=1.26.0",
+    "pandas>=2.0.0",
+    "plotly>=5.0.0",
+]
+audio = [
+    "pydub>=0.25.0",
 ]
 
 [tool.setuptools.packages.find]
