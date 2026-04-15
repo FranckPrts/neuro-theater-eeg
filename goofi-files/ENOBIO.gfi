@@ -244,8 +244,8 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: ENOBIO-32-NE-Device (COM3)
-        stream_name: ENOBIO-EEG
+        source_name: ENOBIO-32-NE-Device
+        stream_name: ENOBIO7200-EEG
         source_type: EEG
         refresh: true
       common:
@@ -291,7 +291,7 @@ nodes:
     category: inputs
     params:
       constant:
-        value: ENOBIO-EEG
+        value: ENOBIO7200-EEG
         overwrite_timeout: 5.0
       common:
         autotrigger: true
@@ -315,7 +315,7 @@ nodes:
     category: inputs
     params:
       constant:
-        value: ENOBIO-32-NE-Device (COM3)
+        value: ENOBIO-32-NE-Device (tty.usbmodem1201)
         overwrite_timeout: 5.0
       common:
         autotrigger: true
