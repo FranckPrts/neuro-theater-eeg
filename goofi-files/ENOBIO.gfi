@@ -20,8 +20,8 @@ nodes:
       viewers:
         out:
           viewer_idx: 0
-          width: 175
-          height: 100
+          width: 555
+          height: 480
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -59,7 +59,7 @@ nodes:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: true
+          collapsed: false
           log_scale_x: false
           log_scale_y: false
         lowbeta:
@@ -90,7 +90,7 @@ nodes:
       table:
         param1: ENOBIO_alpha
         param2: ENOBIO_alphaSum
-        param3: ENOBIO_alphaNorm
+        param3: ENOBIO_alphaMean
         param4: ENOBIO_alphaStd
         param5: value5
         param6: value6
@@ -105,8 +105,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1012
-      - 759
+      - 1048
+      - 787
       viewers:
         table:
           viewer_idx: 0
@@ -122,9 +122,9 @@ nodes:
       osc:
         address: localhost
         port: 8000
-        prefix: /goofi
-        bundle: false
-        broadcast: false
+        prefix: /ENOB
+        bundle: true
+        broadcast: true
         require_change: false
       common:
         autotrigger: false
@@ -133,8 +133,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1526
-      - 1169
+      - 1621
+      - 1170
       viewers: {}
   reduce1:
     _type: Reduce
@@ -165,7 +165,7 @@ nodes:
     category: array
     params:
       reduce:
-        method: norm
+        method: mean
         axis: 0
       common:
         autotrigger: false
@@ -244,8 +244,8 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: ENOBIO-32-NE-Device
-        stream_name: ENOBIO7200-EEG
+        source_name: ENOBIO-32-NE-Wifi(00:07:80:0D:72:00)
+        stream_name: ''
         source_type: EEG
         refresh: true
       common:
@@ -283,15 +283,15 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1525
-      - 1244
+      - 1613
+      - 1257
       viewers: {}
   constantstring0:
     _type: ConstantString
     category: inputs
     params:
       constant:
-        value: ENOBIO7200-EEG
+        value: ENOBIO-EEG
         overwrite_timeout: 5.0
       common:
         autotrigger: true
@@ -300,8 +300,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - -92
-      - 726
+      - -91
+      - 721
       viewers:
         out:
           viewer_idx: 0
@@ -315,7 +315,7 @@ nodes:
     category: inputs
     params:
       constant:
-        value: ENOBIO-32-NE-Device (tty.usbmodem1201)
+        value: ENOBIO-32-NE-Wifi(00:07:80:0D:72:00)
         overwrite_timeout: 5.0
       common:
         autotrigger: true
@@ -334,9 +334,37 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
+  pca0:
+    _type: PCA
+    category: analysis
+    params:
+      Control:
+        reset: false
+        n_components: 2
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 538
+      - 128
+      viewers:
+        principal_components:
+          viewer_idx: 0
+          width: 445
+          height: 370
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
 links:
 - node_out: buffer2
   node_in: psd0
+  slot_out: out
+  slot_in: data
+- node_out: buffer2
+  node_in: pca0
   slot_out: out
   slot_in: data
 - node_out: powerbandeeg0
