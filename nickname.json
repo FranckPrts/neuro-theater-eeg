@@ -39,31 +39,38 @@
       "stream_id": "Muse"
     },
     {
-      "hardware_sticker": "XXXX",
+      "hardware_sticker": "1FD6",
       "nickname": "XXXX",
-      "mac": "XXXXXXXXXXX",
-      "source_id": "MuseXXXXXXXXXXX",
+      "mac": "96869967-AC24-2A6C-B8D8-30FC2E1BE4E3",
+      "source_id": "Muse96869967-AC24-2A6C-B8D8-30FC2E1BE4E3",
       "stream_id": "Muse"
     },
     {
-      "hardware_sticker": "XXXX",
+      "hardware_sticker": "2265",
       "nickname": "XXXX",
-      "mac": "XXXXXXXXXXX",
-      "source_id": "MuseXXXXXXXXXXX",
+      "mac": "0399DB68-D290-7C4C-4976-A1C4321E219F",
+      "source_id": "Muse0399DB68-D290-7C4C-4976-A1C4321E219F",
       "stream_id": "Muse"
     },
     {
-      "hardware_sticker": "XXXX",
+      "hardware_sticker": "1E58",
       "nickname": "XXXX",
-      "mac": "XXXXXXXXXXX",
-      "source_id": "MuseXXXXXXXXXXX",
+      "mac": "AD0F09C0-0D2C-0265-62C5-B6EEBC8B0C0D",
+      "source_id": "MuseAD0F09C0-0D2C-0265-62C5-B6EEBC8B0C0D",
       "stream_id": "Muse"
     },
     {
-      "hardware_sticker": "XXXX",
+      "hardware_sticker": "2262",
       "nickname": "XXXX",
-      "mac": "XXXXXXXXXXX",
-      "source_id": "MuseXXXXXXXXXXX",
+      "mac": "98932A79-6B84-0F73-78FB-D69BAC296A3C",
+      "source_id": "Muse98932A79-6B84-0F73-78FB-D69BAC296A3C",
+      "stream_id": "Muse"
+    },
+    {
+      "hardware_sticker": "gsband",
+      "nickname": "gsband",
+      "mac": "4C8733C0-4689-E904-4D9A-5D70A8D6716C",
+      "source_id": "Muse4C8733C0-4689-E904-4D9A-5D70A8D6716C",
       "stream_id": "Muse"
     }
   ]
