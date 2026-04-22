@@ -15,8 +15,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 359
-      - 670
+      - 350
+      - 635
       viewers:
         out:
           viewer_idx: 0
@@ -41,8 +41,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 361
-      - 1095
+      - 357
+      - 1103
       viewers:
         out:
           viewer_idx: 0
@@ -64,28 +64,28 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 817
-      - 672
+      - 828
+      - 430
       viewers:
         delta:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: true
+          collapsed: false
           log_scale_x: false
           log_scale_y: false
         theta:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: true
+          collapsed: false
           log_scale_x: false
           log_scale_y: false
         alpha:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: true
+          collapsed: false
           log_scale_x: false
           log_scale_y: false
         lowbeta:
@@ -114,16 +114,16 @@ nodes:
     category: inputs
     params:
       table:
-        param1: alphaStd
+        param1: alpha
         param2: alphaSum
         param3: alphaNorm
-        param4: ''
-        param5: ''
-        param6: ''
-        param7: ''
-        param8: ''
-        param9: ''
-        param10: ''
+        param4: alphaStd
+        param5: alphaMean
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
       common:
         autotrigger: false
         max_frequency: 30.0
@@ -131,37 +131,16 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1337
-      - 662
+      - 1344
+      - 816
       viewers:
         table:
           viewer_idx: 0
-          width: 205
-          height: 130
+          width: 275
+          height: 200
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  oscout0:
-    _type: OSCOut
-    category: outputs
-    params:
-      osc:
-        address: localhost
-        port: 8000
-        prefix: /22FC
-        bundle: true
-        broadcast: true
-        require_change: false
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 2015
-      - 806
-      viewers: {}
   reduce1:
     _type: Reduce
     category: array
@@ -176,8 +155,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1074
-      - 726
+      - 1078
+      - 610
       viewers:
         out:
           viewer_idx: 0
@@ -200,8 +179,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1071
-      - 803
+      - 1075
+      - 694
       viewers:
         out:
           viewer_idx: 0
@@ -224,8 +203,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1076
-      - 641
+      - 1073
+      - 776
       viewers:
         out:
           viewer_idx: 0
@@ -241,7 +220,7 @@ nodes:
       psd:
         method: welch
         f_min: 1.0
-        f_max: 40.0
+        f_max: 25.0
         axis: -1
       welch:
         nperseg: 0.5
@@ -255,8 +234,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 601
-      - 678
+      - 577
+      - 644
       viewers:
         psd:
           viewer_idx: 0
@@ -270,8 +249,8 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: ''
-        stream_name: Muse
+        source_name: EEG
+        stream_name: ''
         source_type: EEG
         refresh: true
       common:
@@ -281,8 +260,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 147
-      - 631
+      - 132
+      - 620
       viewers:
         out:
           viewer_idx: 0
@@ -307,8 +286,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 360
-      - 881
+      - 356
+      - 889
       viewers:
         out:
           viewer_idx: 0
@@ -322,8 +301,8 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: MuseAC8CD4BB-830A-61D4-580A-C280E1366463
-        stream_name: Muse
+        source_name: PPG
+        stream_name: Muse-2615
         source_type: PPG
         refresh: true
       common:
@@ -333,8 +312,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 140
-      - 1323
+      - 129
+      - 1394
       viewers:
         out:
           viewer_idx: 0
@@ -359,8 +338,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 360
-      - 1307
+      - 349
+      - 1375
       viewers:
         out:
           viewer_idx: 0
@@ -387,8 +366,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1847
-      - 1146
+      - 2917
+      - 1222
       viewers: {}
   extendedtable1:
     _type: ExtendedTable
@@ -412,13 +391,13 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1079
-      - 911
+      - 2430
+      - 1034
       viewers:
         table:
           viewer_idx: 0
-          width: 175
-          height: 100
+          width: 385
+          height: 310
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -427,9 +406,9 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: MuseAC8CD4BB-830A-61D4-580A-C280E1366463
-        stream_name: Muse
-        source_type: ACC
+        source_name: Accelerometer
+        stream_name: Muse-2615
+        source_type: Accel
         refresh: true
       common:
         autotrigger: true
@@ -438,8 +417,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 147
-      - 861
+      - 144
+      - 864
       viewers:
         out:
           viewer_idx: 0
@@ -461,8 +440,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 973
-      - 1342
+      - 950
+      - 1384
       viewers:
         Mean:
           viewer_idx: 0
@@ -534,33 +513,6 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  select0:
-    _type: Select
-    category: array
-    params:
-      select:
-        axis: 0
-        selection_mode: by_name
-        include: PPG1
-        exclude: ''
-        expand_asterisk: false
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 614
-      - 1148
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
   select1:
     _type: Select
     category: array
@@ -578,8 +530,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 614
-      - 1233
+      - 573
+      - 1285
       viewers:
         out:
           viewer_idx: 0
@@ -588,41 +540,14 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  select2:
-    _type: Select
-    category: array
-    params:
-      select:
-        axis: 0
-        selection_mode: by_name
-        include: PPG3
-        exclude: ''
-        expand_asterisk: false
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 614
-      - 1559
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
   lslclient1:
     _type: LSLClient
     category: inputs
     params:
       lsl_stream:
-        source_name: MuseAC8CD4BB-830A-61D4-580A-C280E1366463
-        stream_name: Muse
-        source_type: GYRO
+        source_name: Gyroscope
+        stream_name: Muse-2615
+        source_type: Gyro
         refresh: true
       common:
         autotrigger: true
@@ -631,8 +556,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 145
-      - 1086
+      - 141
+      - 1094
       viewers:
         out:
           viewer_idx: 0
@@ -646,8 +571,8 @@ nodes:
     category: signal
     params:
       fusion:
-        ALPHA: 0.97
-        UPDATE_HZ: 30.0
+        ALPHA: 1.0
+        UPDATE_HZ: 0.10000000149011612
         output_format: quaternion_xyzw
       common:
         autotrigger: false
@@ -656,13 +581,13 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 601
-      - 874
+      - 578
+      - 883
       viewers:
         out:
           viewer_idx: 0
-          width: 235
-          height: 160
+          width: 305
+          height: 230
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -680,8 +605,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1235
-      - 1341
+      - 1252
+      - 1413
       viewers:
         out:
           viewer_idx: 0
@@ -690,235 +615,13 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  constantstring0:
-    _type: ConstantString
-    category: inputs
+  reduce4:
+    _type: Reduce
+    category: array
     params:
-      constant:
-        value: ''
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -257
-      - 878
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  constantstring1:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: Muse38BAC533-2E83-526D-7D3B-C4D6E237411B
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -618
-      - 649
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  constantstring2:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: MuseAC8CD4BB-830A-61D4-580A-C280E1366463
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -617
-      - 867
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  constantstring3:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: Muse728F5034-C233-D39E-11A9-C94E82C91DD0
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -616
-      - 1070
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  constantstring4:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: Muse1FFC5F9B-C3FD-94B9-7F96-BF02E0FFBB9C
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -617
-      - 1270
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  constantstring5:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: '2615'
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -812
-      - 559
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  constantstring6:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: 1CD4
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -1172
-      - 689
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  constantstring7:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: 1CD4
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -1155
-      - 872
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  constantstring8:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: 1CD4
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -1166
-      - 778
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  biotuner0:
-    _type: Biotuner
-    category: analysis
-    params:
-      biotuner:
-        n_peaks: 5
-        f_min: 2.0
-        f_max: 30.0
-        precision: 0.1
-        peaks_function: EMD
-        n_harm_subharm: 3
-        n_harm_extended: 3
-        delta_lim: 250
+      reduce:
+        method: mean
+        axis: 0
       common:
         autotrigger: false
         max_frequency: 30.0
@@ -926,123 +629,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2141
-      - 885
-      viewers:
-        harmsim:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        tenney:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        subharm_tension:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        cons:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-        peaks_ratios_tuning:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        harm_tuning:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        peaks:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        amps:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        extended_peaks:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        extended_amps:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  oscin0:
-    _type: OSCIn
-    category: inputs
-    params:
-      osc:
-        backend: oscpy
-        address: 0.0.0.0
-        port: 20631
-        find_usable_port_tries: 0
-        keep_messages: true
-        clear: false
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 2168
-      - 291
-      viewers:
-        message:
-          viewer_idx: 0
-          width: 435
-          height: 360
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  constantstring9:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: MuseD43D47CD-A128-03DC-1C0E-4E57E48EC001
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -622
-      - 458
+      - 1072
+      - 865
       viewers:
         out:
           viewer_idx: 0
@@ -1051,7 +639,83 @@ nodes:
           collapsed: true
           log_scale_x: false
           log_scale_y: false
-  constantstring10:
+  constantstring1:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: MuseDIRECT PROTOCOL
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -520
+      - 506
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  constantstring5:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: Muse-
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -508
+      - 551
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  joinstring0:
+    _type: JoinString
+    category: misc
+    params:
+      join:
+        separator: ''
+        string1: true
+        string2: true
+        string3: true
+        string4: true
+        string5: true
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -257
+      - 834
+      viewers:
+        output:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  constantstring0:
     _type: ConstantString
     category: inputs
     params:
@@ -1065,8 +729,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - -817
-      - 355
+      - -545
+      - 804
       viewers:
         out:
           viewer_idx: 0
@@ -1075,40 +739,13 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  constantstring11:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: 22FC
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - -807
-      - 774
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  select4:
-    _type: Select
+  reduce6:
+    _type: Reduce
     category: array
     params:
-      select:
+      reduce:
+        method: sum
         axis: 0
-        selection_mode: by_name
-        include: TP9
-        exclude: ''
-        expand_asterisk: false
       common:
         autotrigger: false
         max_frequency: 30.0
@@ -1116,29 +753,23 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 644
-      - 128
+      - 1283
+      - 457
       viewers:
         out:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
-  biotuner1:
-    _type: Biotuner
-    category: analysis
+  reduce7:
+    _type: Reduce
+    category: array
     params:
-      biotuner:
-        n_peaks: 5
-        f_min: 2.0
-        f_max: 30.0
-        precision: 0.1
-        peaks_function: EMD
-        n_harm_subharm: 3
-        n_harm_extended: 3
-        delta_lim: 250
+      reduce:
+        method: norm
+        axis: 0
       common:
         autotrigger: false
         max_frequency: 30.0
@@ -1146,89 +777,170 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 868
-      - 106
+      - 1287
+      - 541
       viewers:
-        harmsim:
+        out:
           viewer_idx: 0
           width: 175
           height: 100
           collapsed: true
           log_scale_x: false
           log_scale_y: false
-        tenney:
+  reduce8:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: std
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1285
+      - 623
+      viewers:
+        out:
           viewer_idx: 0
           width: 175
           height: 100
           collapsed: true
           log_scale_x: false
           log_scale_y: false
-        subharm_tension:
+  reduce9:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: mean
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1281
+      - 709
+      viewers:
+        out:
           viewer_idx: 0
           width: 175
           height: 100
           collapsed: true
           log_scale_x: false
           log_scale_y: false
-        cons:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-        peaks_ratios_tuning:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        harm_tuning:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        peaks:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-        amps:
+  reduce10:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: mean
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1503
+      - 576
+      viewers:
+        out:
           viewer_idx: 0
           width: 175
           height: 100
           collapsed: true
           log_scale_x: false
           log_scale_y: false
-        extended_peaks:
+  reduce11:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: std
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1504
+      - 486
+      viewers:
+        out:
           viewer_idx: 0
           width: 175
           height: 100
           collapsed: true
           log_scale_x: false
           log_scale_y: false
-        extended_amps:
+  reduce12:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: norm
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1507
+      - 403
+      viewers:
+        out:
           viewer_idx: 0
           width: 175
           height: 100
           collapsed: true
           log_scale_x: false
           log_scale_y: false
-  extendedtable2:
+  reduce13:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: sum
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1506
+      - 315
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable4:
     _type: ExtendedTable
     category: inputs
     params:
       table:
-        param1: biotunerCons
-        param2: biotunerPeaks
-        param3: value3
-        param4: value4
-        param5: value5
+        param1: theta
+        param2: thetaSum
+        param3: thetaNorm
+        param4: thetaStd
+        param5: thetamean
         param6: value6
         param7: value7
         param8: value8
@@ -1241,29 +953,146 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1624
-      - 460
+      - 1686
+      - 684
       viewers:
         table:
           viewer_idx: 0
-          width: 345
-          height: 270
+          width: 195
+          height: 120
           collapsed: false
           log_scale_x: false
           log_scale_y: false
+  extendedtable2:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: delta
+        param2: deltaSum
+        param3: deltaNorm
+        param4: deltaStd
+        param5: deltamean
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1959
+      - 472
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 295
+          height: 220
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  tablenormalization0:
+    _type: TableNormalization
+    category: signal
+    params:
+      normalization:
+        method: z-score
+        buffer_size: 1024
+        reset: false
+        axis: -1
+      quantile:
+        n_quantiles: 1000
+        output_distribution: uniform
+      robust:
+        quantile_min: 25
+        quantile_max: 75
+        unit_variance: false
+      minmax:
+        feature_min: 0.0
+        feature_max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1922
+      - 1011
+      viewers:
+        normalized:
+          viewer_idx: 0
+          width: 465
+          height: 390
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  oscout0:
+    _type: OSCOut
+    category: outputs
+    params:
+      osc:
+        address: localhost
+        port: 8000
+        prefix: /1D1A
+        bundle: false
+        broadcast: false
+        require_change: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2886
+      - 1079
+      viewers: {}
 links:
 - node_out: buffer2
   node_in: psd0
-  slot_out: out
-  slot_in: data
-- node_out: buffer2
-  node_in: select4
   slot_out: out
   slot_in: data
 - node_out: buffer3
   node_in: imufusion0
   slot_out: out
   slot_in: gyro
+- node_out: powerbandeeg0
+  node_in: reduce10
+  slot_out: delta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce11
+  slot_out: delta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce12
+  slot_out: delta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce13
+  slot_out: delta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce9
+  slot_out: theta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce8
+  slot_out: theta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce7
+  slot_out: theta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce6
+  slot_out: theta
+  slot_in: array
 - node_out: powerbandeeg0
   node_in: reduce1
   slot_out: alpha
@@ -1276,8 +1105,12 @@ links:
   node_in: reduce3
   slot_out: alpha
   slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce4
+  slot_out: alpha
+  slot_in: array
 - node_out: extendedtable0
-  node_in: extendedtable2
+  node_in: extendedtable4
   slot_out: table
   slot_in: base
 - node_out: reduce1
@@ -1291,7 +1124,7 @@ links:
 - node_out: reduce3
   node_in: extendedtable0
   slot_out: out
-  slot_in: array_input1
+  slot_in: array_input4
 - node_out: psd0
   node_in: powerbandeeg0
   slot_out: psd
@@ -1312,18 +1145,10 @@ links:
   node_in: select1
   slot_out: out
   slot_in: data
-- node_out: buffer1
-  node_in: select2
-  slot_out: out
-  slot_in: data
-- node_out: buffer1
-  node_in: select0
-  slot_out: out
-  slot_in: data
 - node_out: extendedtable1
-  node_in: extendedtable0
+  node_in: oscout0
   slot_out: table
-  slot_in: base
+  slot_in: data
 - node_out: lslclient0
   node_in: buffer0
   slot_out: out
@@ -1352,39 +1177,75 @@ links:
   node_in: extendedtable1
   slot_out: out
   slot_in: array_input3
-- node_out: constantstring0
+- node_out: reduce4
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input5
+- node_out: constantstring5
+  node_in: joinstring0
+  slot_out: out
+  slot_in: string1
+- node_out: joinstring0
   node_in: lslclient5
-  slot_out: out
-  slot_in: source_name
-- node_out: constantstring0
+  slot_out: output
+  slot_in: stream_name
+- node_out: joinstring0
   node_in: lslclient0
-  slot_out: out
-  slot_in: source_name
-- node_out: constantstring0
+  slot_out: output
+  slot_in: stream_name
+- node_out: joinstring0
   node_in: lslclient1
-  slot_out: out
-  slot_in: source_name
-- node_out: constantstring0
+  slot_out: output
+  slot_in: stream_name
+- node_out: joinstring0
   node_in: lslclient2
+  slot_out: output
+  slot_in: stream_name
+- node_out: constantstring0
+  node_in: joinstring0
   slot_out: out
-  slot_in: source_name
-- node_out: constantstring2
-  node_in: constantstring0
+  slot_in: string2
+- node_out: reduce6
+  node_in: extendedtable4
   slot_out: out
-  slot_in: overwrite
-- node_out: select4
-  node_in: biotuner1
-  slot_out: out
-  slot_in: data
-- node_out: biotuner1
-  node_in: extendedtable2
-  slot_out: cons
-  slot_in: array_input1
-- node_out: biotuner1
-  node_in: extendedtable2
-  slot_out: peaks
   slot_in: array_input2
-- node_out: extendedtable2
-  node_in: oscout0
+- node_out: reduce7
+  node_in: extendedtable4
+  slot_out: out
+  slot_in: array_input3
+- node_out: reduce8
+  node_in: extendedtable4
+  slot_out: out
+  slot_in: array_input4
+- node_out: reduce9
+  node_in: extendedtable4
+  slot_out: out
+  slot_in: array_input5
+- node_out: reduce10
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input5
+- node_out: reduce11
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input4
+- node_out: reduce12
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input3
+- node_out: reduce13
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input2
+- node_out: extendedtable4
+  node_in: extendedtable2
   slot_out: table
-  slot_in: data
+  slot_in: base
+- node_out: extendedtable2
+  node_in: tablenormalization0
+  slot_out: table
+  slot_in: table
+- node_out: tablenormalization0
+  node_in: extendedtable1
+  slot_out: normalized
+  slot_in: base
