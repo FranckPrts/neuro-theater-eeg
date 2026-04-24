@@ -4,7 +4,7 @@ nodes:
     category: signal
     params:
       buffer:
-        size: 10.0
+        size: 40.0
         axis: -1
         unit: seconds
         reset: false
@@ -16,7 +16,7 @@ nodes:
     gui_kwargs:
       pos:
       - 352
-      - 657
+      - 339
       viewers:
         out:
           viewer_idx: 0
@@ -38,21 +38,21 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 772
-      - 669
+      - 1475
+      - 375
       viewers:
         delta:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: true
+          collapsed: false
           log_scale_x: false
           log_scale_y: false
         theta:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: true
+          collapsed: false
           log_scale_x: false
           log_scale_y: false
         alpha:
@@ -88,10 +88,10 @@ nodes:
     category: inputs
     params:
       table:
-        param1: ENOBIO_alpha
-        param2: ENOBIO_alphaSum
-        param3: ENOBIO_alphaMean
-        param4: ENOBIO_alphaStd
+        param1: alpha
+        param2: alphaSum
+        param3: alphaNorm
+        param4: alphaStd
         param5: value5
         param6: value6
         param7: value7
@@ -105,13 +105,13 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1048
-      - 787
+      - 2635
+      - 612
       viewers:
         table:
           viewer_idx: 0
-          width: 475
-          height: 400
+          width: 445
+          height: 370
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -133,8 +133,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1621
-      - 1170
+      - 3828
+      - 646
       viewers: {}
   reduce1:
     _type: Reduce
@@ -150,8 +150,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1013
-      - 481
+      - 2343
+      - 768
       viewers:
         out:
           viewer_idx: 0
@@ -165,7 +165,7 @@ nodes:
     category: array
     params:
       reduce:
-        method: mean
+        method: norm
         axis: 0
       common:
         autotrigger: false
@@ -174,8 +174,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1012
-      - 563
+      - 2342
+      - 850
       viewers:
         out:
           viewer_idx: 0
@@ -198,8 +198,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1010
-      - 645
+      - 2340
+      - 932
       viewers:
         out:
           viewer_idx: 0
@@ -229,13 +229,13 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 565
-      - 660
+      - 951
+      - 337
       viewers:
         psd:
           viewer_idx: 0
-          width: 175
-          height: 100
+          width: 345
+          height: 270
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -256,7 +256,7 @@ nodes:
     gui_kwargs:
       pos:
       - 142
-      - 646
+      - 337
       viewers:
         out:
           viewer_idx: 0
@@ -283,8 +283,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1613
-      - 1257
+      - 3822
+      - 805
       viewers: {}
   constantstring0:
     _type: ConstantString
@@ -300,8 +300,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - -91
-      - 721
+      - -90
+      - 412
       viewers:
         out:
           viewer_idx: 0
@@ -315,7 +315,7 @@ nodes:
     category: inputs
     params:
       constant:
-        value: ENOBIO-32-NE-Wifi(00:07:80:0D:72:00)
+        value: ENOBIO-32-NE-Wifi(00:07:80:0D:72:02)
         overwrite_timeout: 5.0
       common:
         autotrigger: true
@@ -324,8 +324,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - -91
-      - 535
+      - -90
+      - 226
       viewers:
         out:
           viewer_idx: 0
@@ -334,13 +334,13 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  pca0:
-    _type: PCA
-    category: analysis
+  reduce0:
+    _type: Reduce
+    category: array
     params:
-      Control:
-        reset: false
-        n_components: 2
+      reduce:
+        method: mean
+        axis: 0
       common:
         autotrigger: false
         max_frequency: 30.0
@@ -348,13 +348,305 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 538
-      - 128
+      - 2346
+      - 684
       viewers:
-        principal_components:
+        out:
           viewer_idx: 0
-          width: 445
-          height: 370
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable1:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: theta
+        param2: thetaSum
+        param3: thetaNorm
+        param4: thetaStd
+        param5: value5
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2346
+      - 292
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  reduce4:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: sum
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2114
+      - 447
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  reduce6:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: std
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2111
+      - 611
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  reduce7:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: mean
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2119
+      - 367
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  reduce5:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: norm
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2113
+      - 525
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable2:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: delta
+        param2: deltaSum
+        param3: deltaNorm
+        param4: deltaStd
+        param5: value5
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2117
+      - -19
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  reduce8:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: sum
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1873
+      - 83
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  reduce9:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: mean
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1872
+      - -6
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  reduce10:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: norm
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1873
+      - 169
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  reduce11:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: std
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1873
+      - 255
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  tablenormalization0:
+    _type: TableNormalization
+    category: signal
+    params:
+      normalization:
+        method: z-score
+        buffer_size: 1024
+        reset: false
+        axis: -1
+      quantile:
+        n_quantiles: 1000
+        output_distribution: uniform
+      robust:
+        quantile_min: 25
+        quantile_max: 75
+        unit_variance: false
+      minmax:
+        feature_min: 0.0
+        feature_max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 3184
+      - 628
+      viewers:
+        normalized:
+          viewer_idx: 0
+          width: 555
+          height: 480
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -363,14 +655,38 @@ links:
   node_in: psd0
   slot_out: out
   slot_in: data
-- node_out: buffer2
-  node_in: pca0
-  slot_out: out
-  slot_in: data
 - node_out: powerbandeeg0
-  node_in: extendedtable0
-  slot_out: alpha
-  slot_in: array_input1
+  node_in: reduce11
+  slot_out: delta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce10
+  slot_out: delta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce9
+  slot_out: delta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce8
+  slot_out: delta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce6
+  slot_out: theta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce5
+  slot_out: theta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce4
+  slot_out: theta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce7
+  slot_out: theta
+  slot_in: array
 - node_out: powerbandeeg0
   node_in: reduce1
   slot_out: alpha
@@ -383,10 +699,14 @@ links:
   node_in: reduce3
   slot_out: alpha
   slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce0
+  slot_out: alpha
+  slot_in: array
 - node_out: extendedtable0
-  node_in: oscout0
+  node_in: tablenormalization0
   slot_out: table
-  slot_in: data
+  slot_in: table
 - node_out: reduce1
   node_in: extendedtable0
   slot_out: out
@@ -415,3 +735,51 @@ links:
   node_in: lslclient5
   slot_out: out
   slot_in: source_name
+- node_out: reduce0
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input1
+- node_out: extendedtable1
+  node_in: extendedtable0
+  slot_out: table
+  slot_in: base
+- node_out: reduce4
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input2
+- node_out: reduce6
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input4
+- node_out: reduce7
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input1
+- node_out: reduce5
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input3
+- node_out: extendedtable2
+  node_in: extendedtable1
+  slot_out: table
+  slot_in: base
+- node_out: reduce8
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input2
+- node_out: reduce9
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input1
+- node_out: reduce10
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input3
+- node_out: reduce11
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input4
+- node_out: tablenormalization0
+  node_in: oscout0
+  slot_out: normalized
+  slot_in: data

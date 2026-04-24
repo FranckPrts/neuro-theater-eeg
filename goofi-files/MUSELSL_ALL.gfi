@@ -147,7 +147,7 @@ nodes:
     params:
       osc:
         address: localhost
-        port: 8000
+        port: 8001
         prefix: /22FC
         bundle: true
         broadcast: true
@@ -369,27 +369,6 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  writecsv0:
-    _type: WriteCsv
-    category: outputs
-    params:
-      Write:
-        filename: ./examples/run_4dsvsv_eeg.csv
-        start: true
-        stop: true
-        duration: 330.0
-        timestamps: true
-        writing_mode: default
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 1847
-      - 1146
-      viewers: {}
   extendedtable1:
     _type: ExtendedTable
     category: inputs
@@ -904,127 +883,6 @@ nodes:
           width: 175
           height: 100
           collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  biotuner0:
-    _type: Biotuner
-    category: analysis
-    params:
-      biotuner:
-        n_peaks: 5
-        f_min: 2.0
-        f_max: 30.0
-        precision: 0.1
-        peaks_function: EMD
-        n_harm_subharm: 3
-        n_harm_extended: 3
-        delta_lim: 250
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 2141
-      - 885
-      viewers:
-        harmsim:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        tenney:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        subharm_tension:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        cons:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-        peaks_ratios_tuning:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        harm_tuning:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        peaks:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        amps:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        extended_peaks:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        extended_amps:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-  oscin0:
-    _type: OSCIn
-    category: inputs
-    params:
-      osc:
-        backend: oscpy
-        address: 0.0.0.0
-        port: 20631
-        find_usable_port_tries: 0
-        keep_messages: true
-        clear: false
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 2168
-      - 291
-      viewers:
-        message:
-          viewer_idx: 0
-          width: 435
-          height: 360
-          collapsed: false
           log_scale_x: false
           log_scale_y: false
   constantstring9:
