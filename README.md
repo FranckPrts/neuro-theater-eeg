@@ -1,6 +1,8 @@
 # NeuroTheater
 
-Tools for working with **XDF** recordings (for example from **LSL** / **Muse** setups), with a focus on inspection and **CSV export** for analysis elsewhere.
+Toolkit for NeuroTheater EEG workflows: **multi-head Muse/goofi OSC routing with failover** for live sessions, plus **XDF inspection and CSV export** for offline analysis.
+
+Short repo description: Live EEG routing (Muse/goofi/OSC failover) + XDF to CSV tools.
 
 ## Repository layout
 
@@ -223,6 +225,53 @@ If you use **muselsl** on **Python 3.10+** and hit asyncio / Bleak issues, see `
 To activate a Conda environment consistently, `**source neuro-theater-eeg/run_env_neurtheater.sh**` (must be sourced, not executed as a normal subprocess, so the activation sticks). Override the env name with `NTA_CONDA_ENV` if needed.
 
 `**scripts/muse_stream_resilient.sh**` is a small, **unofficial** convenience on top of that stack: it sources `**run_env_neurtheater.sh`**, resolves a headset **MAC** from `**nickname.json`** (by nickname or `hardware_sticker`, or you pass the full UUID), runs `**muselsl stream**` with default `**--ppg --acc --gyro**` (override tail after `--`), and restarts when the process exits or logs a disconnect. Flags `**-n` / `--max-retries**` and `**-i` / `--interval**` cap backoff behavior. After `**muselsl**` starts, it prints discovered **LSL** outlets to **stderr** (lines prefixed `**[muse_stream_resilient][lsl]`**): stream `**name**`, `**type**` (EEG / ACC / GYRO / PPG / …), `**source_id**` (maps to Goofi `**source_name**`), channel count, and rate. That needs `**pylsl**` and a working `**liblsl**` in the same environment; if `**pylsl**` is missing, listing is skipped with a one-line message. Set `**NTA_LSL_DISCOVER=0**` to disable listing (e.g. automation). Optional naming toggle: `**--name-with-type**` (or `**NTA_MUSE_NAME_WITH_TYPE=1**`) patches the launch so outlets are published as names like `**Muse_EEG**`, `**Muse_GYRO**`, `**Muse_ACC**`; this helps Goofi flows that only match `**source_name` + `stream_name**`, but it intentionally breaks compatibility with tools that expect stream name exactly `**Muse**`. For a manual second terminal without coupling to this script, run `**examples/lsl_stream_picker.py**`. Treat the script as a **quick-and-dirty** way to keep a stream up while you **experiment with geoscope data** and related LSL paths—not a supported product surface of this package. Run `**bash scripts/muse_stream_resilient.sh --help`** from `**neuro-theater-eeg**` for usage.
+
+---
+
+## Four-head live procedure (current)
+
+This is the setup we are actively using right now for 4 headsets.
+
+1. Run one Goofi graph per headset, all sending OSC to `proxy_in` on `:8001` with per-head prefixes (example: `/1D1A/*`, `/1E58/*`, `/22FC/*`, `/2615/*`).
+2. Start proxy failover from `osc-io/`:
+
+   ```bash
+   python osc_proxy_failover.py --in-port 8001 --out-port 8000 --recording recordings/osc_recording_2026-04-21_18-51-39.json
+   ```
+
+3. Proxy listens for live data on `0.0.0.0:8001`, detects stale per OSC address, crossfades to recording fallback, then crossfades back when live changes again.
+4. Downstream nodes (TouchDesigner/collaborators) read from `proxy_out` on `:8000` (UDP mode, not multicast, unless you intentionally run multicast).
+
+That is the whole chain: `Goofi (4 heads) -> Proxy failover -> OSC consumers`.
+
+---
+
+## OSC throughput notes (capacity + scaling)
+
+Current observed OSC profile (local tests):
+
+- Single-headset-ish baseline: `**~220 messages/sec**`.
+- Multi-headset baseline: `**~1,590 messages/sec**` aggregate.
+- Typical per-headset load in multi-headset mode: `**~410 messages/sec**`.
+- Typical stream shape per headset: `**~15 streams @ ~27.4 Hz**`.
+
+Capacity math to keep in mind:
+
+- `messages/sec (total) ≈ headsets × streams_per_headset × stream_frequency`
+- `bandwidth ≈ messages/sec × bytes_per_packet`
+
+What moves the needle fastest:
+
+- More streams (`S↑`) = linear load increase.
+- Higher stream frequency (`F↑`) = linear load increase.
+- Bigger payloads (`B↑`) mostly increase bandwidth, less packet-rate pressure.
+
+Operational rule of thumb for this setup:
+
+- `**<10 headsets**`: usually comfortable.
+- `**10-20 headsets**`: monitor packet loss and jitter.
+- `**20+ headsets**`: expect network + receiver tuning work.
+- `**30+ headsets**`: expect architecture work.
 
 ---
 
