@@ -15,3 +15,6 @@ goofi-files/solaris.gfi
 
 # OSC recordings
 osc-io/recordings/*.json
+
+# VS Code
+.vscode/

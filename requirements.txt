@@ -3,3 +3,4 @@
 # For feature-specific installs use extras, e.g.:
 #   pip install -e ".[osc]" / ".[pyplot]" / ".[examples]" / ".[audio]"
 pyxdf>=1.16.0
+python-osc>=1.8.0  # osc-io/ (import name: pythonosc)
