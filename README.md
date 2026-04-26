@@ -1,8 +1,6 @@
 # NeuroTheater
 
-Toolkit for NeuroTheater EEG workflows: **multi-head Muse/goofi OSC routing with failover** for live sessions, plus **XDF inspection and CSV export** for offline analysis.
-
-Short repo description: Live EEG routing (Muse/goofi/OSC failover) + XDF to CSV tools.
+Toolkit for NeuroTheater EEG workflows, centered on **multi-head Muse -> LSL -> goofi-pipe -> OSC routing with failover** for live experimentation. Offline XDF tooling is kept as a legacy appendix.
 
 ## Repository layout
 
@@ -10,8 +8,9 @@ Short repo description: Live EEG routing (Muse/goofi/OSC failover) + XDF to CSV 
 | Path                                                 | Purpose                                                                                                                      |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `neuro-theater-eeg/`                                 | Installable Python package `**neurotheater`** (`pyproject.toml`, `neurotheater/`)                                            |
-| `neuro-theater-eeg/examples/`                        | Runnable demos and a small CLI to turn XDF → CSV                                                                             |
-| `neuro-theater-eeg/collectMuses.gfi`                 | Example **goofi-pipe** graph: multiple Muse **LSL** clients, mic, optional CSV / LSL out                                     |
+| `neuro-theater-eeg/goofi-files/`                     | Active **goofi-pipe** graph variants for Muse Direct / LSL routing and OSC output                                             |
+| `neuro-theater-eeg/osc-io/`                          | OSC proxy failover, recording/replay tools, and operational routing utilities                                                 |
+| `neuro-theater-eeg/examples/`                        | Utility demos (including legacy XDF → CSV helpers)                                                                            |
 | `neuro-theater-eeg/scripts/patch_muselsl_asyncio.sh` | Optional **muselsl** patch for **Python 3.10+** (Bleak / asyncio)                                                            |
 | `neuro-theater-eeg/scripts/muse_stream_resilient.sh` | **Side note:** quick helper to run **muselsl stream** with retries, `nickname.json` lookup, and Conda activation (see below) |
 | `neuro-theater-eeg/run_env_neurtheater.sh`           | Helper to `source` and activate a Conda env named `**NeuroTheater`** (adjust if you use another name)                        |
@@ -21,7 +20,50 @@ There is no separate `docs/` folder in this tree yet; acquisition notes (Muse, m
 
 ---
 
-## What is implemented (current progress)
+## Experimentation architecture (current focus)
+
+The live installation path we are prioritizing is:
+
+```mermaid
+flowchart TD
+  subgraph acquisition [Acquisition]
+    museHeadsets6[MuseHeadsets6]
+    tablet["Tablet\n- Muse Direct\n- stream to LSL"]
+    museHeadsets6 -->|"Bluetooth"| tablet
+  end
+
+  subgraph network [Network]
+    mainRouter[MainRouter]
+  end
+
+  subgraph compute [Compute]
+    mainComputer["MainComputer\n- LSL in\n- Goofi Pipe\n- OSC out\n- OSC proxy failover"]
+  end
+
+  subgraph consumers [Consumers]
+    touchDesigner[TouchDesigner]
+    audioEngine[AudioEngine]
+    lightingController[LightingController]
+    remoteClient[RemoteClient]
+  end
+
+  tablet -->|"Wi-Fi"| mainRouter
+  mainRouter -->|"Ethernet"| mainComputer
+  mainComputer --> touchDesigner
+  mainComputer --> audioEngine
+  mainComputer --> lightingController
+  mainComputer --> remoteClient
+```
+
+- Six Muse headsets connect over Bluetooth to the tablet acquisition layer.
+- The tablet runs Muse Direct and streams to LSL.
+- Tablet traffic reaches the main router over Wi-Fi.
+- The main router links by Ethernet to the main motherboard computer.
+- The main computer runs Goofi Pipe, OSC out, and OSC proxy failover, then fans out to downstream consumers.
+
+---
+
+## Legacy appendix: XDF and offline export utilities
 
 - `**XdfExplorer**` (`neurotheater.xdf_explorer`): loads an XDF via **pyxdf**, lists streams, summarizes channels and shapes, and filters **Muse** streams by LSL name `"Muse"`.
 - `**to_csv`**: exports selected streams to **wide** CSV (one row per raw sample; channel columns). With `**output="single"`** the table is **sparse** (one stream’s cells filled per row). With `**output="per_stream"`** each file is dense (numeric channel columns `0`, `1`, …). Optional filters: `**sources**` (LSL `source_id` or stream `name`) and `**types**` (e.g. `EEG`, `GYRO`, `ACC`, `PPG`).
@@ -170,7 +212,7 @@ Default Conda env name in `**run_env_neurtheater.sh**` is **`neurotheater`**. Ov
 
 ---
 
-## Get started: XDF → CSV
+## Legacy appendix: get started with XDF -> CSV
 
 ### Option A — One command (good for a file you receive separately)
 
@@ -212,13 +254,13 @@ Open `neuro-theater-eeg/examples/xdf_explorer_demo.py`, set `XDF_PATH`, then run
 
 ---
 
-## Acquisition reference (Muse, muselsl, goofi-pipe, LSL)
+## Acquisition reference (live stack)
 
 This package does **not** stream from the Muse by itself. A typical path is:
 
 1. **muselsl** (or another LSL source) publishes streams; Muse streams often use the LSL name `**Muse`** and distinct `**source_id**` values per headset.
-2. We are **attempting to use goofi-pipe**. `**collectMuses.gfi`** is an example graph in that direction (`**LSLClient**` nodes, mic, optional `**WriteCsv**` / `**LSLOut**`). **The version of this tooling you use today reads XDF files on disk**; the recordings we have been working with were **captured with [Lab Recorder](https://github.com/labstreaminglayer/App-LabRecorder)**, which is **an application that records LSL streams** into XDF.
-3. After recording, use `**XdfExplorer`** / `**convert_xdf.py**` here to produce CSV for spreadsheets, R, or other tools.
+2. `goofi-pipe` instances consume those LSL streams and publish OSC to the local routing layer (`proxy_in` / `proxy_out` pattern documented below).
+3. If you need offline analysis, recordings can still be captured with [Lab Recorder](https://github.com/labstreaminglayer/App-LabRecorder) and exported later with `**XdfExplorer**` / `**convert_xdf.py**` (legacy appendix above).
 
 If you use **muselsl** on **Python 3.10+** and hit asyncio / Bleak issues, see `**neuro-theater-eeg/scripts/patch_muselsl_asyncio.sh`** (re-run after upgrading muselsl in that environment).
 
@@ -291,6 +333,6 @@ xdf.to_csv("out.csv", ...)  # see docstring on XdfExplorer.to_csv
 
 ## Version
 
-Package version **0.1.0** (see `neuro-theater-eeg/pyproject.toml`).
+Package version **1.0.0** (see `neuro-theater-eeg/pyproject.toml`).
 
 @author: @franckPrts
