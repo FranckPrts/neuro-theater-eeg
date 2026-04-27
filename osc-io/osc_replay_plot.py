@@ -41,6 +41,7 @@ Selection UX (step 2):
 - If recordings include multiple headsets, you can choose:
   - by headset label first, then stream under that headset, or
   - by stream type first (eeg/acc/gyro/...), then headset stream(s)
+- You can also choose mode 3 to compare one logical field across multiple recordings.
 - In stream-type mode, you can choose one address or "all" addresses of that type.
 
 Notes:
@@ -113,6 +114,14 @@ def discover_json_candidates() -> list[Path]:
     return out
 
 
+def discover_recording_candidates() -> list[Path]:
+    """*.json specifically from osc-io/recordings (mode-3 compare)."""
+    recordings_dir = _script_dir() / "recordings"
+    if not recordings_dir.exists():
+        return []
+    return sorted(recordings_dir.glob("*.json"))
+
+
 def prompt_recording_path(argv_path: str | None) -> Path:
     if argv_path:
         p = Path(argv_path).expanduser()
@@ -153,6 +162,44 @@ def prompt_recording_path(argv_path: str | None) -> Path:
         print(f"✗ File not found: {p}", file=sys.stderr)
         sys.exit(1)
     return p.resolve()
+
+
+def prompt_recording_paths_compare_mode(default_count: int = 3) -> list[Path]:
+    """Select 2+ recording files for mode-3 compare."""
+    print("\n● Step 1 — Choose recordings to compare\n")
+    candidates = discover_recording_candidates()
+    selected: list[Path] = []
+    if candidates:
+        print(f"  From: {_script_dir() / 'recordings'}")
+        for i, p in enumerate(candidates):
+            print(f"  [{i}]  {p}")
+        print(f"  [{len(candidates)}]  Type paths manually")
+        print("  Selection syntax: 0 | 0,2,4 | 1-3 | a\n")
+        raw = input(f"Recordings [{','.join(str(i) for i in range(min(default_count, len(candidates))))}]: ").strip()
+        if not raw:
+            selected = candidates[: min(default_count, len(candidates))]
+        elif raw.isdigit() and int(raw) == len(candidates):
+            raw_paths = input("Enter paths separated by commas: ").strip()
+            selected = [Path(x.strip()).expanduser().resolve() for x in raw_paths.split(",") if x.strip()]
+        else:
+            indices = _parse_index_list(raw, len(candidates) - 1)
+            if not indices:
+                print("✗ Invalid recording selection.", file=sys.stderr)
+                sys.exit(1)
+            selected = [candidates[i].resolve() for i in indices]
+    else:
+        raw_paths = input("No JSON files found in osc-io/recordings. Enter paths separated by commas: ").strip()
+        selected = [Path(x.strip()).expanduser().resolve() for x in raw_paths.split(",") if x.strip()]
+
+    if len(selected) < 2:
+        print("✗ Compare mode needs at least 2 recordings.", file=sys.stderr)
+        sys.exit(1)
+
+    for p in selected:
+        if not p.exists():
+            print(f"✗ File not found: {p}", file=sys.stderr)
+            sys.exit(1)
+    return selected
 
 
 def _numeric_row(args: list) -> list[float] | None:
@@ -206,6 +253,14 @@ def _address_stream_type(address: str) -> str:
     return "(root)"
 
 
+def _address_field_key(address: str) -> str:
+    """Drop headset prefix: /1FD6/alphaNorm -> alphaNorm."""
+    parts = _address_parts(address)
+    if len(parts) <= 1:
+        return parts[0] if parts else "(root)"
+    return "/".join(parts[1:])
+
+
 def _parse_index(raw: str, *, allow_all: bool = False) -> int | None:
     text = raw.strip().lower()
     if allow_all and text in {"a", "all"}:
@@ -255,6 +310,55 @@ def _parse_index_list(raw: str, max_index: int) -> list[int]:
         picked.add(idx)
 
     return sorted(picked)
+
+
+def _field_key_to_addresses(messages: list[dict]) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = defaultdict(list)
+    for m in messages:
+        addr = m.get("address")
+        if not addr:
+            continue
+        key = _address_field_key(addr)
+        out[key].append(addr)
+    for key in list(out.keys()):
+        out[key] = sorted(set(out[key]))
+    return out
+
+
+def _extract_normalization_method(messages: list[dict]) -> str:
+    vals: list[str] = []
+    for m in messages:
+        if _address_field_key(m.get("address", "")) != "normalizationMethod":
+            continue
+        for a in m.get("args", []):
+            if isinstance(a, str) and a.strip():
+                vals.append(a.strip())
+                break
+    if not vals:
+        return "unknown"
+    # Most frequent string if it changes.
+    counts: dict[str, int] = defaultdict(int)
+    for v in vals:
+        counts[v] += 1
+    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+
+
+def prompt_field_key_for_compare(by_file_field_map: dict[Path, dict[str, list[str]]]) -> str:
+    keys_by_file = [set(m.keys()) for m in by_file_field_map.values()]
+    common = sorted(set.intersection(*keys_by_file)) if keys_by_file else []
+    if not common:
+        print("✗ No shared field keys across selected recordings.", file=sys.stderr)
+        sys.exit(1)
+
+    print("\n● Step 2 — Choose shared field key (prefix ignored)\n")
+    for i, key in enumerate(common):
+        print(f"  [{i}]  {key}")
+    raw = input("\nField index: ").strip()
+    idx = _parse_index(raw)
+    if idx is None or idx < 0 or idx >= len(common):
+        print("✗ Invalid field index.", file=sys.stderr)
+        sys.exit(1)
+    return common[idx]
 
 
 def prompt_stream_addresses(messages: list[dict], cli_address: str | None) -> list[str]:
@@ -451,24 +555,101 @@ def run_plot_many(path: Path, addresses: list[str], messages: list[dict], meta: 
         sys.exit(1)
 
 
+def run_plot_compare_mode(
+    file_messages: dict[Path, list[dict]],
+    file_meta: dict[Path, dict],
+    field_key: str,
+) -> None:
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    print("\n● Step 3 — Compare plot\n")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    plotted = 0
+
+    for path, messages in file_messages.items():
+        field_map = _field_key_to_addresses(messages)
+        candidate_addrs = field_map.get(field_key, [])
+        if not candidate_addrs:
+            print(f"  - skipping {path.name}: field '{field_key}' not present")
+            continue
+        # Prefer first deterministic address if many prefixes map to same key.
+        address = candidate_addrs[0]
+        t0 = messages[0]["t"] if messages else 0.0
+        times, rows, _ = build_plot_arrays(messages, address, t0_global=t0)
+        if not rows:
+            print(f"  - skipping {path.name}: '{field_key}' has no numeric samples")
+            continue
+
+        method = _extract_normalization_method(messages)
+        t = np.asarray(times, dtype=np.float64)
+        y = np.asarray(rows, dtype=np.float64)
+        n_ch = y.shape[1]
+        for c in range(n_ch):
+            label = f"{path.name} [method={method}]"
+            if n_ch > 1:
+                label += f":ch{c}"
+            ax.plot(t, y[:, c], label=label, linewidth=0.9)
+        plotted += 1
+
+    if plotted == 0:
+        print("✗ Could not plot selected field for any recording.", file=sys.stderr)
+        sys.exit(1)
+
+    ax.set_xlabel("Time (s) from recording start")
+    ax.set_ylabel("OSC args")
+    ax.set_title(f"Compare field '{field_key}' across {len(file_messages)} recordings", fontsize=10)
+    handles, labels = ax.get_legend_handles_labels()
+    if len(labels) <= 20:
+        ax.legend(loc="upper right", fontsize=7, ncol=1)
+    else:
+        ax.text(0.01, 0.98, f"{len(labels)} traces (legend hidden)", transform=ax.transAxes, va="top", fontsize=8)
+    fig.tight_layout()
+    plt.show()
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Plot one OSC address from a JSON recording (3-step UX).")
+    parser = argparse.ArgumentParser(description="Plot OSC recording streams (single-file or cross-recording compare).")
     parser.add_argument("file", nargs="?", default=None, help="Recording .json (optional; else menu)")
     parser.add_argument("--address", type=str, default=None, help="OSC address; skips stream menu")
     parser.add_argument("--start", type=float, default=None, help="Start offset in seconds (same as osc_replay.py)")
     parser.add_argument("--end", type=float, default=None, help="End offset in seconds")
     args = parser.parse_args()
 
-    path = prompt_recording_path(args.file)
-    messages, meta = load_messages(path, args.start, args.end)
+    print("\n● Choose mode\n")
+    print("  [0] single-file stream selection (headset/type)")
+    print("  [1] single-file stream selection (alias of 0)")
+    print("  [2] compare same field across recordings\n")
+    mode = _parse_index(input("Mode [0]: ").strip() or "0")
+    if mode not in (0, 1, 2):
+        print("✗ Enter 0, 1, or 2.", file=sys.stderr)
+        sys.exit(1)
 
-    if meta:
-        print(f"\n● Metadata")
-        for k, v in meta.items():
-            print(f"  {k:<22} {v}")
+    if mode in (0, 1):
+        path = prompt_recording_path(args.file)
+        messages, meta = load_messages(path, args.start, args.end)
 
-    addresses = prompt_stream_addresses(messages, args.address)
-    run_plot_many(path, addresses, messages, meta)
+        if meta:
+            print(f"\n● Metadata")
+            for k, v in meta.items():
+                print(f"  {k:<22} {v}")
+
+        addresses = prompt_stream_addresses(messages, args.address)
+        run_plot_many(path, addresses, messages, meta)
+        print("\n✓ Done.")
+        return
+
+    # mode 2 compare
+    paths = prompt_recording_paths_compare_mode(default_count=3)
+    file_messages: dict[Path, list[dict]] = {}
+    file_meta: dict[Path, dict] = {}
+    for p in paths:
+        msgs, meta = load_messages(p, args.start, args.end)
+        file_messages[p] = msgs
+        file_meta[p] = meta
+    by_file_field_map = {p: _field_key_to_addresses(msgs) for p, msgs in file_messages.items()}
+    field_key = prompt_field_key_for_compare(by_file_field_map)
+    run_plot_compare_mode(file_messages, file_meta, field_key)
     print("\n✓ Done.")
 
 

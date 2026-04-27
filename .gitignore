@@ -16,5 +16,8 @@ goofi-files/solaris.gfi
 # OSC recordings
 osc-io/recordings/*.json
 
+# OSC plots
+osc-io/plots/*.png
+
 # VS Code
 .vscode/

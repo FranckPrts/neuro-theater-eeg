@@ -27,13 +27,25 @@ The live installation path we are prioritizing is:
 ```mermaid
 flowchart TD
   subgraph acquisition [Acquisition]
-    museHeadsets6[MuseHeadsets6]
-    tablet["Tablet\n- Muse Direct\n- stream to LSL"]
-    museHeadsets6 -->|"Bluetooth"| tablet
+    enobio[Enobio]
+    tabletNic2["Tablet\n- NIC2 software"]
+    museHeadsets6A[MuseHeadsets x6]
+    museHeadsets6[MuseHeadsets x6]
+    tabletMuseA["Tablet A\n- Muse Direct\n- stream to LSL"]
+    tabletMuseB["Tablet B\n- Muse Direct\n- stream to LSL"]
+    lslToNetworkA[LSL to network]
+    lslToNetworkB[LSL to network]
+    lslToNetworkEnobio[LSL to network]
+    enobio -->|"Wi-Fi"| tabletNic2
+    tabletNic2 --> lslToNetworkEnobio
+    museHeadsets6A -->|"Bluetooth"| tabletMuseA
+    museHeadsets6 -->|"Bluetooth"| tabletMuseB
+    tabletMuseA --> lslToNetworkA
+    tabletMuseB --> lslToNetworkB
   end
 
   subgraph network [Network]
-    mainRouter[MainRouter]
+    mainRouter["MainRouter\n- DHCP reservation per connected node"]
   end
 
   subgraph compute [Compute]
@@ -47,19 +59,24 @@ flowchart TD
     remoteClient[RemoteClient]
   end
 
-  tablet -->|"Wi-Fi"| mainRouter
+  lslToNetworkA -->|"Wi-Fi"| mainRouter
+  lslToNetworkB -->|"Wi-Fi"| mainRouter
+  lslToNetworkEnobio -->|"Wi-Fi"| mainRouter
   mainRouter -->|"Ethernet"| mainComputer
-  mainComputer --> touchDesigner
-  mainComputer --> audioEngine
-  mainComputer --> lightingController
-  mainComputer --> remoteClient
+  mainComputer -->|"OSC"| mainRouter
+  mainRouter --> touchDesigner
+  mainRouter --> audioEngine
+  mainRouter --> lightingController
+  mainRouter --> remoteClient
 ```
 
-- Six Muse headsets connect over Bluetooth to the tablet acquisition layer.
-- The tablet runs Muse Direct and streams to LSL.
+- Each MuseHeadsets x6 group connects over Bluetooth to its own tablet.
+- Each Muse tablet runs Muse Direct, streams to LSL, and has its own LSL-to-network handoff.
+- Enobio follows a parallel acquisition path: Wi-Fi to a tablet running NIC2 software, then LSL to the network.
 - Tablet traffic reaches the main router over Wi-Fi.
 - The main router links by Ethernet to the main motherboard computer.
-- The main computer runs Goofi Pipe, OSC out, and OSC proxy failover, then fans out to downstream consumers.
+- The main computer runs Goofi Pipe, OSC out, and OSC proxy failover; **OSC is sent back onto the LAN via the router** so every downstream consumer can subscribe on the same network.
+- **DHCP reservations** are configured on the router for **each node that joins this network** (tablet, main computer, and consumer machines), so addresses stay stable across reboots and sessions.
 
 ---
 
