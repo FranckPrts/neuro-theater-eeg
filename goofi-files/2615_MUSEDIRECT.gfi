@@ -148,9 +148,9 @@ nodes:
       osc:
         address: localhost
         port: 8001
-        prefix: /2265
+        prefix: /2615
         bundle: true
-        broadcast: false
+        broadcast: true
         require_change: false
       common:
         autotrigger: false
@@ -159,8 +159,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 4265
-      - 714
+      - 4285
+      - 727
       viewers: {}
   reduce1:
     _type: Reduce
@@ -265,6 +265,32 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
+  lslclient5:
+    _type: LSLClient
+    category: inputs
+    params:
+      lsl_stream:
+        source_name: EEG
+        stream_name: Muse-2265
+        source_type: EEG
+        refresh: true
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 132
+      - 620
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
   buffer0:
     _type: Buffer
     category: signal
@@ -307,8 +333,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 140
-      - 1334
+      - 132
+      - 1363
       viewers:
         out:
           viewer_idx: 0
@@ -333,8 +359,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 357
-      - 1346
+      - 349
+      - 1375
       viewers:
         out:
           viewer_idx: 0
@@ -504,8 +530,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 580
-      - 1205
+      - 573
+      - 1285
       viewers:
         out:
           viewer_idx: 0
@@ -520,7 +546,7 @@ nodes:
     params:
       lsl_stream:
         source_name: Gyroscope
-        stream_name: ''
+        stream_name: Muse-2615
         source_type: Gyro
         refresh: true
       common:
@@ -556,12 +582,12 @@ nodes:
     gui_kwargs:
       pos:
       - 578
-      - 861
+      - 883
       viewers:
         out:
           viewer_idx: 0
-          width: 315
-          height: 240
+          width: 305
+          height: 230
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -670,7 +696,7 @@ nodes:
     category: inputs
     params:
       constant:
-        value: '2265'
+        value: '2615'
         overwrite_timeout: 5.0
       common:
         autotrigger: true
@@ -950,7 +976,7 @@ nodes:
     category: signal
     params:
       normalization:
-        method: z-score
+        method: robust
         buffer_size: 1024
         reset: false
         axis: -1
@@ -1442,32 +1468,6 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  lslclient3:
-    _type: LSLClient
-    category: inputs
-    params:
-      lsl_stream:
-        source_name: EEG
-        stream_name: Muse-2265
-        source_type: EEG
-        refresh: true
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 142
-      - 624
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
 links:
 - node_out: buffer2
   node_in: psd0
@@ -1581,6 +1581,10 @@ links:
   node_in: powerbandeeg0
   slot_out: psd
   slot_in: data
+- node_out: lslclient5
+  node_in: buffer2
+  slot_out: out
+  slot_in: val
 - node_out: buffer0
   node_in: imufusion0
   slot_out: out
@@ -1634,6 +1638,10 @@ links:
   slot_out: out
   slot_in: string1
 - node_out: joinstring0
+  node_in: lslclient5
+  slot_out: output
+  slot_in: stream_name
+- node_out: joinstring0
   node_in: lslclient0
   slot_out: output
   slot_in: stream_name
@@ -1643,10 +1651,6 @@ links:
   slot_in: stream_name
 - node_out: joinstring0
   node_in: lslclient2
-  slot_out: output
-  slot_in: stream_name
-- node_out: joinstring0
-  node_in: lslclient3
   slot_out: output
   slot_in: stream_name
 - node_out: constantstring0
@@ -1765,7 +1769,3 @@ links:
   node_in: biotuner0
   slot_out: out
   slot_in: data
-- node_out: lslclient3
-  node_in: buffer2
-  slot_out: out
-  slot_in: val
