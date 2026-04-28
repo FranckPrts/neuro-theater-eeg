@@ -1,10 +1,12 @@
 {
-  "default_recording": "recordings/osc_recording_2026-04-21_18-51-39.json",
+  "default_recording": "recordings/osc_recording_2026-04-27_20-15-43.json",
   "hardware_recordings": {
-    "22FC": "recordings/22FC.json",
-    "1D1A": "recordings/1D1A.json",
-    "1E58": "recordings/1E58.json",
-    "2615": "recordings/2615.json"
+    "22FC": "recordings/failovers/22FC.json",
+    "2265": "recordings/failovers/2265.json",
+    "1D1A": "recordings/failovers/1D1A.json",
+    "1FD6": "recordings/failovers/1FD6.json",
+    "2615": "recordings/failovers/2615.json",
+    "1E58": "recordings/failovers/1E58.json"
   },
   "stale_timeout_default_seconds": 2.0,
   "fade_to_fallback_seconds": 2.0,
@@ -13,7 +15,9 @@
   "change_epsilon_default": 1e-06,
   "stale_timeout_overrides": {
     "/22FC/IMU": 0.75,
+    "/2265/IMU": 0.75,
     "/1D1A/IMU": 0.75,
+    "/1FD6/IMU": 0.75,
     "/1E58/IMU": 0.75,
     "/2615/IMU": 0.75
   },

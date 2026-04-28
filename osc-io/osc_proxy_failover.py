@@ -3,12 +3,44 @@ osc_proxy_failover.py
 ---------------------
 Proxy OSC server with stale-stream failover.
 
-Behavior:
-- listen to live OSC input on UDP port 8001 (configurable)
-- detect stale streams even if packets still arrive (frozen values)
-- when stale, crossfade per stream to fallback data from a recording JSON
-- when live stream changes again, crossfade back to live
-- output proxied OSC on UDP port 8000 (configurable)
+Core behavior
+-------------
+- Listen for live OSC on UDP (default port 8001); emit proxied OSC (default port 8000).
+- Detect stale streams (no packets, or frozen values); crossfade per address to fallback from JSON
+  recordings; crossfade back when live data changes again.
+- Fallbacks load from ``proxy_config.json`` → ``hardware_recordings`` (per headset) plus
+  ``default_recording`` for addresses not covered by a per-hardware file.
+
+OSC addresses are expected as ``/<hardware_id>/<stream>`` (see ``_extract_hardware_prefix``).
+
+Session allowlist (optional)
+----------------------------
+Restrict live ingress, fallback tracks, and output to a fixed set of headset IDs (first path
+segment). Two equivalent ways to enable:
+
+**Config** — non-empty list (omit or use ``[]`` to allow all headsets)::
+
+    "session": {
+      "allowed_hardware": ["22FC", "1D1A", "2615"]
+    }
+
+**CLI** — overrides the config list when non-empty::
+
+    python osc_proxy_failover.py --allowed-hardware 22FC,1D1A,2615
+
+When a session allowlist is active:
+
+- Live OSC for other headsets is dropped; ``fallback_tracks`` is filtered to the same IDs.
+- **Bootstrap:** ``ProxyEngine.seed_streams_from_fallback()`` runs at startup. Every fallback
+  address in scope gets a ``StreamState`` in ``FALLBACK`` mode immediately, so recording data is
+  emitted for each allowed headset/stream even before that device sends live packets (devices
+  not yet on the network still "exist" on the wire).
+- **Live match:** When live OSC arrives for an address, ``ingest_live_message`` updates live
+  samples; if values changed while in fallback, the engine switches to ``FADING_TO_LIVE`` so
+  playback crossfades onto live (same path as recovering from stale live).
+
+Without an allowlist, streams are created only after the first live packet per address (no
+bootstrap).
 
 Dependencies:
     pip install python-osc
@@ -17,7 +49,7 @@ Usage:
     python osc_proxy_failover.py
     python osc_proxy_failover.py --config proxy_config.json
     python osc_proxy_failover.py --in-port 8001 --out-port 8000 --recording recordings/session.json
-    # per-hardware recording map is read from proxy_config.json -> "hardware_recordings"
+    python osc_proxy_failover.py --config proxy_config.json --allowed-hardware 22FC,2265,1D1A
 """
 
 from __future__ import annotations
@@ -151,6 +183,9 @@ class StreamState:
     live_interval_ema: float | None = None
     mode: str = "LIVE"  # LIVE, FADING_TO_FALLBACK, FALLBACK, FADING_TO_LIVE
     fade_started_at: float = 0.0
+    # True while this address was session-bootstrapped and no live packet has been applied yet;
+    # cleared in ``ingest_live_message`` on first live sample (see ``ProxyEngine.seed_streams_from_fallback``).
+    bootstrapped: bool = False
 
     def mark_live_message(self, args: list[Any], now: float):
         if self.last_input_at > 0:
@@ -171,6 +206,14 @@ class StreamState:
 
 
 class ProxyEngine:
+    """Blend live OSC with per-address fallback tracks; optional session filter on headset IDs.
+
+    ``allowed_hardware``: when set, only addresses ``/<id>/...`` with ``id`` in the frozenset are
+    ingested or emitted; ``main()`` also filters ``fallback_tracks`` to those IDs. Call
+    ``seed_streams_from_fallback()`` once after construction (see ``main``) so session runs
+    bootstrap every fallback address before live data exists.
+    """
+
     def __init__(
         self,
         out_host: str,
@@ -183,6 +226,7 @@ class ProxyEngine:
         fade_to_live_s: float,
         output_hz: float,
         fallback_tracks: dict[str, FallbackTrack],
+        allowed_hardware: frozenset[str] | None = None,
     ):
         # Enable broadcast so default out-host can reach installation nodes.
         self.client = udp_client.SimpleUDPClient(out_host, out_port, allow_broadcast=True)
@@ -194,8 +238,15 @@ class ProxyEngine:
         self.fade_to_live_s = fade_to_live_s
         self.output_hz = max(1.0, output_hz)
         self.fallback_tracks = fallback_tracks
+        self.allowed_hardware = allowed_hardware
         self.streams: dict[str, StreamState] = {}
         self.lock = threading.RLock()
+
+    def _address_allowed(self, address: str) -> bool:
+        if self.allowed_hardware is None:
+            return True
+        hw = _extract_hardware_prefix(address)
+        return hw is not None and hw in self.allowed_hardware
 
     def _timeout_for(self, address: str) -> float:
         return float(self.stale_overrides.get(address, self.stale_default))
@@ -214,6 +265,38 @@ class ProxyEngine:
             self.streams[address] = state
         return state
 
+    def seed_streams_from_fallback(self) -> int:
+        """Eagerly open streams for session allowlist runs.
+
+        If ``allowed_hardware`` is ``None``, returns 0 and does nothing.
+
+        Otherwise, for each key in ``fallback_tracks`` (already restricted to allowed IDs in
+        ``main``), ensures a ``StreamState`` exists, sets ``mode`` to ``FALLBACK`` and
+        ``bootstrapped`` True when no live input has been seen yet (``last_input_at == 0``).
+        ``tick()`` then drives OSC from the recording until the first live packet for that
+        address triggers a fade/match via ``ingest_live_message``.
+
+        Returns:
+            Number of streams seeded (one per eligible fallback address without prior live).
+        """
+        if self.allowed_hardware is None:
+            return 0
+        n = 0
+        with self.lock:
+            for address in self.fallback_tracks.keys():
+                if not self._address_allowed(address):
+                    continue
+                state = self.ensure_stream(address)
+                if state.last_input_at > 0:
+                    continue
+                state.bootstrapped = True
+                state.mode = "FALLBACK"
+                track = self.fallback_tracks.get(address)
+                if track:
+                    track.reset_timing()
+                n += 1
+        return n
+
     def _switch_mode(self, state: StreamState, new_mode: str, reason: str):
         if state.mode == new_mode:
             return
@@ -226,9 +309,13 @@ class ProxyEngine:
                 track.reset_timing()
 
     def ingest_live_message(self, address: str, args: list[Any]):
+        """Record one live OSC message; may trigger crossfade from fallback to live."""
+        if not self._address_allowed(address):
+            return
         now = _now()
         with self.lock:
             state = self.ensure_stream(address)
+            state.bootstrapped = False
             changed = state.mark_live_message(args, now)
             # Recovery trigger: any meaningful new change while in fallback side.
             if changed and state.mode in {"FALLBACK", "FADING_TO_FALLBACK"}:
@@ -270,16 +357,23 @@ class ProxyEngine:
         return live_interval
 
     def tick(self):
+        """Emit blended OSC for each known stream at pacing derived from live EMA and fallback."""
         now = _now()
         with self.lock:
             for address, state in self.streams.items():
+                if not self._address_allowed(address):
+                    continue
                 track = self.fallback_tracks.get(address)
                 stale = self._is_stale(state, now)
 
                 if stale and state.mode in {"LIVE", "FADING_TO_LIVE"} and track and track.args_list:
                     self._switch_mode(state, "FADING_TO_FALLBACK", "stale_detected")
-                elif (not stale) and state.mode in {"FALLBACK", "FADING_TO_FALLBACK"}:
-                    # If stream is fresh again (usually because values changed), return live.
+                elif (
+                    (not stale)
+                    and state.last_input_at > 0
+                    and state.mode in {"FALLBACK", "FADING_TO_FALLBACK"}
+                ):
+                    # Live recovered after fallback (not bootstrapped-awaiting-live: last_input_at stays 0 there).
                     self._switch_mode(state, "FADING_TO_LIVE", "stream_fresh")
 
                 interval = self._target_emit_interval(state, track)
@@ -374,6 +468,64 @@ def _extract_hardware_prefix(address: str) -> str | None:
     return parts[1] or None
 
 
+def parse_allowed_hardware_from_config(config: dict[str, Any]) -> frozenset[str] | None:
+    """Read ``session.allowed_hardware`` from proxy JSON.
+
+    Returns:
+        Frozenset of headset IDs, or ``None`` if session is absent or the list is empty
+        (meaning: no restriction, all hardware allowed).
+
+    Raises:
+        ValueError: invalid ``session`` shape or ``allowed_hardware`` element types.
+    """
+    session = config.get("session")
+    if session is None:
+        return None
+    if not isinstance(session, dict):
+        raise ValueError("'session' must be an object with 'allowed_hardware'.")
+    raw = session.get("allowed_hardware", [])
+    if raw is None or raw == []:
+        return None
+    if not isinstance(raw, list):
+        raise ValueError("'session.allowed_hardware' must be a list of strings.")
+    out: set[str] = set()
+    for item in raw:
+        if not isinstance(item, str):
+            raise ValueError("'session.allowed_hardware' entries must be strings.")
+        s = item.strip()
+        if s:
+            out.add(s)
+    return frozenset(out) if out else None
+
+
+def parse_allowed_hardware_cli(value: str | None) -> frozenset[str] | None:
+    """Parse ``--allowed-hardware`` (comma-separated IDs). Empty or whitespace → ``None`` (use config)."""
+    if value is None or not str(value).strip():
+        return None
+    parts = [p.strip() for p in str(value).split(",")]
+    out = {p for p in parts if p}
+    return frozenset(out) if out else None
+
+
+def filter_fallback_tracks_by_session(
+    tracks: dict[str, FallbackTrack], allowed_hardware: frozenset[str]
+) -> tuple[dict[str, FallbackTrack], int, int]:
+    """Keep only fallback tracks whose OSC hardware prefix is in ``allowed_hardware``.
+
+    Returns:
+        ``(kept_tracks, n_before, n_dropped)`` where ``n_dropped`` is the number of addresses
+        removed from ``tracks``.
+    """
+    kept: dict[str, FallbackTrack] = {}
+    for address, track in tracks.items():
+        hw = _extract_hardware_prefix(address)
+        if hw is not None and hw in allowed_hardware:
+            kept[address] = track
+    n_before = len(tracks)
+    n_after = len(kept)
+    return kept, n_before, n_before - n_after
+
+
 def _resolve_default_recording(cli_recording: str | None, config: dict[str, Any], script_dir: Path) -> Path:
     raw = cli_recording or config.get("default_recording")
     if raw:
@@ -394,8 +546,14 @@ def load_fallback_tracks(
 ) -> tuple[dict[str, FallbackTrack], dict[str, int], Path]:
     """
     Load fallback tracks from:
-    1) per-hardware recording map in config["hardware_recordings"]
-    2) default recording (cli --recording or config["default_recording"]) as global fallback
+
+    1) Per-hardware recording map in ``config["hardware_recordings"]`` (only messages whose
+       address prefix matches that hardware id are kept per file).
+    2) Default recording (``--recording`` or ``config["default_recording"]``) for addresses
+       not already filled.
+
+    Session ``allowed_hardware`` filtering happens in ``main()`` after this call
+    (see ``filter_fallback_tracks_by_session``).
     """
     combined: dict[str, FallbackTrack] = {}
     loaded_counts: dict[str, int] = {}
@@ -463,18 +621,38 @@ def load_config(config_path: Path | None) -> dict[str, Any]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Proxy OSC with stale-stream fallback.")
+    parser = argparse.ArgumentParser(
+        description="Proxy OSC with stale-stream failover.",
+        epilog="With --allowed-hardware or session.allowed_hardware, fallback tracks are filtered "
+        "and every in-scope address is bootstrapped so recording OSC is sent until live matches.",
+    )
     parser.add_argument("--in-host", type=str, default="0.0.0.0", help="Live OSC input host (default: 0.0.0.0)")
     parser.add_argument("--in-port", type=int, default=8001, help="Live OSC input port (default: 8001)")
     parser.add_argument("--out-host", type=str, default="192.168.10.255", help="Proxy OSC output host (default: 255.255.255.255)")
     parser.add_argument("--out-port", type=int, default=8000, help="Proxy OSC output port (default: 8000)")
     parser.add_argument("--config", type=str, default=None, help="Path to proxy_config.json")
     parser.add_argument("--recording", type=str, default=None, help="Fallback recording JSON path")
+    parser.add_argument(
+        "--allowed-hardware",
+        type=str,
+        default=None,
+        metavar="IDS",
+        help="Comma-separated headset IDs; overrides session.allowed_hardware. Enables session "
+        "filter + bootstrap (recording on wire until live). Example: 22FC,2265,1D1A",
+    )
     args = parser.parse_args()
 
     script_dir = Path(__file__).resolve().parent
     config_path = Path(args.config).resolve() if args.config else (script_dir / "proxy_config.json")
     config = load_config(config_path if config_path.exists() else None)
+
+    try:
+        allowed_hardware = parse_allowed_hardware_cli(args.allowed_hardware)
+        if allowed_hardware is None:
+            allowed_hardware = parse_allowed_hardware_from_config(config)
+    except ValueError as exc:
+        print(f"✗ Invalid session config: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     try:
         fallback_tracks, fallback_source_counts, default_recording_path = load_fallback_tracks(
@@ -485,6 +663,17 @@ def main():
     except Exception as exc:
         print(f"✗ Could not load fallback recordings: {exc}", file=sys.stderr)
         sys.exit(1)
+
+    if allowed_hardware is not None:
+        n_before = len(fallback_tracks)
+        fallback_tracks, _, dropped = filter_fallback_tracks_by_session(fallback_tracks, allowed_hardware)
+        print(
+            f"[session] fallback tracks filtered: {len(fallback_tracks)} kept, {dropped} dropped "
+            f"(session allowlist, was {n_before} addresses)"
+        )
+        if not fallback_tracks:
+            print("✗ Session allowlist removed all fallback tracks.", file=sys.stderr)
+            sys.exit(1)
 
     stale_default = float(config.get("stale_timeout_default_seconds", 2.0))
     epsilon_default = float(config.get("change_epsilon_default", 1e-6))
@@ -505,7 +694,12 @@ def main():
         fade_to_live_s=fade_to_live_s,
         output_hz=output_hz,
         fallback_tracks=fallback_tracks,
+        allowed_hardware=allowed_hardware,
     )
+
+    boot_count = engine.seed_streams_from_fallback()
+    if boot_count:
+        print(f"[session] bootstrapped {boot_count} streams from fallback (awaiting live where absent)")
 
     d = dispatcher.Dispatcher()
 
@@ -522,6 +716,9 @@ def main():
     print(f"  fallback tracks : {len(fallback_tracks)} addresses")
     for source_name, count in sorted(fallback_source_counts.items()):
         print(f"  {source_name:<15} {count} tracks")
+    if allowed_hardware is not None:
+        ids = ", ".join(sorted(allowed_hardware))
+        print(f"  session allow   : {ids} (other OSC dropped)")
     print(f"  stale default   : {stale_default}s")
     print(f"  fade in/out     : {fade_to_fallback_s}s / {fade_to_live_s}s")
     print(f"  tick rate       : {output_hz} Hz")
