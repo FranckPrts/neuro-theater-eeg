@@ -4,8 +4,8 @@
 In VS Code / Cursor: use “Run Cell” / “Run Above” on each `# %%` section.
 Or run the whole file: ``python examples/xdf_explorer_demo.py`` (from repo root).
 
-The block below adds the repo root to ``sys.path`` so ``import neurotheater`` works
-without ``pip install -e .`` (your kernel must still have dependencies, e.g. ``pyxdf``).
+The block below adds ``examples/`` to ``sys.path`` so ``import exploration`` works
+from this repository checkout (your kernel must still have dependencies, e.g. ``pyxdf``).
 """
 
 # @author: @franckPrts
@@ -13,13 +13,13 @@ without ``pip install -e .`` (your kernel must still have dependencies, e.g. ``p
 from pathlib import Path
 import sys
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+_EXAMPLES_ROOT = Path(__file__).resolve().parent
+if str(_EXAMPLES_ROOT) not in sys.path:
+    sys.path.insert(0, str(_EXAMPLES_ROOT))
 
 from pprint import pprint
 
-from neurotheater import XdfExplorer
+from exploration import XdfExplorer
 
 # %% Path — set your recording, then run the next cell
 XDF_PATH = "../sample_data/25032026-4muses.xdf"

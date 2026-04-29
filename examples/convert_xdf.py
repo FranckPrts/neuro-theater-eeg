@@ -2,13 +2,9 @@
 # @author: @franckPrts
 """Convert an XDF recording to CSV (minimal CLI for collaborators).
 
-Usage (from neuro-theater-eeg after ``pip install -e .``)::
+Usage (from neuro-theater-eeg)::
 
     python examples/convert_xdf.py recording.xdf -o ./csv_out
-
-Or without installing, from neuro-theater-eeg::
-
-    PYTHONPATH=. python examples/convert_xdf.py recording.xdf -o ./csv_out
 """
 
 from __future__ import annotations
@@ -24,7 +20,7 @@ def _repo_root() -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Export streams from an XDF file to CSV via neurotheater.XdfExplorer."
+        description="Export streams from an XDF file to CSV via exploration.XdfExplorer."
     )
     parser.add_argument(
         "xdf",
@@ -57,16 +53,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    root = _repo_root()
-    if str(root) not in sys.path:
-        sys.path.insert(0, str(root))
+    examples_root = _repo_root() / "examples"
+    if str(examples_root) not in sys.path:
+        sys.path.insert(0, str(examples_root))
 
     try:
-        from neurotheater import XdfExplorer
+        from exploration import XdfExplorer
     except ImportError as e:
         print(
-            "Could not import neurotheater. Install the package: "
-            "cd neuro-theater-eeg && pip install -e .\n"
+            "Could not import exploration. Run this script from the repo root "
+            "(neuro-theater-eeg) so examples/ is on disk.\n"
             f"Import error: {e}",
             file=sys.stderr,
         )

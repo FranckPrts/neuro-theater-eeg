@@ -32,4 +32,4 @@ audio = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["neurotheater*"]
+include = ["exploration*"]

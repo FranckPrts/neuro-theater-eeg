@@ -121,7 +121,7 @@ nodes:
     params:
       osc:
         address: localhost
-        port: 8000
+        port: 8001
         prefix: /ENOB
         bundle: true
         broadcast: true

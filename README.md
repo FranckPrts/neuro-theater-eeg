@@ -7,7 +7,7 @@ Toolkit for NeuroTheater EEG workflows, centered on **multi-head Muse -> LSL -> 
 
 | Path                                                 | Purpose                                                                                                                      |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `neuro-theater-eeg/`                                 | Installable Python package `**neurotheater`** (`pyproject.toml`, `neurotheater/`)                                            |
+| `neuro-theater-eeg/`                                 | EEG toolkit root; legacy XDF exploration code now lives in `examples/exploration/`                                             |
 | `neuro-theater-eeg/goofi-files/`                     | Active **goofi-pipe** graph variants for Muse Direct / LSL routing and OSC output                                             |
 | `neuro-theater-eeg/osc-io/`                          | OSC proxy failover, recording/replay tools, and operational routing utilities                                                 |
 | `neuro-theater-eeg/examples/`                        | Utility demos (including legacy XDF → CSV helpers)                                                                            |
@@ -82,7 +82,7 @@ flowchart TD
 
 ## Legacy appendix: XDF and offline export utilities
 
-- `**XdfExplorer**` (`neurotheater.xdf_explorer`): loads an XDF via **pyxdf**, lists streams, summarizes channels and shapes, and filters **Muse** streams by LSL name `"Muse"`.
+- `**XdfExplorer**` (`exploration.xdf_explorer`): loads an XDF via **pyxdf**, lists streams, summarizes channels and shapes, and filters **Muse** streams by LSL name `"Muse"`.
 - `**to_csv`**: exports selected streams to **wide** CSV (one row per raw sample; channel columns). With `**output="single"`** the table is **sparse** (one stream’s cells filled per row). With `**output="per_stream"`** each file is dense (numeric channel columns `0`, `1`, …). Optional filters: `**sources**` (LSL `source_id` or stream `name`) and `**types**` (e.g. `EEG`, `GYRO`, `ACC`, `PPG`).
 - `**examples/xdf_explorer_demo.py**`: notebook-style cells for exploring a file and trying export options.
 - `**examples/convert_xdf.py**`: minimal command-line entry point so someone can convert a recording without editing Python by hand.
@@ -154,7 +154,7 @@ cd neuro-theater-eeg
 pip install -r requirements.txt
 ```
 
-Installing with `pip install -e .` is recommended so `import neurotheater` works from any working directory. The `**examples/convert_xdf.py**` script also prepends the `neuro-theater-eeg` root to `sys.path`, so from that folder you can run `python examples/convert_xdf.py …` even before installing. `**examples/xdf_explorer_demo.py**` does the same for local runs.
+The XDF helpers are legacy exploration utilities under `examples/exploration/` and are imported as `exploration` by the example scripts. `**examples/convert_xdf.py**` and `**examples/xdf_explorer_demo.py**` add the local `examples/` folder to `sys.path` so you can run them directly from the `neuro-theater-eeg` repo root.
 
 ---
 
@@ -214,7 +214,7 @@ Default Conda env name in `**run_env_neurtheater.sh**` is **`neurotheater`**. Ov
    ```bash
    python -c "import numpy; print('numpy', numpy.__version__)"
    pip show pyxdf numpy | grep -E '^Name:|^Version:'
-   python -c "import goofi; import pyxdf; import neurotheater; print('imports ok')"
+   python -c "import goofi; import pyxdf; import sys; sys.path.insert(0, 'examples'); import exploration; print('imports ok')"
    ```
 
    You want **NumPy 1.26.x** (or any **1.x**), **pyxdf 1.16.x**, and successful imports.
@@ -252,7 +252,7 @@ Use this pattern after `pip install -e .`:
 
 ```python
 from pathlib import Path
-from neurotheater import XdfExplorer
+from exploration import XdfExplorer
 
 XDF_PATH = Path("/path/to/your_recording.xdf")
 OUT = Path("csv_out") / "export.csv"
@@ -334,10 +334,10 @@ Operational rule of thumb for this setup:
 
 ---
 
-## Package surface
+## XDF helper surface
 
 ```python
-from neurotheater import XdfExplorer
+from exploration import XdfExplorer
 
 xdf = XdfExplorer("recording.xdf")
 len(xdf)                    # number of streams
