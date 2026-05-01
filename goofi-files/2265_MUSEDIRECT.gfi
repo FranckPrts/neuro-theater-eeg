@@ -545,9 +545,9 @@ nodes:
     category: signal
     params:
       fusion:
-        ALPHA: 1.0
+        ALPHA: 0.9589999914169312
         UPDATE_HZ: 0.10000000149011612
-        output_format: quaternion_xyzw
+        output_format: euler_deg
       common:
         autotrigger: false
         max_frequency: 30.0
@@ -555,8 +555,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 578
-      - 861
+      - 609
+      - 846
       viewers:
         out:
           viewer_idx: 0
@@ -950,7 +950,7 @@ nodes:
     category: signal
     params:
       normalization:
-        method: z-score
+        method: minmax
         buffer_size: 1024
         reset: false
         axis: -1
@@ -972,7 +972,7 @@ nodes:
     gui_kwargs:
       pos:
       - 1679
-      - 741
+      - 703
       viewers:
         normalized:
           viewer_idx: 0
@@ -1384,8 +1384,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 3505
-      - 187
+      - 3462
+      - 146
       viewers:
         table:
           viewer_idx: 0

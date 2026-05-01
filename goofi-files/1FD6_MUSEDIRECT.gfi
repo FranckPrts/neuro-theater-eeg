@@ -441,7 +441,7 @@ nodes:
     gui_kwargs:
       pos:
       - 950
-      - 1384
+      - 1144
       viewers:
         Mean:
           viewer_idx: 0
@@ -605,8 +605,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1252
-      - 1413
+      - 1254
+      - 1365
       viewers:
         out:
           viewer_idx: 0
@@ -1434,13 +1434,13 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2280
-      - 590
+      - 2220
+      - 576
       viewers:
         out:
           viewer_idx: 0
-          width: 315
-          height: 240
+          width: 365
+          height: 290
           collapsed: false
           log_scale_x: false
           log_scale_y: false
