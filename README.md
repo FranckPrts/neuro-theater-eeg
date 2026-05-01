@@ -33,15 +33,9 @@ flowchart TD
     museHeadsets6[MuseHeadsets x6]
     tabletMuseA["Tablet A\n- Muse Direct\n- stream to LSL"]
     tabletMuseB["Tablet B\n- Muse Direct\n- stream to LSL"]
-    lslToNetworkA[LSL to network]
-    lslToNetworkB[LSL to network]
-    lslToNetworkEnobio[LSL to network]
     enobio -->|"Wi-Fi"| tabletNic2
-    tabletNic2 --> lslToNetworkEnobio
     museHeadsets6A -->|"Bluetooth"| tabletMuseA
     museHeadsets6 -->|"Bluetooth"| tabletMuseB
-    tabletMuseA --> lslToNetworkA
-    tabletMuseB --> lslToNetworkB
   end
 
   subgraph network [Network]
@@ -56,18 +50,17 @@ flowchart TD
     touchDesigner[TouchDesigner]
     audioEngine[AudioEngine]
     lightingController[LightingController]
-    remoteClient[RemoteClient]
+    telepromter[Teleprompter]
   end
 
-  lslToNetworkA -->|"Wi-Fi"| mainRouter
-  lslToNetworkB -->|"Wi-Fi"| mainRouter
-  lslToNetworkEnobio -->|"Wi-Fi"| mainRouter
-  mainRouter -->|"Ethernet"| mainComputer
-  mainComputer -->|"OSC"| mainRouter
+  tabletMuseA -->|"LSL (ethernet)"| mainRouter
+  tabletMuseB -->|"LSL (ethernet)"| mainRouter
+  tabletNic2 -->|"LSL (ethernet)"| mainRouter
+  mainComputer -->|"OSC (Ethernet)"| mainRouter
   mainRouter --> touchDesigner
   mainRouter --> audioEngine
   mainRouter --> lightingController
-  mainRouter --> remoteClient
+  mainRouter --> telepromter
 ```
 
 - Each MuseHeadsets x6 group connects over Bluetooth to its own tablet.
