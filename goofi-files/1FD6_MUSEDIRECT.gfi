@@ -573,7 +573,7 @@ nodes:
       fusion:
         ALPHA: 1.0
         UPDATE_HZ: 0.10000000149011612
-        output_format: quaternion_xyzw
+        output_format: euler_deg
       common:
         autotrigger: false
         max_frequency: 30.0
@@ -976,7 +976,7 @@ nodes:
     category: signal
     params:
       normalization:
-        method: robust
+        method: minmax
         buffer_size: 1024
         reset: false
         axis: -1

@@ -391,8 +391,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2437
-      - 1033
+      - 2414
+      - 1029
       viewers:
         table:
           viewer_idx: 0
@@ -951,7 +951,7 @@ nodes:
     category: signal
     params:
       normalization:
-        method: robust
+        method: minmax
         buffer_size: 1024
         reset: false
         axis: -1
@@ -1458,13 +1458,13 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 586
-      - 889
+      - 591
+      - 855
       viewers:
         out:
           viewer_idx: 0
-          width: 345
-          height: 270
+          width: 385
+          height: 310
           collapsed: false
           log_scale_x: false
           log_scale_y: false

@@ -148,7 +148,7 @@ nodes:
       osc:
         address: localhost
         port: 8001
-        prefix: /2615
+        prefix: /22FC
         bundle: true
         broadcast: true
         require_change: false
@@ -159,8 +159,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 4286
-      - 726
+      - 4285
+      - 727
       viewers: {}
   reduce1:
     _type: Reduce
@@ -546,7 +546,7 @@ nodes:
     params:
       lsl_stream:
         source_name: Gyroscope
-        stream_name: Muse-2615
+        stream_name: ''
         source_type: Gyro
         refresh: true
       common:
@@ -563,6 +563,31 @@ nodes:
           viewer_idx: 0
           width: 175
           height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  imufusion0:
+    _type: ImuFusion
+    category: signal
+    params:
+      fusion:
+        ALPHA: 1.0
+        UPDATE_HZ: 0.10000000149011612
+        output_format: euler_deg
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 578
+      - 883
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 305
+          height: 230
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -671,7 +696,7 @@ nodes:
     category: inputs
     params:
       constant:
-        value: '2615'
+        value: 22FC
         overwrite_timeout: 5.0
       common:
         autotrigger: true
@@ -1443,31 +1468,6 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  imufusion0:
-    _type: ImuFusion
-    category: signal
-    params:
-      fusion:
-        ALPHA: 0.97
-        UPDATE_HZ: 30.0
-        output_format: euler_deg
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 575
-      - 891
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 285
-          height: 210
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
 links:
 - node_out: buffer2
   node_in: psd0
@@ -1621,6 +1621,10 @@ links:
   node_in: buffer3
   slot_out: out
   slot_in: val
+- node_out: imufusion0
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input1
 - node_out: reduce0
   node_in: extendedtable1
   slot_out: out
@@ -1765,7 +1769,3 @@ links:
   node_in: biotuner0
   slot_out: out
   slot_in: data
-- node_out: imufusion0
-  node_in: extendedtable1
-  slot_out: out
-  slot_in: array_input1
