@@ -295,7 +295,7 @@ This is the setup we are actively using right now for 4 headsets.
 2. Start proxy failover from `osc-io/`:
 
    ```bash
-   python osc_proxy_failover.py --in-port 8001 --out-port 8000 --recording recordings/osc_recording_2026-04-21_18-51-39.json
+   python osc_proxy_failover.py --in-port 8001 --out-port 8000 --recording recordings/random_recordings/osc_recording_2026-04-21_18-51-39.json
    ```
 
 3. Proxy listens for live data on `0.0.0.0:8001`, detects stale per OSC address, crossfades to recording fallback, then crossfades back when live changes again.

@@ -115,11 +115,25 @@ def discover_json_candidates() -> list[Path]:
 
 
 def discover_recording_candidates() -> list[Path]:
-    """*.json specifically from osc-io/recordings (mode-3 compare)."""
+    """*.json from osc-io/recordings/random_recordings (mode-3 compare), plus legacy root recordings/*.json."""
     recordings_dir = _script_dir() / "recordings"
     if not recordings_dir.exists():
         return []
-    return sorted(recordings_dir.glob("*.json"))
+    seen: set[Path] = set()
+    out: list[Path] = []
+    rnd = recordings_dir / "random_recordings"
+    if rnd.exists():
+        for p in sorted(rnd.glob("*.json")):
+            r = p.resolve()
+            if r not in seen:
+                seen.add(r)
+                out.append(p)
+    for p in sorted(recordings_dir.glob("*.json")):
+        r = p.resolve()
+        if r not in seen:
+            seen.add(r)
+            out.append(p)
+    return out
 
 
 def prompt_recording_path(argv_path: str | None) -> Path:
@@ -170,7 +184,7 @@ def prompt_recording_paths_compare_mode(default_count: int = 3) -> list[Path]:
     candidates = discover_recording_candidates()
     selected: list[Path] = []
     if candidates:
-        print(f"  From: {_script_dir() / 'recordings'}")
+        print(f"  From: {_script_dir() / 'recordings' / 'random_recordings'} (and legacy recordings/*.json)")
         for i, p in enumerate(candidates):
             print(f"  [{i}]  {p}")
         print(f"  [{len(candidates)}]  Type paths manually")
@@ -188,7 +202,9 @@ def prompt_recording_paths_compare_mode(default_count: int = 3) -> list[Path]:
                 sys.exit(1)
             selected = [candidates[i].resolve() for i in indices]
     else:
-        raw_paths = input("No JSON files found in osc-io/recordings. Enter paths separated by commas: ").strip()
+        raw_paths = input(
+            "No JSON files found under osc-io/recordings/random_recordings. Enter paths separated by commas: "
+        ).strip()
         selected = [Path(x.strip()).expanduser().resolve() for x in raw_paths.split(",") if x.strip()]
 
     if len(selected) < 2:

@@ -11,6 +11,10 @@ Core behavior
 - Fallbacks load from ``proxy_config.json`` → ``hardware_recordings`` (per headset) plus
   ``default_recording`` for addresses not covered by a per-hardware file.
 
+**Multi-destination output** — optional ``output_ports`` array in ``proxy_config.json`` (e.g.
+``[8000, 7999]``). ``--out-port`` on the CLI overrides the config when present; comma-separated
+ports duplicate each emitted OSC packet to every listed UDP port on ``--out-host``.
+
 OSC addresses are expected as ``/<hardware_id>/<stream>`` (see ``_extract_hardware_prefix``).
 
 Session allowlist (optional)
@@ -48,7 +52,8 @@ Dependencies:
 Usage:
     python osc_proxy_failover.py
     python osc_proxy_failover.py --config proxy_config.json
-    python osc_proxy_failover.py --in-port 8001 --out-port 8000 --recording recordings/session.json
+    python osc_proxy_failover.py --in-port 8001 --out-port 8000 --recording recordings/random_recordings/session.json
+    python osc_proxy_failover.py --in-port 8001 --out-port 8000,7999
     python osc_proxy_failover.py --config proxy_config.json --allowed-hardware 22FC,2265,1D1A
 """
 
@@ -217,7 +222,7 @@ class ProxyEngine:
     def __init__(
         self,
         out_host: str,
-        out_port: int,
+        out_ports: list[int],
         stale_default: float,
         epsilon_default: float,
         stale_overrides: dict[str, float],
@@ -228,8 +233,13 @@ class ProxyEngine:
         fallback_tracks: dict[str, FallbackTrack],
         allowed_hardware: frozenset[str] | None = None,
     ):
+        if not out_ports:
+            raise ValueError("out_ports must be non-empty.")
+        self._out_ports = list(out_ports)
         # Enable broadcast so default out-host can reach installation nodes.
-        self.client = udp_client.SimpleUDPClient(out_host, out_port, allow_broadcast=True)
+        self._clients = [
+            udp_client.SimpleUDPClient(out_host, port, allow_broadcast=True) for port in self._out_ports
+        ]
         self.stale_default = stale_default
         self.epsilon_default = epsilon_default
         self.stale_overrides = stale_overrides
@@ -398,11 +408,15 @@ class ProxyEngine:
                 if not out_args:
                     continue
 
-                try:
-                    self.client.send_message(address, out_args)
+                emitted = False
+                for port, client in zip(self._out_ports, self._clients):
+                    try:
+                        client.send_message(address, out_args)
+                        emitted = True
+                    except Exception as exc:
+                        print(f"[ERR] send {address} (port {port}): {exc}", file=sys.stderr)
+                if emitted:
                     state.last_emit_at = now
-                except Exception as exc:
-                    print(f"[ERR] send {address}: {exc}", file=sys.stderr)
 
 
 def build_fallback_tracks(recording_path: Path) -> dict[str, FallbackTrack]:
@@ -532,11 +546,19 @@ def _resolve_default_recording(cli_recording: str | None, config: dict[str, Any]
         return _resolve_path(str(raw), script_dir)
 
     recordings_dir = script_dir / "recordings"
+    candidates: list[Path] = []
     if recordings_dir.exists():
-        candidates = sorted(recordings_dir.glob("osc_recording_*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
-        if candidates:
-            return candidates[0]
-    raise FileNotFoundError("No fallback recording specified and none found in osc-io/recordings.")
+        rnd = recordings_dir / "random_recordings"
+        if rnd.exists():
+            candidates.extend(rnd.glob("osc_recording_*.json"))
+        candidates.extend(recordings_dir.glob("osc_recording_*.json"))
+    if candidates:
+        candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return candidates[0]
+    raise FileNotFoundError(
+        "No fallback recording specified and none found under osc-io/recordings/random_recordings/ "
+        "(or legacy osc-io/recordings/*.json)."
+    )
 
 
 def load_fallback_tracks(
@@ -620,6 +642,77 @@ def load_config(config_path: Path | None) -> dict[str, Any]:
     return json.loads(config_path.read_text())
 
 
+def _normalize_output_port_list(ports: list[int]) -> list[int]:
+    """Deduplicate UDP ports while preserving first-seen order."""
+    seen: set[int] = set()
+    out: list[int] = []
+    for p in ports:
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
+def _parse_single_output_port(token: str, *, context: str) -> int:
+    s = token.strip()
+    if not s:
+        raise ValueError(f"{context}: empty port token.")
+    try:
+        p = int(s, 10)
+    except ValueError as exc:
+        raise ValueError(f"{context}: not an integer port: {token!r}") from exc
+    if p < 1 or p > 65535:
+        raise ValueError(f"{context}: port out of range 1–65535: {p}")
+    return p
+
+
+def parse_output_ports(value: str | None) -> list[int] | None:
+    """Parse ``--out-port`` comma-separated list. Whitespace around commas is ignored.
+
+    Returns:
+        Non-empty list of ports, or ``None`` if ``value`` is None/blank (use config / default).
+    """
+    if value is None or not str(value).strip():
+        return None
+    parts = [p.strip() for p in str(value).split(",")]
+    raw_ports = [_parse_single_output_port(p, context="--out-port") for p in parts if p.strip()]
+    if not raw_ports:
+        return None
+    return _normalize_output_port_list(raw_ports)
+
+
+def parse_output_ports_from_config(config: dict[str, Any]) -> list[int] | None:
+    """Read ``output_ports`` from proxy JSON. Empty list means unset.
+
+    Raises:
+        ValueError: invalid type or non-integer elements.
+    """
+    raw = config.get("output_ports")
+    if raw is None:
+        return None
+    if not isinstance(raw, list):
+        raise ValueError("'output_ports' must be a JSON array of integers.")
+    if not raw:
+        return None
+    ports: list[int] = []
+    for i, item in enumerate(raw):
+        if isinstance(item, bool) or not isinstance(item, int):
+            raise ValueError(f"'output_ports'[{i}] must be an integer (got {type(item).__name__}).")
+        ports.append(_parse_single_output_port(str(item), context="output_ports"))
+    return _normalize_output_port_list(ports)
+
+
+def resolve_output_ports(cli_value: str | None, config: dict[str, Any]) -> list[int]:
+    """CLI ``--out-port`` wins when present; else ``output_ports`` in config; else ``[8000]``."""
+    cli_ports = parse_output_ports(cli_value)
+    if cli_ports is not None:
+        return cli_ports
+    cfg_ports = parse_output_ports_from_config(config)
+    if cfg_ports is not None:
+        return cfg_ports
+    return [8000]
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Proxy OSC with stale-stream failover.",
@@ -629,7 +722,14 @@ def main():
     parser.add_argument("--in-host", type=str, default="0.0.0.0", help="Live OSC input host (default: 0.0.0.0)")
     parser.add_argument("--in-port", type=int, default=8001, help="Live OSC input port (default: 8001)")
     parser.add_argument("--out-host", type=str, default="192.168.10.255", help="Proxy OSC output host (default: 255.255.255.255)")
-    parser.add_argument("--out-port", type=int, default=8000, help="Proxy OSC output port (default: 8000)")
+    parser.add_argument(
+        "--out-port",
+        type=str,
+        default=None,
+        metavar="PORTS",
+        help="Proxy OSC output port(s), comma-separated for duplicate sends (default: config "
+        "output_ports or 8000). Example: 8000,7999",
+    )
     parser.add_argument("--config", type=str, default=None, help="Path to proxy_config.json")
     parser.add_argument("--recording", type=str, default=None, help="Fallback recording JSON path")
     parser.add_argument(
@@ -645,6 +745,12 @@ def main():
     script_dir = Path(__file__).resolve().parent
     config_path = Path(args.config).resolve() if args.config else (script_dir / "proxy_config.json")
     config = load_config(config_path if config_path.exists() else None)
+
+    try:
+        out_ports = resolve_output_ports(args.out_port, config)
+    except ValueError as exc:
+        print(f"✗ Invalid output ports: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     try:
         allowed_hardware = parse_allowed_hardware_cli(args.allowed_hardware)
@@ -685,7 +791,7 @@ def main():
 
     engine = ProxyEngine(
         out_host=args.out_host,
-        out_port=args.out_port,
+        out_ports=out_ports,
         stale_default=stale_default,
         epsilon_default=epsilon_default,
         stale_overrides=stale_overrides,
@@ -711,7 +817,8 @@ def main():
     server = osc_server.ThreadingOSCUDPServer((args.in_host, args.in_port), d)
     print("\n● OSC Proxy Failover")
     print(f"  live in         : {args.in_host}:{args.in_port}")
-    print(f"  proxy out       : {args.out_host}:{args.out_port}")
+    out_dest = ", ".join(f"{args.out_host}:{p}" for p in out_ports)
+    print(f"  proxy out       : {out_dest}")
     print(f"  fallback default: {default_recording_path}")
     print(f"  fallback tracks : {len(fallback_tracks)} addresses")
     for source_name, count in sorted(fallback_source_counts.items()):

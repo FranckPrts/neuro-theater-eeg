@@ -1,12 +1,14 @@
 {
-  "default_recording": "recordings/osc_recording_2026-04-27_20-15-43.json",
+  "default_recording": "recordings/random_recordings/osc_recording_2026-04-27_20-15-43.json",
   "hardware_recordings": {
     "22FC": "recordings/failovers/22FC.json",
     "2265": "recordings/failovers/2265.json",
     "1D1A": "recordings/failovers/1D1A.json",
     "1FD6": "recordings/failovers/1FD6.json",
     "2615": "recordings/failovers/2615.json",
-    "1E58": "recordings/failovers/1E58.json"
+    "2262": "recordings/failovers/2262-EUL-MINMAX.json",
+    "1E58": "recordings/failovers/1E58.json",
+    "ENOB": "recordings/failovers/ENOB-FAKE.json"
   },
   "stale_timeout_default_seconds": 2.0,
   "fade_to_fallback_seconds": 2.0,
@@ -19,7 +21,9 @@
     "/1D1A/IMU": 0.75,
     "/1FD6/IMU": 0.75,
     "/1E58/IMU": 0.75,
-    "/2615/IMU": 0.75
+    "/2615/IMU": 0.75,
+    "/2262/IMU": 0.75
   },
-  "change_epsilon_overrides": {}
+  "change_epsilon_overrides": {},
+  "output_ports": [7999, 8000]
 }

@@ -167,7 +167,7 @@ def main():
     # Auto-name output if not specified
     if args.out is None:
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        recordings_dir = Path(__file__).resolve().parent / "recordings"
+        recordings_dir = Path(__file__).resolve().parent / "recordings" / "random_recordings"
         recordings_dir.mkdir(parents=True, exist_ok=True)
         output_path = recordings_dir / f"osc_recording_{ts}.json"
     else:

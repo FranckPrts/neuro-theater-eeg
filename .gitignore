@@ -15,6 +15,7 @@ goofi-files/solaris.gfi
 
 # OSC recordings
 osc-io/recordings/*.json
+osc-io/recordings/random_recordings/*.json
 osc-io/recordings/failovers/*.json
 
 # OSC plots
