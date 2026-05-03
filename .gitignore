@@ -4,6 +4,7 @@
 # Present in tree: convert_xdf / demo CSV exports
 examples/out/*
 sample_data/*
+goofi-files/solaris.gfi
 
 # Created as soon as you import or run Python (not committed)
 __pycache__/
@@ -23,3 +24,6 @@ osc-io/plots/*.png
 
 # VS Code
 .vscode/
+
+# Pivate notes
+todos.md
