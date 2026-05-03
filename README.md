@@ -26,6 +26,15 @@ The live installation path we are prioritizing is:
 
 ```mermaid
 flowchart TD
+  subgraph network [Network – Router – Switch]
+    LSL["LSL"]
+    subgraph osc [OSC]
+      8000["P:8000\nProxy-OUT"]
+      8001["P:8001\nProxy-IN"]
+      8888["P:8888\nMonitoring"]
+    end
+  end
+
   subgraph acquisition [Acquisition]
     enobio[Enobio]
     tabletNic2["Tablet\n- NIC2 software"]
@@ -38,10 +47,6 @@ flowchart TD
     museHeadsets6 -->|"Bluetooth"| tabletMuseB
   end
 
-  subgraph network [Network]
-    mainRouter["MainRouter\n- DHCP reservation per connected node"]
-  end
-
   subgraph compute [Compute]
     mainComputer["MainComputer\n- LSL in\n- Goofi Pipe\n- OSC out\n- OSC proxy failover"]
   end
@@ -49,18 +54,21 @@ flowchart TD
   subgraph consumers [Consumers]
     touchDesigner[TouchDesigner]
     audioEngine[AudioEngine]
-    lightingController[LightingController]
+    videoController[LightingController]
+    streamingDiffusion[StreamingDiffusion]
     telepromter[Teleprompter]
   end
 
-  tabletMuseA -->|"LSL (ethernet)"| mainRouter
-  tabletMuseB -->|"LSL (ethernet)"| mainRouter
-  tabletNic2 -->|"LSL (ethernet)"| mainRouter
-  mainComputer -->|"OSC (Ethernet)"| mainRouter
-  mainRouter --> touchDesigner
-  mainRouter --> audioEngine
-  mainRouter --> lightingController
-  mainRouter --> telepromter
+  tabletMuseA -->|"LSL (ethernet)"| LSL
+  tabletMuseB -->|"LSL (ethernet)"| LSL
+  tabletNic2 -->|"LSL (ethernet)"| LSL
+  mainComputer -->|"Goofi (osc)"| 8001
+  LSL -->|"LSL (Ethernet)"| mainComputer
+  8000 --> touchDesigner
+  8000 --> audioEngine
+  8000 --> videoController
+  8000 --> streamingDiffusion
+  8000 --> telepromter
 ```
 
 - Each MuseHeadsets x6 group connects over Bluetooth to its own tablet.

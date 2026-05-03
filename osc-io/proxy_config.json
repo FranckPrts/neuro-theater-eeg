@@ -8,7 +8,7 @@
     "2615": "recordings/failovers/2615.json",
     "2262": "recordings/failovers/2262.json",
     "1E58": "recordings/failovers/1E58.json",
-    "ENOB": "recordings/failovers/ENOB-FAKE.json"
+    "ENOB": "recordings/failovers/ENOB.json"
   },
   "stale_timeout_default_seconds": 2.0,
   "fade_to_fallback_seconds": 2.0,
