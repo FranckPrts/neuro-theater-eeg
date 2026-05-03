@@ -15,6 +15,11 @@ Core behavior
 ``[8000, 7999]``). ``--out-port`` on the CLI overrides the config when present; comma-separated
 ports duplicate each emitted OSC packet to every listed UDP port on ``--out-host``.
 
+**Status OSC (monitoring)** — optional UDP OSC on port ``8888`` by default, same ``--out-host``
+unless ``status_host`` is set. Each known stream is reported at
+``/nt/proxy/stream/<hardware>/<stream...>/status`` with args ``mode, blend, bootstrapped``. Use
+``--no-status`` to disable.
+
 OSC addresses are expected as ``/<hardware_id>/<stream>`` (see ``_extract_hardware_prefix``).
 
 Session allowlist (optional)
@@ -39,6 +44,10 @@ When a session allowlist is active:
   address in scope gets a ``StreamState`` in ``FALLBACK`` mode immediately, so recording data is
   emitted for each allowed headset/stream even before that device sends live packets (devices
   not yet on the network still "exist" on the wire).
+- **Matrix coverage:** After filtering, any stream path (suffix after ``/<id>/``) that exists for
+  at least one allowed headset is **cloned** onto every other allowed headset that lacks it, so
+  monitoring and downstream routing see a full column per allowlisted ID (same recording-shaped
+  data as the donor until live arrives for that address).
 - **Live match:** When live OSC arrives for an address, ``ingest_live_message`` updates live
   samples; if values changed while in fallback, the engine switches to ``FADING_TO_LIVE`` so
   playback crossfades onto live (same path as recovering from stale live).
@@ -55,6 +64,9 @@ Usage:
     python osc_proxy_failover.py --in-port 8001 --out-port 8000 --recording recordings/random_recordings/session.json
     python osc_proxy_failover.py --in-port 8001 --out-port 8000,7999
     python osc_proxy_failover.py --config proxy_config.json --allowed-hardware 22FC,2265,1D1A
+    python osc_proxy_failover.py --status-port 8888 --status-hz 10
+    python osc_proxy_failover.py --no-status
+    python osc_proxy_failover.py --config proxy_config.json --allowed-hardware 22FC,2265,2262,1D1A,1FD6,2615,1E58,ENOB --in-port 8001 --out-port 8000
 """
 
 from __future__ import annotations
@@ -232,14 +244,28 @@ class ProxyEngine:
         output_hz: float,
         fallback_tracks: dict[str, FallbackTrack],
         allowed_hardware: frozenset[str] | None = None,
+        *,
+        status_enabled: bool = True,
+        status_host: str | None = None,
+        status_port: int = 8888,
+        status_osc_hz: float = 10.0,
     ):
         if not out_ports:
             raise ValueError("out_ports must be non-empty.")
         self._out_ports = list(out_ports)
+        self._out_host = out_host
         # Enable broadcast so default out-host can reach installation nodes.
         self._clients = [
             udp_client.SimpleUDPClient(out_host, port, allow_broadcast=True) for port in self._out_ports
         ]
+        self._status_clients: list[udp_client.SimpleUDPClient] = []
+        self.status_osc_hz = max(0.1, float(status_osc_hz))
+        self._last_status_emit_at = 0.0
+        if status_enabled:
+            sh = status_host if (status_host is not None and str(status_host).strip()) else out_host
+            self._status_clients = [
+                udp_client.SimpleUDPClient(sh, int(status_port), allow_broadcast=True)
+            ]
         self.stale_default = stale_default
         self.epsilon_default = epsilon_default
         self.stale_overrides = stale_overrides
@@ -307,12 +333,61 @@ class ProxyEngine:
                 n += 1
         return n
 
-    def _switch_mode(self, state: StreamState, new_mode: str, reason: str):
+    def _stream_status_cell(self, state: StreamState, now: float) -> str:
+        mode = state.mode
+        blend = self._blend_for_state(state, now)
+        if mode in {"FADING_TO_FALLBACK", "FADING_TO_LIVE"}:
+            ui = f"mix {blend:.2f}"
+        elif mode == "LIVE":
+            ui = "▲ live"
+        elif mode == "FALLBACK":
+            ui = "△ rec"
+        else:
+            ui = mode.lower()
+        if state.bootstrapped:
+            ui += "*"
+        return ui
+
+    def _print_stream_status_table(self, now: float) -> None:
+        """Log one matrix: rows = sub-stream paths, columns = headset IDs."""
+        by_hw: dict[str, dict[str, StreamState]] = {}
+        for address, state in self.streams.items():
+            if not self._address_allowed(address):
+                continue
+            parts = [p for p in address.split("/") if p]
+            if len(parts) < 2:
+                continue
+            hw, stream = parts[0], "/".join(parts[1:])
+            by_hw.setdefault(hw, {})[stream] = state
+        if not by_hw:
+            return
+        hws = sorted(by_hw.keys())
+        stream_keys: set[str] = set()
+        for d in by_hw.values():
+            stream_keys.update(d.keys())
+        streams_sorted = sorted(stream_keys)
+        col_w = max(14, max((len(s) for s in streams_sorted), default=14))
+        hw_w = max(10, max((len(h) for h in hws), default=10))
+
+        sep = " | "
+        line0 = "stream".ljust(col_w) + sep + sep.join(hw.center(hw_w) for hw in hws)
+        print(line0)
+        print("-" * len(line0))
+        for sk in streams_sorted:
+            row = sk.ljust(col_w)
+            for hw in hws:
+                st = by_hw.get(hw, {}).get(sk)
+                cell = self._stream_status_cell(st, now) if st else "—"
+                row += sep + cell[:hw_w].center(hw_w)
+            print(row)
+        print()
+
+    def _switch_mode(self, state: StreamState, new_mode: str, _reason: str):
         if state.mode == new_mode:
             return
         state.mode = new_mode
         state.fade_started_at = _now()
-        print(f"[{state.address}] mode={new_mode} reason={reason}")
+        self._print_stream_status_table(_now())
         if new_mode in {"FADING_TO_FALLBACK", "FALLBACK"}:
             track = self.fallback_tracks.get(state.address)
             if track:
@@ -369,6 +444,7 @@ class ProxyEngine:
     def tick(self):
         """Emit blended OSC for each known stream at pacing derived from live EMA and fallback."""
         now = _now()
+        status_snapshot: list[tuple[str, str, float, int]] | None = None
         with self.lock:
             for address, state in self.streams.items():
                 if not self._address_allowed(address):
@@ -417,6 +493,35 @@ class ProxyEngine:
                         print(f"[ERR] send {address} (port {port}): {exc}", file=sys.stderr)
                 if emitted:
                     state.last_emit_at = now
+
+            if self._status_clients:
+                hz = self.status_osc_hz
+                interval = 1.0 / hz
+                if self._last_status_emit_at == 0 or (now - self._last_status_emit_at) >= interval:
+                    status_snapshot = []
+                    for address, state in self.streams.items():
+                        if not self._address_allowed(address):
+                            continue
+                        blend = self._blend_for_state(state, now)
+                        status_snapshot.append(
+                            (address, state.mode, blend, 1 if state.bootstrapped else 0)
+                        )
+                    self._last_status_emit_at = now
+
+        if status_snapshot is not None:
+            self._send_status_osc(status_snapshot)
+
+    def _send_status_osc(self, rows: list[tuple[str, str, float, int]]) -> None:
+        for source_address, mode, blend, boot in rows:
+            osc_addr = _status_osc_address(source_address)
+            if osc_addr is None:
+                continue
+            args: list[Any] = [str(mode), float(blend), int(boot)]
+            for client in self._status_clients:
+                try:
+                    client.send_message(osc_addr, args)
+                except Exception as exc:
+                    print(f"[ERR] status OSC {osc_addr}: {exc}", file=sys.stderr)
 
 
 def build_fallback_tracks(recording_path: Path) -> dict[str, FallbackTrack]:
@@ -482,6 +587,16 @@ def _extract_hardware_prefix(address: str) -> str | None:
     return parts[1] or None
 
 
+def _status_osc_address(source_address: str) -> str | None:
+    """Map ``/<hardware>/<stream/...>`` to ``/nt/proxy/stream/<hardware>/<stream...>/status``."""
+    parts = [p for p in source_address.split("/") if p]
+    if len(parts) < 2:
+        return None
+    hw = parts[0]
+    stream_segs = parts[1:]
+    return "/nt/proxy/stream/" + "/".join([hw, *stream_segs, "status"])
+
+
 def parse_allowed_hardware_from_config(config: dict[str, Any]) -> frozenset[str] | None:
     """Read ``session.allowed_hardware`` from proxy JSON.
 
@@ -538,6 +653,80 @@ def filter_fallback_tracks_by_session(
     n_before = len(tracks)
     n_after = len(kept)
     return kept, n_before, n_before - n_after
+
+
+def _stream_suffix_after_hw(address: str) -> tuple[str, str] | None:
+    """Split ``/<hardware>/<stream...>`` into ``(hardware, stream_suffix)``."""
+    hw = _extract_hardware_prefix(address)
+    if hw is None:
+        return None
+    prefix = f"/{hw}/"
+    if not address.startswith(prefix):
+        return None
+    return hw, address[len(prefix) :]
+
+
+def expand_allowlist_fallback_matrix(
+    tracks: dict[str, FallbackTrack], allowed_hardware: frozenset[str]
+) -> tuple[dict[str, FallbackTrack], int]:
+    """Ensure every allowed headset has a fallback track for every stream path seen on any allowed headset.
+
+    TouchDesigner / status tables use the union of stream rows across columns; without this,
+    allowlisted IDs show empty cells for streams that only exist in another headset's recording.
+    Missing ``/<hw>/<stream>`` entries are filled by cloning the first available donor track
+    among other allowed IDs (same ``stream`` suffix), then any remaining track with that suffix.
+
+    Returns:
+        ``(tracks_out, n_cloned)`` — shallow-new dict when ``n_cloned > 0``, else same dict.
+    """
+    if not allowed_hardware:
+        return tracks, 0
+
+    suffixes: set[str] = set()
+    for address in tracks:
+        pair = _stream_suffix_after_hw(address)
+        if pair is not None:
+            suffixes.add(pair[1])
+
+    if not suffixes:
+        return tracks, 0
+
+    out: dict[str, FallbackTrack] = dict(tracks)
+    n_cloned = 0
+    hws = sorted(allowed_hardware)
+
+    for hw in hws:
+        for stream in suffixes:
+            target = f"/{hw}/{stream}"
+            if target in out:
+                continue
+            donor: FallbackTrack | None = None
+            for other in hws:
+                if other == hw:
+                    continue
+                donor = out.get(f"/{other}/{stream}")
+                if donor is not None:
+                    break
+            if donor is None:
+                for donor_addr, dt in out.items():
+                    pair = _stream_suffix_after_hw(donor_addr)
+                    if pair is None or pair[1] != stream:
+                        continue
+                    if pair[0] == hw:
+                        continue
+                    donor = dt
+                    break
+            if donor is None:
+                continue
+            out[target] = FallbackTrack(
+                args_list=[list(a) for a in donor.args_list],
+                intervals=list(donor.intervals),
+                index=0,
+                next_emit_at=0.0,
+            )
+            n_cloned += 1
+
+    return out, n_cloned
 
 
 def _resolve_default_recording(cli_recording: str | None, config: dict[str, Any], script_dir: Path) -> Path:
@@ -642,6 +831,27 @@ def load_config(config_path: Path | None) -> dict[str, Any]:
     return json.loads(config_path.read_text())
 
 
+def resolve_proxy_config_path(cli_value: str | None, script_dir: Path) -> Path:
+    """Resolve ``--config`` or the default ``proxy_config.json`` beside this script.
+
+    Relative paths are tried in **current working directory** first, then **script_dir** (the
+    ``osc-io`` folder). This matches the common case ``python osc-io/osc_proxy_failover.py
+    --config proxy_config.json`` run from a repo root where the JSON lives under ``osc-io/``.
+    """
+    if cli_value is None or not str(cli_value).strip():
+        return (script_dir / "proxy_config.json").resolve()
+    raw = Path(str(cli_value).strip()).expanduser()
+    if raw.is_absolute():
+        return raw.resolve()
+    p_cwd = (Path.cwd() / raw).resolve()
+    if p_cwd.exists():
+        return p_cwd
+    p_script = (script_dir / raw).resolve()
+    if p_script.exists():
+        return p_script
+    return p_cwd
+
+
 def _normalize_output_port_list(ports: list[int]) -> list[int]:
     """Deduplicate UDP ports while preserving first-seen order."""
     seen: set[int] = set()
@@ -730,7 +940,12 @@ def main():
         help="Proxy OSC output port(s), comma-separated for duplicate sends (default: config "
         "output_ports or 8000). Example: 8000,7999",
     )
-    parser.add_argument("--config", type=str, default=None, help="Path to proxy_config.json")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="Path to proxy_config.json (relative paths: current directory, then osc-io/ next to this script)",
+    )
     parser.add_argument("--recording", type=str, default=None, help="Fallback recording JSON path")
     parser.add_argument(
         "--allowed-hardware",
@@ -740,11 +955,47 @@ def main():
         help="Comma-separated headset IDs; overrides session.allowed_hardware. Enables session "
         "filter + bootstrap (recording on wire until live). Example: 22FC,2265,1D1A",
     )
+    parser.add_argument(
+        "--no-status",
+        action="store_true",
+        help="Disable monitoring OSC (default: send /nt/proxy/stream/.../status on UDP 8888).",
+    )
+    parser.add_argument(
+        "--status-host",
+        type=str,
+        default=None,
+        help="Status OSC destination host (default: same as --out-host, or config status_host).",
+    )
+    parser.add_argument(
+        "--status-port",
+        type=int,
+        default=None,
+        help="Status OSC UDP port (default: 8888 or config status_port).",
+    )
+    parser.add_argument(
+        "--status-hz",
+        type=float,
+        default=None,
+        help="Status OSC max rate in Hz (default: 10 or config status_osc_hz).",
+    )
     args = parser.parse_args()
 
     script_dir = Path(__file__).resolve().parent
-    config_path = Path(args.config).resolve() if args.config else (script_dir / "proxy_config.json")
-    config = load_config(config_path if config_path.exists() else None)
+    config_path = resolve_proxy_config_path(args.config, script_dir)
+    if config_path.exists():
+        config = load_config(config_path)
+        print(f"[config] {config_path}")
+    else:
+        config = load_config(None)
+        if args.config and str(args.config).strip():
+            raw_cfg = Path(str(args.config).strip()).expanduser()
+            alt = (script_dir / raw_cfg).resolve() if not raw_cfg.is_absolute() else None
+            print(
+                f"[WARN] Config not found at {config_path}"
+                + (f" or {alt}" if alt is not None and alt != config_path else "")
+                + "; continuing with empty config (fallback paths may be wrong).",
+                file=sys.stderr,
+            )
 
     try:
         out_ports = resolve_output_ports(args.out_port, config)
@@ -781,6 +1032,15 @@ def main():
             print("✗ Session allowlist removed all fallback tracks.", file=sys.stderr)
             sys.exit(1)
 
+        n_mat_before = len(fallback_tracks)
+        fallback_tracks, n_cloned = expand_allowlist_fallback_matrix(fallback_tracks, allowed_hardware)
+        if n_cloned:
+            print(
+                f"[session] allowlist matrix: cloned {n_cloned} fallback address(es) "
+                f"({n_mat_before} → {len(fallback_tracks)}); each allowed ID has every stream path "
+                "present on any allowed ID"
+            )
+
     stale_default = float(config.get("stale_timeout_default_seconds", 2.0))
     epsilon_default = float(config.get("change_epsilon_default", 1e-6))
     fade_to_fallback_s = float(config.get("fade_to_fallback_seconds", 2.0))
@@ -788,6 +1048,30 @@ def main():
     output_hz = float(config.get("proxy_tick_hz", 120.0))
     stale_overrides = {str(k): float(v) for k, v in config.get("stale_timeout_overrides", {}).items()}
     epsilon_overrides = {str(k): float(v) for k, v in config.get("change_epsilon_overrides", {}).items()}
+
+    status_enabled = not args.no_status
+    status_port_val = args.status_port
+    if status_port_val is None:
+        status_port_val = int(config.get("status_port", 8888))
+    try:
+        status_port_val = _parse_single_output_port(str(status_port_val), context="status_port")
+    except ValueError as exc:
+        print(f"✗ Invalid status port: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    raw_status_host = args.status_host if args.status_host is not None else config.get("status_host")
+    status_host_val: str | None
+    if isinstance(raw_status_host, str) and raw_status_host.strip():
+        status_host_val = raw_status_host.strip()
+    else:
+        status_host_val = None
+
+    status_hz_val = args.status_hz
+    if status_hz_val is None:
+        status_hz_val = float(config.get("status_osc_hz", 10.0))
+    if not math.isfinite(status_hz_val) or status_hz_val <= 0:
+        print("✗ status-hz / status_osc_hz must be a positive finite number.", file=sys.stderr)
+        sys.exit(1)
 
     engine = ProxyEngine(
         out_host=args.out_host,
@@ -801,6 +1085,10 @@ def main():
         output_hz=output_hz,
         fallback_tracks=fallback_tracks,
         allowed_hardware=allowed_hardware,
+        status_enabled=status_enabled,
+        status_host=status_host_val,
+        status_port=status_port_val,
+        status_osc_hz=status_hz_val,
     )
 
     boot_count = engine.seed_streams_from_fallback()
@@ -829,6 +1117,11 @@ def main():
     print(f"  stale default   : {stale_default}s")
     print(f"  fade in/out     : {fade_to_fallback_s}s / {fade_to_live_s}s")
     print(f"  tick rate       : {output_hz} Hz")
+    if status_enabled:
+        sh_disp = status_host_val or args.out_host
+        print(f"  status OSC      : {sh_disp}:{status_port_val} (up to {status_hz_val} Hz)")
+    else:
+        print("  status OSC      : off (--no-status)")
     print("\n  Running... press Ctrl+C to stop.\n")
     print("\n  Have fun :)\n")
 
