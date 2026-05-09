@@ -346,6 +346,42 @@ xdf.stream_summary()        # list of dicts: name, type, source_id, channel_coun
 xdf.muse_streams()          # streams whose LSL name is exactly "Muse"
 xdf.to_csv("out.csv", ...)  # see docstring on XdfExplorer.to_csv
 ```
+---
+
+## Cheat sheet
+To start the OSC proxy on ports 8001 (input) and 8000 (output), use:
+
+```bash
+python osc-io/osc_proxy_failover.py \
+  --config proxy_config.json \
+  --status-hz 2 \
+  --allowed-hardware 22FC,2265,2262,1D1A,1FD6,2615,ENOB \
+  --in-port 8001 \
+  --out-port 8000
+```
+
+To run the Goofi-pipe workflow for Muse and ENOB data:
+
+```bash
+goofi-pipe goofi-files/🔲🔲🔲🔲_MUSEDIRECT.gfi --headless
+```
+
+To activate the recommended Conda environment for NeuroTheater:
+
+```bash
+source neuro-theater-eeg/run_env_neurtheater.sh
+```
+
+To replay any JSON recording:
+
+```bash
+python osc-io/osc_replay.py osc-io/recordings/failovers/ENOBIO.json --port 8001 --loop
+```
+and to record:
+```bash
+python osc-io/osc_recorder.py --port 8001
+```
+
 
 ---
 
