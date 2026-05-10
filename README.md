@@ -385,6 +385,26 @@ python osc-io/osc_recorder.py --port 8001
 
 ---
 
+## Acknowledgments
+
+This work sits on top of open tools and standards that make the NeuroTheater stack possible, including [Lab Streaming Layer](https://github.com/sccn/labstreaminglayer), Muse and **Muse Direct** streaming workflows, [goofi-pipe](https://github.com/dav0dea/goofi-pipe), the **muselsl** [ecosystem](https://github.com/alexandrebarachant/muse-lsl/) for Muse–LSL bridges, **TouchDesigner**, and the Python libraries used in this repo (e.g. **pyxdf**, **pylsl**, **python-osc**).
+
+Most importantly, the very important OSC consumers on this installation's network:
+— Planetary visualization: Georgios
+— Sound: Matt
+— Video projection: Simon
+— LLM prompts: Conor
+— Real-time video & LLM diffusion: Lee
+— Writing: Graham
+— Production: Quentin
+— Neural interface: Suzanne
+— All the actors participating in the workshop and performance!
+
+
+
+## Citation
+**Citing this repository:** For research or publications, use the metadata in [`CITATION.cff`](CITATION.cff). On GitHub, open **Cite this repository** in the sidebar to generate citation strings from that file.
+
 ## Version
 
 Package version **1.0.0** (see `neuro-theater-eeg/pyproject.toml`).

@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+title: NeuroTheater EEG Toolkit
+message: >-
+  If you use this software, please cite it using the metadata in this file.
+type: software
+authors:
+  - family-names: Porteous
+    given-names: Franck
+repository-code: https://github.com/FranckPrts/neuro-theater-eeg
+url: https://github.com/FranckPrts/neuro-theater-eeg
+keywords:
+  - eeg
+  - lsl
+  - muse
+  - osc
+  - goofi-pipe
+  - neurotheater
+  - live-performance
