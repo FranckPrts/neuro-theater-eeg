@@ -1,13 +1,15 @@
 # @author: @franckPrts
 
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "neurotheater"
 version = "1.0.0"
 description = "NeuroTheater utilities for XDF / LSL recordings"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 dependencies = [
     "pyxdf>=1.16.0",
 ]

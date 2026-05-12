@@ -8,6 +8,7 @@ authors:
     given-names: Franck
 repository-code: https://github.com/FranckPrts/neuro-theater-eeg
 url: https://github.com/FranckPrts/neuro-theater-eeg
+license: Apache-2.0
 keywords:
   - eeg
   - lsl

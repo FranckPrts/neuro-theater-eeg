@@ -405,6 +405,8 @@ Most importantly, the very important OSC consumers on this installation's networ
 ## Citation
 **Citing this repository:** For research or publications, use the metadata in [`CITATION.cff`](CITATION.cff). On GitHub, open **Cite this repository** in the sidebar to generate citation strings from that file.
 
+This project is licensed under the [Apache License, Version 2.0](LICENSE). See also [`NOTICE`](NOTICE).
+
 ## Version
 
 Package version **1.0.0** (see `neuro-theater-eeg/pyproject.toml`).
