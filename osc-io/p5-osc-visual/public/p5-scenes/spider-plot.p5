@@ -1,0 +1,190 @@
+/**
+ * Spider / radar plot — overlaid pentagons from OSC + HEX colors from host.
+ *
+ * Radius mode (from host `data`): `__radiusMode` — `relative` (default) or `absolute`.
+ * Absolute scale: `__absoluteMean` (branch value at center), `__absoluteMax` (|v−mean| at outer edge).
+ *
+ * Max mappable overlays (OSC rail size). Server reads this exact line for /api/p5-scenes:
+ *   const NUM_OVERLAY_PLOTS = 3;
+ */
+const NUM_OVERLAY_PLOTS = 3;
+
+const ANGLE = (2 * Math.PI) / 5;
+const AXIS_LABELS = ["Delta", "Theta", "Alpha", "Low β", "High β"];
+const RADIUS = 200;
+const LABEL_R = 230;
+
+function parseHexColor(h) {
+  if (typeof h !== "string") return [120, 160, 200];
+  let s = h.trim();
+  if (s.startsWith("0x")) s = "#" + s.slice(2);
+  if (!s.startsWith("#")) s = "#" + s;
+  const hex = s.slice(1);
+  if (hex.length === 3) {
+    const r = parseInt(hex[0] + hex[0], 16);
+    const g = parseInt(hex[1] + hex[1], 16);
+    const b = parseInt(hex[2] + hex[2], 16);
+    return [r, g, b];
+  }
+  if (hex.length === 6) {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    if ([r, g, b].every((x) => !isNaN(x))) return [r, g, b];
+  }
+  return [120, 160, 200];
+}
+
+function axisValuesForPlot(p) {
+  const out = [];
+  for (let a = 0; a < 5; a++) {
+    const k = `plot_${p}_axis_${a}`;
+    const v = data?.[k];
+    const n = typeof v === "number" && isFinite(v) ? v : 0;
+    out.push(n);
+  }
+  return out;
+}
+
+function spiderRadiusMode() {
+  const m = data?.__radiusMode;
+  return String(m).toLowerCase() === "absolute" ? "absolute" : "relative";
+}
+
+function spiderAbsoluteMean() {
+  const v = data?.__absoluteMean;
+  if (typeof v === "number" && isFinite(v)) return v;
+  const n = parseFloat(String(v ?? ""));
+  return isFinite(n) ? n : 0;
+}
+
+/** Positive span from mean to outer pentagon edge; invalid/zero falls back to 1. */
+function spiderAbsoluteMax() {
+  const v = data?.__absoluteMax;
+  let x = typeof v === "number" && isFinite(v) ? v : parseFloat(String(v ?? ""));
+  if (!isFinite(x) || x <= 1e-12) x = 1;
+  return x;
+}
+
+/** Relative: share of total |v| per axis (legacy). */
+function radiiForSpiderRelative(vals) {
+  const abs = vals.map((v) => (typeof v === "number" && isFinite(v) ? Math.abs(v) : 0));
+  let sum = 0;
+  for (const x of abs) sum += x;
+  if (sum > 1e-9) return abs.map((x) => x / sum);
+  let mx = 0;
+  for (const x of abs) mx = Math.max(mx, x);
+  if (mx > 1e-9) return abs.map((x) => x / mx);
+  return abs.map(() => 0.22);
+}
+
+/** Absolute: distance from shared mean, scaled so |v - mean| === max hits the outer radius. */
+function radiiForSpiderAbsolute(vals) {
+  const mean = spiderAbsoluteMean();
+  const maxAbs = spiderAbsoluteMax();
+  if (maxAbs <= 1e-12) return radiiForSpiderRelative(vals);
+  return vals.map((v) => {
+    const n = typeof v === "number" && isFinite(v) ? v : 0;
+    const t = Math.abs(n - mean) / maxAbs;
+    return constrain(t, 0, 1);
+  });
+}
+
+/** Map 5 raw values to [0,1] radii — mode from host (`data.__radiusMode`). */
+function radiiForSpider(vals) {
+  if (spiderRadiusMode() === "absolute") return radiiForSpiderAbsolute(vals);
+  return radiiForSpiderRelative(vals);
+}
+
+function drawPentagonOutline() {
+  noFill();
+  stroke(100, 100, 100);
+  strokeWeight(1.5);
+  beginShape();
+  for (let i = 0; i < 5; i++) {
+    const x = RADIUS * cos(ANGLE * (i + PI / 4));
+    const y = RADIUS * sin(ANGLE * (i + PI / 4));
+    vertex(x, y);
+  }
+  endShape(CLOSE);
+
+  stroke(70, 70, 80);
+  strokeWeight(1);
+  for (let i = 0; i < 5; i++) {
+    const x = RADIUS * cos(ANGLE * (i + PI / 4));
+    const y = RADIUS * sin(ANGLE * (i + PI / 4));
+    line(0, 0, x, y);
+  }
+}
+
+function drawAxisLabels() {
+  textAlign(CENTER, CENTER);
+  textSize(12);
+  noStroke();
+  fill(140, 145, 158);
+  for (let i = 0; i < 5; i++) {
+    const x = LABEL_R * cos(ANGLE * (i + PI / 4));
+    const y = LABEL_R * sin(ANGLE * (i + PI / 4));
+    text(AXIS_LABELS[i], x, y);
+  }
+}
+
+function drawFilledSpider(radii, rgb, alphaFill, alphaStroke) {
+  const [r, g, b] = rgb;
+  fill(r, g, b, alphaFill);
+  stroke(r, g, b, alphaStroke);
+  strokeWeight(1.5);
+  beginShape();
+  for (let i = 0; i < 5; i++) {
+    const t = radii[i];
+    const x = t * RADIUS * cos(ANGLE * (i + PI / 4));
+    const y = t * RADIUS * sin(ANGLE * (i + PI / 4));
+    vertex(x, y);
+  }
+  endShape(CLOSE);
+}
+
+windowResized = () => {
+  resizeCanvas(windowWidth, windowHeight);
+};
+
+setup = () => {
+  createCanvas(windowWidth, windowHeight);
+  textFont("Courier New");
+};
+
+draw = () => {
+  background(20);
+
+  let nDraw = NUM_OVERLAY_PLOTS;
+  if (typeof data?.__plotCount === "number" && isFinite(data.__plotCount)) {
+    nDraw = Math.max(1, Math.min(12, Math.floor(data.__plotCount), NUM_OVERLAY_PLOTS));
+  }
+
+  push();
+  translate(width / 2, height / 2);
+
+  drawPentagonOutline();
+  drawAxisLabels();
+
+  for (let p = 0; p < nDraw; p++) {
+    const vals = axisValuesForPlot(p);
+    const radii = radiiForSpider(vals);
+    const hex = data?.[`plot_${p}_color`];
+    const rgb = parseHexColor(hex || "#7896b0");
+    drawFilledSpider(radii, rgb, 72, 235);
+  }
+
+  pop();
+
+  textAlign(LEFT, TOP);
+  noStroke();
+  fill(180, 185, 195);
+  textSize(11);
+  const mode = spiderRadiusMode();
+  text(
+    `${mode} · ${nDraw} overlay(s) · cap ${NUM_OVERLAY_PLOTS}`,
+    12,
+    10
+  );
+};
