@@ -10,13 +10,14 @@ Toolkit for NeuroTheater EEG workflows, centered on **multi-head Muse -> LSL -> 
 | `neuro-theater-eeg/`                                 | EEG toolkit root; legacy XDF exploration code now lives in `examples/exploration/`                                             |
 | `neuro-theater-eeg/goofi-files/`                     | Active **goofi-pipe** graph variants for Muse Direct / LSL routing and OSC output                                             |
 | `neuro-theater-eeg/osc-io/`                          | OSC proxy failover, recording/replay tools, and operational routing utilities                                                 |
+| `neuro-theater-eeg/osc-io/p5-osc-visual/`            | **Node** browser bridge: OSC (UDP) → WebSocket → **p5.js** live scenes (see **Browser OSC visual** below and [`osc-io/p5-osc-visual/README.md`](osc-io/p5-osc-visual/README.md)) |
 | `neuro-theater-eeg/examples/`                        | Utility demos (including legacy XDF → CSV helpers)                                                                            |
 | `neuro-theater-eeg/scripts/patch_muselsl_asyncio.sh` | Optional **muselsl** patch for **Python 3.10+** (Bleak / asyncio)                                                            |
 | `neuro-theater-eeg/scripts/muse_stream_resilient.sh` | **Side note:** quick helper to run **muselsl stream** with retries, `nickname.json` lookup, and Conda activation (see below) |
 | `neuro-theater-eeg/run_env_neurtheater.sh`           | Helper to `source` and activate a Conda env named `**NeuroTheater`** (adjust if you use another name)                        |
 
 
-There is no separate `docs/` folder in this tree yet; acquisition notes (Muse, muselsl, goofi-pipe, LSL) are summarized below so you do not need a second markdown file for the same story.
+The **p5** bridge persists scene mappings and spider options in the browser (`localStorage`, including **`nt.p5osc.spiderRadius`** for radius mode and absolute mean/max). CSV control rows `__radiusMode`, `__absoluteMean`, and `__absoluteMax` are described in [`osc-io/p5-osc-visual/README.md`](osc-io/p5-osc-visual/README.md).
 
 ---
 
@@ -78,6 +79,12 @@ flowchart TD
 - The main router links by Ethernet to the main motherboard computer.
 - The main computer runs Goofi Pipe, OSC out, and OSC proxy failover; **OSC is sent back onto the LAN via the router** so every downstream consumer can subscribe on the same network.
 - **DHCP reservations** are configured on the router for **each node that joins this network** (tablet, main computer, and consumer machines), so addresses stay stable across reboots and sessions.
+
+---
+
+## Browser OSC visual (p5-osc-visual)
+
+**p5-osc-visual** is a small **Node.js** app that listens for **OSC over UDP** (for example the same proxied stream you send to TouchDesigner), forwards packets to the browser over **WebSocket**, and runs **p5.js** sketches from [`osc-io/p5-osc-visual/public/p5-scenes/`](osc-io/p5-osc-visual/public/p5-scenes/). The **Scene** strip maps OSC addresses to scene inputs, with optional **CSV** presets under [`public/p5-mapping/`](osc-io/p5-osc-visual/public/p5-mapping/). The **spider** scene supports multiple overlays, per-plot colors, and **relative** (share of total band magnitude) versus **absolute** radius (distance from a shared **mean** scaled by a shared **max**); those options persist in the browser (`localStorage`, including `nt.p5osc.spiderRadius`). Install, default ports (`7999` OSC, `8765` HTTP), and CSV fields such as `__radiusMode`, `__absoluteMean`, and `__absoluteMax` are documented in [`osc-io/p5-osc-visual/README.md`](osc-io/p5-osc-visual/README.md).
 
 ---
 
@@ -382,6 +389,11 @@ and to record:
 python osc-io/osc_recorder.py --port 8001
 ```
 
+To run the **p5** browser OSC bridge (listens on UDP **7999** by default, serves the UI at **http://127.0.0.1:8765/**; point your OSC proxy output at the same host/port):
+
+```bash
+cd osc-io/p5-osc-visual && npm start
+```
 
 ---
 
