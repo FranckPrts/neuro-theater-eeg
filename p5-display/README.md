@@ -101,6 +101,8 @@ For **`spider-plot.p5`**, the API adds **`spiderPlot: { plotCount: N }`** where 
 
 Each scene script is written in **global p5 mode** (`setup` / `draw`, global `data` object). The host maps OSC into `data` keys that match each input **`id`**, and for spider scenes adds `data.plot_<p>_color` strings, `data.__plotCount`, `data.__dataLineDisplay` (`electrodes` or `powerBands`), `data.__radiusMode`, `data.__absoluteMean`, and `data.__absoluteMax` from the rail.
 
+The `Spider Neon` scene is an original NeuroTheater OSC visual, with its luminous EEG/radar aesthetic inspired by [Flower2](https://github.com/NeoVand/Flower2) by Neo Mohsenvand.
+
 ## JSON message shape (WebSocket → browser)
 
 Each OSC packet is one JSON object:

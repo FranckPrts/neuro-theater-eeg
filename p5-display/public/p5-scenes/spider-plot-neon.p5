@@ -1,5 +1,6 @@
 /**
  * Spider / radar plot — neon panogram aesthetic over the same OSC data model.
+ * Visual inspiration: Flower2 by Neo Mohsenvand (https://github.com/NeoVand/Flower2).
  *
  * Radius mode (from host `data`): `__radiusMode` — `relative` (default) or `absolute`.
  * Absolute scale: `__absoluteMean` (branch value at center), `__absoluteMax` (|v−mean| at outer edge).
