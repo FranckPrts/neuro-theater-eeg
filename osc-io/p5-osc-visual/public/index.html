@@ -22,6 +22,25 @@
         <div class="banner__body" id="bannerBody">
           <p class="banner__status" id="bannerStatus" aria-live="polite">Connecting…</p>
           <p class="banner__oscbind" id="bannerOscBind" aria-live="polite"></p>
+          <div class="osc-port-bar" id="oscPortBar" aria-label="OSC UDP listen port">
+            <div class="osc-port-bar__presets" id="oscPortPresets" role="group" aria-label="Port presets"></div>
+            <div class="osc-port-bar__row">
+              <label class="osc-port-bar__label" for="oscPortCustom">Custom</label>
+              <input
+                id="oscPortCustom"
+                class="osc-port-bar__input"
+                type="number"
+                min="1"
+                max="65535"
+                step="1"
+                placeholder="port"
+                inputmode="numeric"
+                autocomplete="off"
+              />
+              <button type="button" id="oscPortApply" class="osc-port-bar__btn">Apply</button>
+            </div>
+            <p id="oscPortStatus" class="osc-port-bar__status" aria-live="polite"></p>
+          </div>
           <div class="panel-mode" role="tablist" aria-label="Panel mode">
             <button type="button" class="mode-tab is-active" id="modeStreams" data-mode="streams">
               Streams

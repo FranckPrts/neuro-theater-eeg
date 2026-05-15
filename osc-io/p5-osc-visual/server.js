@@ -126,10 +126,104 @@ function parseAddressParts(address) {
   return { hardware: null, stream: parts.join("/") || null };
 }
 
+/** @param {number} port */
+function isValidUdpPort(port) {
+  return Number.isFinite(port) && port >= 1 && port <= 65535;
+}
+
+/**
+ * Close an osc UDPPort if present.
+ * @param {any} p
+ */
+function closeOscUdpPort(p) {
+  if (!p) return;
+  try {
+    p.close();
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+/**
+ * Open UDP OSC listener; resolves when port is ready.
+ * @param {string} oscHost
+ * @param {number} oscPort
+ * @param {(payload: object) => void} broadcast
+ * @param {number} [readyMs]
+ */
+function openOscUdpPort(oscHost, oscPort, broadcast, readyMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const p = new osc.UDPPort({
+      localAddress: oscHost,
+      localPort: oscPort,
+      metadata: true,
+    });
+
+    let settled = false;
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      closeOscUdpPort(p);
+      reject(new Error("OSC bind timed out"));
+    }, readyMs);
+
+    function onMessage(oscMsg) {
+      const address = oscMsg.address;
+      const args = serializeOscArgs(oscMsg.args);
+      const { hardware, stream } = parseAddressParts(address);
+      broadcast({
+        type: "osc",
+        address,
+        hardware,
+        stream,
+        args,
+        receivedAt: Date.now(),
+      });
+    }
+
+    function onError(err) {
+      console.error("[OSC]", err && err.message ? err.message : err);
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        closeOscUdpPort(p);
+        reject(err);
+      }
+    }
+
+    function onReady() {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(p);
+    }
+
+    p.on("message", onMessage);
+    p.on("error", onError);
+    p.once("ready", onReady);
+
+    try {
+      p.open();
+    } catch (e) {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timer);
+        closeOscUdpPort(p);
+        reject(e);
+      }
+    }
+  });
+}
+
 function main() {
   const opts = parseArgs(process.argv);
 
   const clients = new Set();
+  /** @type {any} */
+  let udpPort = null;
+  /** @type {null | ((port: number) => Promise<{ oscHost: string; oscPort: number }>)} */
+  let rebindOscPort = null;
 
   const server = http.createServer((req, res) => {
     const u = url.parse(req.url || "/", true);
@@ -143,6 +237,49 @@ function main() {
           oscPort: opts.oscPort,
         })
       );
+      return;
+    }
+
+    if (u.pathname === "/api/osc-port" && req.method === "POST") {
+      const jsonHeaders = { "Content-Type": "application/json; charset=utf-8" };
+      const chunks = [];
+      req.on("data", (c) => chunks.push(c));
+      req.on("end", async () => {
+        let portNum;
+        try {
+          const raw = Buffer.concat(chunks).toString("utf8");
+          const body = raw.trim() ? JSON.parse(raw) : {};
+          const p = body.port;
+          portNum = typeof p === "number" ? p : parseInt(String(p), 10);
+        } catch (_) {
+          res.writeHead(400, jsonHeaders);
+          res.end(JSON.stringify({ ok: false, error: "Invalid JSON" }));
+          return;
+        }
+        if (!isValidUdpPort(portNum)) {
+          res.writeHead(400, jsonHeaders);
+          res.end(JSON.stringify({ ok: false, error: "Invalid port (use 1–65535)" }));
+          return;
+        }
+        if (!rebindOscPort) {
+          res.writeHead(503, jsonHeaders);
+          res.end(JSON.stringify({ ok: false, error: "OSC listener not ready" }));
+          return;
+        }
+        try {
+          const result = await rebindOscPort(portNum);
+          res.writeHead(200, jsonHeaders);
+          res.end(JSON.stringify({ ok: true, ...result }));
+        } catch (e) {
+          const msg = e && e.message ? e.message : String(e);
+          res.writeHead(500, jsonHeaders);
+          res.end(JSON.stringify({ ok: false, error: msg }));
+        }
+      });
+      req.on("error", () => {
+        res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ ok: false, error: "Bad request" }));
+      });
       return;
     }
 
@@ -315,44 +452,48 @@ function main() {
     }
   }
 
-  const udpPort = new osc.UDPPort({
-    localAddress: opts.oscHost,
-    localPort: opts.oscPort,
-    metadata: true,
-  });
+  rebindOscPort = async function rebindOscPortFn(newPort) {
+    if (newPort === opts.oscPort && udpPort) {
+      return { oscHost: opts.oscHost, oscPort: opts.oscPort };
+    }
+    const prevPort = opts.oscPort;
+    closeOscUdpPort(udpPort);
+    udpPort = null;
+    try {
+      udpPort = await openOscUdpPort(opts.oscHost, newPort, broadcast);
+      opts.oscPort = newPort;
+      console.log(`[OSC] listening udp://${opts.oscHost}:${opts.oscPort}`);
+      return { oscHost: opts.oscHost, oscPort: opts.oscPort };
+    } catch (e) {
+      try {
+        udpPort = await openOscUdpPort(opts.oscHost, prevPort, broadcast);
+        opts.oscPort = prevPort;
+        console.warn(
+          `[OSC] rebind failed (${e && e.message ? e.message : e}); reverted to udp://${opts.oscHost}:${opts.oscPort}`
+        );
+      } catch (e2) {
+        console.error("[OSC] fatal: could not restore previous UDP bind", e2);
+      }
+      throw e;
+    }
+  };
 
-  udpPort.on("message", (oscMsg) => {
-    const address = oscMsg.address;
-    const args = serializeOscArgs(oscMsg.args);
-    const { hardware, stream } = parseAddressParts(address);
-    broadcast({
-      type: "osc",
-      address,
-      hardware,
-      stream,
-      args,
-      receivedAt: Date.now(),
+  (async () => {
+    try {
+      await rebindOscPort(opts.oscPort);
+    } catch (e) {
+      console.error("[OSC] initial bind failed:", e && e.message ? e.message : e);
+      process.exit(1);
+    }
+    server.listen(opts.httpPort, opts.httpHost, () => {
+      console.log(`[HTTP] http://${opts.httpHost}:${opts.httpPort}/`);
+      console.log(`[WS]   ws://${opts.httpHost}:${opts.httpPort}/ws`);
     });
-  });
-
-  udpPort.on("error", (err) => {
-    console.error("[OSC]", err.message);
-  });
-
-  udpPort.open();
-
-  udpPort.on("ready", () => {
-    console.log(`[OSC] listening udp://${opts.oscHost}:${opts.oscPort}`);
-  });
-
-  server.listen(opts.httpPort, opts.httpHost, () => {
-    console.log(`[HTTP] http://${opts.httpHost}:${opts.httpPort}/`);
-    console.log(`[WS]   ws://${opts.httpHost}:${opts.httpPort}/ws`);
-  });
+  })();
 
   function shutdown() {
     try {
-      udpPort.close();
+      closeOscUdpPort(udpPort);
     } catch (_) {
       /* ignore */
     }

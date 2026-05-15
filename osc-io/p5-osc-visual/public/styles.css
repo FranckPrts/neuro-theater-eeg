@@ -138,6 +138,104 @@ iframe.canvas-layer {
   flex-shrink: 0;
 }
 
+.osc-port-bar {
+  padding: 0.3rem 0.4rem 0.35rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.osc-port-bar__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.osc-port-bar__preset {
+  appearance: none;
+  font-size: 0.52rem;
+  padding: 0.16rem 0.32rem;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(32, 32, 40, 0.9);
+  color: rgba(200, 205, 218, 0.92);
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.osc-port-bar__preset:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.osc-port-bar__preset.is-active {
+  border-color: rgba(120, 160, 220, 0.55);
+  background: rgba(45, 52, 72, 0.95);
+}
+
+.osc-port-bar__row {
+  display: grid;
+  grid-template-columns: minmax(2.4rem, auto) minmax(0, 1fr) auto;
+  gap: 0.25rem 0.35rem;
+  align-items: center;
+}
+
+.osc-port-bar__label {
+  font-size: 0.52rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(155, 162, 178, 0.9);
+  white-space: nowrap;
+}
+
+.osc-port-bar__input {
+  max-width: 100%;
+  font-size: 0.52rem;
+  padding: 0.15rem 0.22rem;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(22, 22, 28, 0.95);
+  color: rgba(215, 220, 232, 0.95);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.osc-port-bar__btn {
+  appearance: none;
+  font-size: 0.52rem;
+  padding: 0.18rem 0.4rem;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(40, 44, 58, 0.95);
+  color: rgba(210, 215, 228, 0.95);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.osc-port-bar__btn:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.22);
+  color: rgba(235, 238, 248, 0.98);
+}
+
+.osc-port-bar__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.osc-port-bar__status {
+  margin: 0;
+  min-height: 1.1em;
+  font-size: 0.5rem;
+  line-height: 1.3;
+  color: rgba(130, 138, 152, 0.95);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.osc-port-bar__status.is-error {
+  color: rgba(220, 120, 120, 0.95);
+}
+
 .panel-mode {
   display: flex;
   gap: 0;

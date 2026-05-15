@@ -10,6 +10,10 @@ const LS_MAPPINGS = "nt.p5osc.mappings";
 const LS_SPIDER_HEX = "nt.p5osc.spiderHex";
 const LS_SPIDER_DRAW = "nt.p5osc.spiderDrawOverlays";
 const LS_SPIDER_RADIUS = "nt.p5osc.spiderRadius";
+const LS_OSC_PORT = "nt.p5osc.oscPort";
+
+const OSC_PORT_PRESETS = [7999, 8000, 8001, 8888];
+const LS_SPIDER_DATA_LINES = "nt.p5osc.spiderDataLines";
 
 /** Full-address snapshot */
 const latestByAddress = {};
@@ -37,6 +41,13 @@ let mappingCsvLoadBtn;
 let mappingCsvSaveBtn;
 let mappingCsvFilenameEl;
 let mappingCsvStatusEl;
+
+let oscPortPresetsEl;
+let oscPortCustomEl;
+let oscPortApplyBtn;
+let oscPortStatusEl;
+/** @type {number} */
+let oscTargetPort = OSC_PORT_PRESETS[0];
 
 let sceneList = [];
 /** @type {string} */
@@ -83,8 +94,162 @@ function setStatus(text) {
   if (statusEl) statusEl.textContent = text;
 }
 
+function isValidOscUdpPort(n) {
+  return Number.isFinite(n) && n >= 1 && n <= 65535;
+}
+
+function readSavedOscPortPreference() {
+  try {
+    const raw = localStorage.getItem(LS_OSC_PORT);
+    if (raw == null || raw === "") return null;
+    const n = parseInt(String(raw), 10);
+    return isValidOscUdpPort(n) ? n : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeSavedOscPortPreference(n) {
+  try {
+    localStorage.setItem(LS_OSC_PORT, String(n));
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function setOscPortStatus(text, isError) {
+  if (!oscPortStatusEl) return;
+  oscPortStatusEl.textContent = text || "";
+  oscPortStatusEl.classList.toggle("is-error", Boolean(isError));
+}
+
+function syncOscPresetButtons() {
+  if (!oscPortPresetsEl) return;
+  const customEmpty = !oscPortCustomEl || String(oscPortCustomEl.value).trim() === "";
+  for (const b of oscPortPresetsEl.querySelectorAll(".osc-port-bar__preset")) {
+    const p = parseInt(b.dataset.port || "", 10);
+    b.classList.toggle("is-active", customEmpty && isValidOscUdpPort(p) && p === oscTargetPort);
+  }
+}
+
+function getPortToApply() {
+  const custom = oscPortCustomEl && String(oscPortCustomEl.value).trim();
+  if (custom !== "") {
+    const n = parseInt(custom, 10);
+    return isValidOscUdpPort(n) ? n : NaN;
+  }
+  return oscTargetPort;
+}
+
+async function applyOscPortFromUi() {
+  const n = getPortToApply();
+  if (!isValidOscUdpPort(n)) {
+    setOscPortStatus("Enter a valid port (1–65535).", true);
+    return;
+  }
+  setOscPortStatus("Applying…", false);
+  if (oscPortApplyBtn) oscPortApplyBtn.disabled = true;
+  try {
+    const r = await fetch("/api/osc-port", {
+      method: "POST",
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+      body: JSON.stringify({ port: n }),
+    });
+    let j = {};
+    try {
+      j = await r.json();
+    } catch (_) {
+      j = {};
+    }
+    if (!r.ok || !j.ok) {
+      throw new Error(j.error || `HTTP ${r.status}`);
+    }
+    writeSavedOscPortPreference(n);
+    oscTargetPort = n;
+    if (OSC_PORT_PRESETS.includes(n) && oscPortCustomEl) {
+      oscPortCustomEl.value = "";
+    } else if (oscPortCustomEl) {
+      oscPortCustomEl.value = String(n);
+    }
+    syncOscPresetButtons();
+    await refreshOscBindLine();
+    setOscPortStatus(`UDP :${j.oscPort}`, false);
+  } catch (e) {
+    setOscPortStatus(String(e && e.message ? e.message : e), true);
+    await refreshOscBindLine();
+  } finally {
+    if (oscPortApplyBtn) oscPortApplyBtn.disabled = false;
+  }
+}
+
+function initOscPortBarFromHealth(health) {
+  if (readSavedOscPortPreference() != null) {
+    syncOscPresetButtons();
+    return;
+  }
+  const serverPort =
+    health && typeof health.oscPort === "number" && isValidOscUdpPort(health.oscPort)
+      ? health.oscPort
+      : null;
+  if (serverPort != null) {
+    oscTargetPort = serverPort;
+    if (OSC_PORT_PRESETS.includes(serverPort)) {
+      if (oscPortCustomEl) oscPortCustomEl.value = "";
+    } else if (oscPortCustomEl) {
+      oscPortCustomEl.value = String(serverPort);
+    }
+  }
+  syncOscPresetButtons();
+}
+
+function setupOscPortBar() {
+  oscPortPresetsEl = document.getElementById("oscPortPresets");
+  oscPortCustomEl = document.getElementById("oscPortCustom");
+  oscPortApplyBtn = document.getElementById("oscPortApply");
+  oscPortStatusEl = document.getElementById("oscPortStatus");
+  if (!oscPortPresetsEl || !oscPortApplyBtn) return;
+
+  const saved = readSavedOscPortPreference();
+  if (saved != null) {
+    oscTargetPort = saved;
+    if (oscPortCustomEl) {
+      oscPortCustomEl.value = OSC_PORT_PRESETS.includes(saved) ? "" : String(saved);
+    }
+  } else {
+    oscTargetPort = OSC_PORT_PRESETS[0];
+    if (oscPortCustomEl) oscPortCustomEl.value = "";
+  }
+
+  oscPortPresetsEl.textContent = "";
+  for (const port of OSC_PORT_PRESETS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "osc-port-bar__preset";
+    b.textContent = String(port);
+    b.dataset.port = String(port);
+    b.addEventListener("click", () => {
+      oscTargetPort = port;
+      if (oscPortCustomEl) oscPortCustomEl.value = "";
+      syncOscPresetButtons();
+    });
+    oscPortPresetsEl.appendChild(b);
+  }
+
+  if (oscPortCustomEl) {
+    oscPortCustomEl.addEventListener("input", () => {
+      syncOscPresetButtons();
+    });
+  }
+
+  oscPortApplyBtn.addEventListener("click", () => {
+    applyOscPortFromUi();
+  });
+
+  syncOscPresetButtons();
+}
+
 async function refreshOscBindLine() {
-  if (!oscBindEl) return;
+  if (!oscBindEl) return null;
   try {
     const r = await fetch("/health");
     if (!r.ok) throw new Error(String(r.status));
@@ -96,8 +261,10 @@ async function refreshOscBindLine() {
     } else {
       oscBindEl.textContent = "Listening port: —";
     }
+    return d;
   } catch (_) {
     oscBindEl.textContent = "Listening port: —";
+    return null;
   }
 }
 
@@ -1212,6 +1379,8 @@ function setupDomControls() {
   mappingCsvFilenameEl = document.getElementById("mappingCsvFilename");
   mappingCsvStatusEl = document.getElementById("mappingCsvStatus");
 
+  setupOscPortBar();
+
   if (mappingCsvLoadBtn) {
     mappingCsvLoadBtn.addEventListener("click", async () => {
       const name = mappingCsvSelectEl && mappingCsvSelectEl.value;
@@ -1275,7 +1444,8 @@ function setupDomControls() {
 
 async function init() {
   setupDomControls();
-  await refreshOscBindLine();
+  const health = await refreshOscBindLine();
+  initOscPortBarFromHealth(health);
   await loadScenesFromApi();
   sortedStreamAddresses().forEach((a) => seenStreamAddresses.add(a));
   applySavedPanelMode();
