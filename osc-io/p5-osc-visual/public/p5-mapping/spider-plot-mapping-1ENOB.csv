@@ -1,5 +1,6 @@
 scene,inputId,label,address,valueType
 spider-plot.p5,__plotCount,Overlays to visualize,1,control
+spider-plot.p5,__dataLineDisplay,Data line display,electrodes,control
 spider-plot.p5,__radiusMode,Radius mode,relative,control
 spider-plot.p5,__absoluteMean,Absolute · mean (center),0,control
 spider-plot.p5,__absoluteMax,Absolute · max deviation (outer),1,control

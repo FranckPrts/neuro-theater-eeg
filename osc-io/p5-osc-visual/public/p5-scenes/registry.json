@@ -24,7 +24,11 @@
     },
     {
       "file": "spider-plot.p5",
-      "title": "Spider plot (overlays)"
+      "title": "Spider (overlays)"
+    },
+    {
+      "file": "spider-plot-neon.p5",
+      "title": "Spider Meon"
     }
   ]
 }
