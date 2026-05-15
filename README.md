@@ -9,6 +9,7 @@ Toolkit for NeuroTheater EEG workflows, centered on **multi-head Muse -> LSL -> 
 | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `neuro-theater-eeg/`                                 | EEG toolkit root; legacy XDF exploration code now lives in `examples/exploration/`                                             |
 | `neuro-theater-eeg/goofi-files/`                     | Active **goofi-pipe** graph variants for Muse Direct / LSL routing and OSC output                                             |
+| `neuro-theater-eeg/p5-display/`                      | **Node** browser bridge: OSC (UDP) → WebSocket → **p5.js** live scenes (see **Browser OSC visual** below and [`p5-display/README.md`](p5-display/README.md)) |
 | `neuro-theater-eeg/osc-io/`                          | OSC proxy failover, recording/replay tools, and operational routing utilities                                                 |
 | `neuro-theater-eeg/osc-io/p5-osc-visual/`            | **Node** browser bridge: OSC (UDP) → WebSocket → **p5.js** live scenes (see **Browser OSC visual** below and [`osc-io/p5-osc-visual/README.md`](osc-io/p5-osc-visual/README.md)) |
 | `neuro-theater-eeg/examples/`                        | Utility demos (including legacy XDF → CSV helpers)                                                                            |
@@ -17,7 +18,7 @@ Toolkit for NeuroTheater EEG workflows, centered on **multi-head Muse -> LSL -> 
 | `neuro-theater-eeg/run_env_neurtheater.sh`           | Helper to `source` and activate a Conda env named `**NeuroTheater`** (adjust if you use another name)                        |
 
 
-The **p5** bridge persists scene mappings and spider options in the browser (`localStorage`, including **`nt.p5osc.spiderRadius`** for radius mode and absolute mean/max). CSV control rows `__radiusMode`, `__absoluteMean`, and `__absoluteMax` are described in [`osc-io/p5-osc-visual/README.md`](osc-io/p5-osc-visual/README.md).
+The **p5** bridge persists scene mappings and spider options in the browser (`localStorage`, including **`nt.p5osc.spiderRadius`** for radius mode and absolute mean/max). CSV control rows `__radiusMode`, `__absoluteMean`, and `__absoluteMax` are described in [`p5-display/README.md`](p5-display/README.md).
 
 ---
 
@@ -63,7 +64,7 @@ flowchart TD
   tabletMuseA -->|"LSL (ethernet)"| LSL
   tabletMuseB -->|"LSL (ethernet)"| LSL
   tabletNic2 -->|"LSL (ethernet)"| LSL
-  mainComputer -->|"Goofi (osc)"| 8001
+  mainComputer -->|"OSC (ethernet)"| 8001
   LSL -->|"LSL (Ethernet)"| mainComputer
   8000 --> touchDesigner
   8000 --> audioEngine
@@ -82,9 +83,26 @@ flowchart TD
 
 ---
 
-## Browser OSC visual (p5-osc-visual)
+## Browser OSC visual (p5-display)
 
-**p5-osc-visual** is a small **Node.js** app that listens for **OSC over UDP** (for example the same proxied stream you send to TouchDesigner), forwards packets to the browser over **WebSocket**, and runs **p5.js** sketches from [`osc-io/p5-osc-visual/public/p5-scenes/`](osc-io/p5-osc-visual/public/p5-scenes/). The **Scene** strip maps OSC addresses to scene inputs, with optional **CSV** presets under [`public/p5-mapping/`](osc-io/p5-osc-visual/public/p5-mapping/). The **spider** scene supports multiple overlays, per-plot colors, and **relative** (share of total band magnitude) versus **absolute** radius (distance from a shared **mean** scaled by a shared **max**); those options persist in the browser (`localStorage`, including `nt.p5osc.spiderRadius`). Install, default ports (`7999` OSC, `8765` HTTP), and CSV fields such as `__radiusMode`, `__absoluteMean`, and `__absoluteMax` are documented in [`osc-io/p5-osc-visual/README.md`](osc-io/p5-osc-visual/README.md).
+**p5-display** is a small **Node.js** app that listens for **OSC over UDP** (for example the same proxied stream you send to TouchDesigner), forwards packets to the browser over **WebSocket**, and runs **p5.js** sketches from [`p5-display/public/p5-scenes/`](p5-display/public/p5-scenes/). The **Scene** strip maps OSC addresses to scene inputs, with optional **CSV** presets under [`public/p5-mapping/`](p5-display/public/p5-mapping/). The **spider** scene supports multiple overlays, per-plot colors, and **relative** (share of total band magnitude) versus **absolute** radius (distance from a shared **mean** scaled by a shared **max**); those options persist in the browser (`localStorage`, including `nt.p5osc.spiderRadius`). Install, default ports (`7999` OSC, `8765` HTTP), and CSV fields such as `__radiusMode`, `__absoluteMean`, and `__absoluteMax` are documented in [`p5-display/README.md`](p5-display/README.md).
+
+---
+
+## Flower2 Live LSL Visualizer
+
+`flower2-app/` contains a working copy of upstream [Flower2](https://github.com/NeoVand/Flower2) with nested Git metadata removed so it can live cleanly inside this repository. NeuroTheater-specific runtime files live in `flower2-data/`; start from [`flower2-data/live-enobio.example.json`](flower2-data/live-enobio.example.json) and keep local hardware-specific edits in an uncommitted copy such as `flower2-data/live-enobio.local.json`.
+
+For Enobio, start NIC2 and publish EEG to LSL, then run:
+
+```bash
+pip install -r flower2-app/requirements.txt
+python flower2-app/app.py --live --config flower2-data/live-enobio.local.json --host 0.0.0.0 --port 5000
+```
+
+Open `http://127.0.0.1:5000`. In live mode Flower2 resolves the configured LSL EEG stream, uses LSL metadata when available and config fallbacks otherwise, collects a calibration buffer, fits FastICA, and streams browser `rt_data` chunks without the original hardcoded 32-channel assumption. This is a direct LSL visualizer alongside the goofi-pipe and OSC failover path; it does not replace the current LSL -> goofi -> OSC routing framework.
+
+More details are in [`flower2-app/NEUROTHEATER_LIVE.md`](flower2-app/NEUROTHEATER_LIVE.md).
 
 ---
 
@@ -392,7 +410,7 @@ python osc-io/osc_recorder.py --port 8001
 To run the **p5** browser OSC bridge (listens on UDP **7999** by default, serves the UI at **http://127.0.0.1:8765/**; point your OSC proxy output at the same host/port):
 
 ```bash
-cd osc-io/p5-osc-visual && npm start
+cd p5-display && npm start
 ```
 
 ---

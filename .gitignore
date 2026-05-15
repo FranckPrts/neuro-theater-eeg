@@ -21,8 +21,14 @@ osc-io/recordings/failovers/*.json
 # OSC plots
 osc-io/plots/*.png
 
-# VS Code
+# Flower2 local runtime artifacts
+flower2-data/*.local.json
+flower2-data/artifacts/*
+!flower2-data/artifacts/.gitkeep
+
+# VS Code & Cursor
 .vscode/
+.cursor/
 
 # Pivate notes
 todos.md

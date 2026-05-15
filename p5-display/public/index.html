@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NeuroTheater — p5 OSC visual</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <main class="main canvas-host" id="canvasHost" aria-label="Main visual">
+        <div id="placeholderMount" class="canvas-layer"></div>
+        <iframe id="sceneFrame" class="canvas-layer" title="p5 scene" hidden></iframe>
+      </main>
+      <aside class="banner" id="dataBanner" aria-label="Live OSC stream">
+        <div class="banner__chrome">
+          <span class="banner__title">OSC</span>
+          <button type="button" class="banner__hide" id="toggleBanner" title="Hide data panel">
+            hide
+          </button>
+        </div>
+        <div class="banner__body" id="bannerBody">
+          <div class="panel-mode" role="tablist" aria-label="Panel mode">
+            <button type="button" class="mode-tab is-active" id="modeStreams" data-mode="streams">
+              Stream
+            </button>
+            <button type="button" class="mode-tab" id="modeScene" data-mode="scene">Scene</button>
+          </div>
+          <div id="streamsModePanel" class="panel-block">
+            <p class="banner__status banner__status--stream-panel" id="bannerStatus" aria-live="polite">
+              Connecting…
+            </p>
+            <section class="dash-section dash-section--stream-util" aria-label="OSC listen port">
+              <h2 class="dash-section__title">Connection</h2>
+              <p class="banner__oscbind banner__oscbind--in-panel" id="bannerOscBind" aria-live="polite"></p>
+              <div class="osc-port-bar" id="oscPortBar" aria-label="OSC UDP listen port">
+                <div class="osc-port-bar__presets" id="oscPortPresets" role="group" aria-label="Port presets"></div>
+                <div class="osc-port-bar__row">
+                  <label class="osc-port-bar__label" for="oscPortCustom">Custom</label>
+                  <input
+                    id="oscPortCustom"
+                    class="osc-port-bar__input"
+                    type="number"
+                    min="1"
+                    max="65535"
+                    step="1"
+                    placeholder="port"
+                    inputmode="numeric"
+                    autocomplete="off"
+                  />
+                  <button type="button" id="oscPortApply" class="osc-port-bar__btn">Apply</button>
+                </div>
+                <p id="oscPortStatus" class="osc-port-bar__status" aria-live="polite"></p>
+              </div>
+            </section>
+            <section class="dash-section dash-section--stream-data" aria-label="Streamed OSC data">
+              <h2 class="dash-section__title">Live data</h2>
+              <div class="banner__grid" id="bannerGrid"></div>
+            </section>
+          </div>
+          <div id="sceneModePanel" class="panel-block is-hidden">
+            <section class="dash-section" aria-label="p5 scene scripts">
+              <h2 class="dash-section__title">Scene</h2>
+              <div id="sceneButtons" class="scene-buttons"></div>
+            </section>
+            <section class="dash-section" aria-label="OSC CSV mapping">
+              <h2 class="dash-section__title">Load CSV map</h2>
+              <div id="mappingCsvBar" class="mapping-csv-bar" aria-label="Mapping CSV">
+                <div class="mapping-csv-bar__row">
+                  <label class="mapping-csv-bar__label" for="mappingCsvSelect">CSV</label>
+                  <select id="mappingCsvSelect" class="mapping-csv-bar__select"></select>
+                  <button type="button" id="mappingCsvLoad" class="mapping-csv-bar__btn">Load</button>
+                </div>
+                <div class="mapping-csv-bar__row">
+                  <label class="mapping-csv-bar__label" for="mappingCsvFilename">Save as</label>
+                  <input
+                    id="mappingCsvFilename"
+                    class="mapping-csv-bar__input"
+                    type="text"
+                    placeholder="my-mapping"
+                    spellcheck="false"
+                    autocomplete="off"
+                  />
+                  <button type="button" id="mappingCsvSave" class="mapping-csv-bar__btn">Save</button>
+                </div>
+                <p id="mappingCsvStatus" class="mapping-csv-bar__status" aria-live="polite"></p>
+              </div>
+            </section>
+            <section class="dash-section dash-section--mapping" aria-label="Manual OSC mapping">
+              <h2 class="dash-section__title">Manual mapping</h2>
+              <div id="mappingRows" class="mapping-rows"></div>
+            </section>
+          </div>
+        </div>
+      </aside>
+      <button type="button" class="peek" id="peekBanner" hidden title="Show data panel">
+        data
+      </button>
+    </div>
+    <script src="vendor/p5.min.js"></script>
+    <script src="sketch.js"></script>
+  </body>
+</html>

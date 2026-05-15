@@ -1,0 +1,24 @@
+scene,inputId,label,address,valueType
+spider-plot-neon.p5,__plotCount,Overlays to visualize,2,control
+spider-plot-neon.p5,__dataLineDisplay,Data line display,powerBands,control
+spider-plot-neon.p5,__radiusMode,Radius mode,relative,control
+spider-plot-neon.p5,__absoluteMean,Absolute · mean (center),0,control
+spider-plot-neon.p5,__absoluteMax,Absolute · max deviation (outer),1,control
+spider-plot-neon.p5,plot_0_axis_0,Plot 1 · Δ,/ENOB/delta,osc
+spider-plot-neon.p5,plot_0_axis_1,Plot 1 · θ,/ENOB/theta,osc
+spider-plot-neon.p5,plot_0_axis_2,Plot 1 · α,/ENOB/alpha,osc
+spider-plot-neon.p5,plot_0_axis_3,Plot 1 · low β,/ENOB/lowbeta,osc
+spider-plot-neon.p5,plot_0_axis_4,Plot 1 · high β,/ENOB/highbeta,osc
+spider-plot-neon.p5,plot_0_color,Plot 1 · color (HEX),,hex
+spider-plot-neon.p5,plot_1_axis_0,Plot 2 · Δ,/ENOB/delta_Z,osc
+spider-plot-neon.p5,plot_1_axis_1,Plot 2 · θ,/ENOB/theta_Z,osc
+spider-plot-neon.p5,plot_1_axis_2,Plot 2 · α,/ENOB/alpha_Z,osc
+spider-plot-neon.p5,plot_1_axis_3,Plot 2 · low β,/ENOB/lowbeta_Z,osc
+spider-plot-neon.p5,plot_1_axis_4,Plot 2 · high β,/ENOB/highbeta_Z,osc
+spider-plot-neon.p5,plot_1_color,Plot 2 · color (HEX),#F342FW,hex
+spider-plot-neon.p5,plot_2_axis_0,Plot 3 · Δ,,osc
+spider-plot-neon.p5,plot_2_axis_1,Plot 3 · θ,,osc
+spider-plot-neon.p5,plot_2_axis_2,Plot 3 · α,,osc
+spider-plot-neon.p5,plot_2_axis_3,Plot 3 · low β,,osc
+spider-plot-neon.p5,plot_2_axis_4,Plot 3 · high β,,osc
+spider-plot-neon.p5,plot_2_color,Plot 3 · color (HEX),,hex

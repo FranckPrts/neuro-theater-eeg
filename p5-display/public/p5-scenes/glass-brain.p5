@@ -1,0 +1,104 @@
+/* global WEBGL, CENTER, loadModel, createCanvas, resizeCanvas, windowWidth, windowHeight */
+/* global background, ambientLight, directionalLight, orbitControl, push, pop, rotateX, rotateY */
+/* global scale, stroke, strokeWeight, fill, noFill, model, textAlign, textSize, noStroke, text */
+/* global pointLight, emissiveMaterial, sphere, translate */
+
+const BRAIN_MODEL_PATH = "p5-misc/glass-brain/cebb95ce6f8a4ebc94a6239e89907345.obj";
+const BRAIN_SCALE = 0.014;
+const SCROLL_ZOOM_SENSITIVITY = 0.85;
+const LIGHT_MARKERS = [
+  { color: [255, 72, 130], position: [-31, -19, 16], radius: 1.4 },
+  { color: [70, 220, 255], position: [30, -10, 22], radius: 1.35 },
+  { color: [154, 255, 76], position: [-18, 22, -18], radius: 1.3 },
+  { color: [255, 190, 62], position: [19, 16, -25], radius: 1.25 },
+];
+
+let brainModel;
+let autoRotation = 0;
+
+preload = () => {
+  brainModel = loadModel(BRAIN_MODEL_PATH, true);
+};
+
+windowResized = () => {
+  resizeCanvas(windowWidth, windowHeight);
+};
+
+setup = () => {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  textAlign(CENTER, CENTER);
+};
+
+function withBrainTransform(drawFn) {
+  push();
+  rotateX(-0.18);
+  rotateY(autoRotation);
+  scale(Math.min(width, height) * BRAIN_SCALE);
+  drawFn();
+  pop();
+}
+
+function addEmitterLights() {
+  withBrainTransform(() => {
+    for (const marker of LIGHT_MARKERS) {
+      const [r, g, b] = marker.color;
+      const [x, y, z] = marker.position;
+      pointLight(r, g, b, x, y, z);
+    }
+  });
+}
+
+function drawBrainModel(asWireframe) {
+  withBrainTransform(() => {
+    if (asWireframe) {
+      noFill();
+      stroke(128, 222, 255, 120);
+      strokeWeight(0.45);
+    } else {
+      fill(150, 225, 255, 42);
+      stroke(210, 245, 255, 24);
+      strokeWeight(0.25);
+    }
+
+    model(brainModel);
+  });
+}
+
+function drawLightMarkers() {
+  withBrainTransform(() => {
+    noStroke();
+    for (const marker of LIGHT_MARKERS) {
+      const [r, g, b] = marker.color;
+      const [x, y, z] = marker.position;
+
+      push();
+      translate(x, y, z);
+      emissiveMaterial(r, g, b);
+      sphere(marker.radius, 18, 12);
+      fill(r, g, b, 36);
+      sphere(marker.radius * 2.9, 16, 10);
+      pop();
+    }
+  });
+}
+
+draw = () => {
+  background(8, 10, 16);
+
+  ambientLight(72, 86, 110);
+  directionalLight(170, 220, 255, -0.35, -0.55, -0.7);
+  directionalLight(60, 120, 255, 0.6, 0.35, -0.25);
+  addEmitterLights();
+
+  orbitControl(1, 1, SCROLL_ZOOM_SENSITIVITY);
+  autoRotation += 0.004;
+
+  drawBrainModel(false);
+  drawLightMarkers();
+  drawBrainModel(true);
+
+  noStroke();
+  fill(172, 212, 232, 190);
+  textSize(12);
+  text("glass brain OBJ", 0, height / 2 - 24);
+};

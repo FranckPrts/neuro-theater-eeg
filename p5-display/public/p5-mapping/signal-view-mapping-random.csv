@@ -1,0 +1,7 @@
+scene,inputId,label,address,valueType
+signal-view.p5,ch0,Channel 1,/ENOB/alpha_Z,osc
+signal-view.p5,ch1,Channel 2,/ENOB/delta_Z,osc
+signal-view.p5,ch2,Channel 3,/ENOB/highbeta_Z,osc
+signal-view.p5,ch3,Channel 4,/ENOB/lowbeta_Z,osc
+signal-view.p5,ch4,Channel 5,/ENOB/theta_Z,osc
+signal-view.p5,ch5,Channel 6,,osc

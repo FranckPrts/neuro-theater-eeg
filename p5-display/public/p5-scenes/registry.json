@@ -1,0 +1,38 @@
+{
+  "scenes": [
+    {
+      "file": "data-representation.p5",
+      "title": "Time series (3 views)",
+      "inputs": [
+        {
+          "id": "Time Series",
+          "label": "Primary signal (0–1)"
+        }
+      ]
+    },
+    {
+      "file": "signal-view.p5",
+      "title": "Multi-channel signals",
+      "inputs": [
+        { "id": "ch0", "label": "Channel 1" },
+        { "id": "ch1", "label": "Channel 2" },
+        { "id": "ch2", "label": "Channel 3" },
+        { "id": "ch3", "label": "Channel 4" },
+        { "id": "ch4", "label": "Channel 5" },
+        { "id": "ch5", "label": "Channel 6" }
+      ]
+    },
+    {
+      "file": "spider-plot.p5",
+      "title": "Spider (overlays)"
+    },
+    {
+      "file": "spider-plot-neon.p5",
+      "title": "Spider Neon"
+    },
+    {
+      "file": "glass-brain.p5",
+      "title": "Glass brain OBJ"
+    }
+  ]
+}

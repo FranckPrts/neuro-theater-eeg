@@ -1,0 +1,301 @@
+/**
+ * Spider / radar plot — neon panogram aesthetic over the same OSC data model.
+ *
+ * Radius mode (from host `data`): `__radiusMode` — `relative` (default) or `absolute`.
+ * Absolute scale: `__absoluteMean` (branch value at center), `__absoluteMax` (|v−mean| at outer edge).
+ *
+ * Max mappable overlays (OSC rail size). Server reads this exact line for /api/p5-scenes:
+ *   const NUM_OVERLAY_PLOTS = 3;
+ */
+const NUM_OVERLAY_PLOTS = 3;
+
+const ANGLE = (2 * Math.PI) / 5;
+const AXIS_LABELS = ["Delta", "Theta", "Alpha", "Low β", "High β"];
+const EEG_RING_LABELS = [
+  "Fp1", "F7", "T7", "P7", "O1", "O2", "P8", "T8",
+  "F8", "Fp2", "F4", "C4", "P4", "Pz", "Cz", "Fz",
+  "F3", "C3", "P3", "PO3", "AF3", "FC5", "FC1", "CP5",
+  "CP1", "CP2", "CP6", "FC2", "FC6", "AF4", "PO4", "Oz"
+];
+const RADIUS = 205;
+const LABEL_R = 244;
+const EEG_LABEL_R = 238;
+const ROTATION = -Math.PI / 2;
+const CURVE_STEPS = 180;
+
+function parseHexColor(h) {
+  if (typeof h !== "string") return [120, 160, 200];
+  let s = h.trim();
+  if (s.startsWith("0x")) s = "#" + s.slice(2);
+  if (!s.startsWith("#")) s = "#" + s;
+  const hex = s.slice(1);
+  if (hex.length === 3) {
+    const r = parseInt(hex[0] + hex[0], 16);
+    const g = parseInt(hex[1] + hex[1], 16);
+    const b = parseInt(hex[2] + hex[2], 16);
+    return [r, g, b];
+  }
+  if (hex.length === 6) {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    if ([r, g, b].every((x) => !isNaN(x))) return [r, g, b];
+  }
+  return [120, 160, 200];
+}
+
+function axisValuesForPlot(p) {
+  const out = [];
+  for (let a = 0; a < 5; a++) {
+    const k = `plot_${p}_axis_${a}`;
+    const v = data?.[k];
+    const n = typeof v === "number" && isFinite(v) ? v : 0;
+    out.push(n);
+  }
+  return out;
+}
+
+function spiderRadiusMode() {
+  const m = data?.__radiusMode;
+  return String(m).toLowerCase() === "absolute" ? "absolute" : "relative";
+}
+
+function spiderDataLineDisplay() {
+  const m = String(data?.__dataLineDisplay || "").toLowerCase().replace(/[^a-z]/g, "");
+  return m === "powerbands" || m === "powerbandaxes" ? "powerBands" : "electrodes";
+}
+
+function spiderAbsoluteMean() {
+  const v = data?.__absoluteMean;
+  if (typeof v === "number" && isFinite(v)) return v;
+  const n = parseFloat(String(v ?? ""));
+  return isFinite(n) ? n : 0;
+}
+
+/** Positive span from mean to outer pentagon edge; invalid/zero falls back to 1. */
+function spiderAbsoluteMax() {
+  const v = data?.__absoluteMax;
+  let x = typeof v === "number" && isFinite(v) ? v : parseFloat(String(v ?? ""));
+  if (!isFinite(x) || x <= 1e-12) x = 1;
+  return x;
+}
+
+/** Relative: share of total |v| per axis (legacy). */
+function radiiForSpiderRelative(vals) {
+  const abs = vals.map((v) => (typeof v === "number" && isFinite(v) ? Math.abs(v) : 0));
+  let sum = 0;
+  for (const x of abs) sum += x;
+  if (sum > 1e-9) return abs.map((x) => x / sum);
+  let mx = 0;
+  for (const x of abs) mx = Math.max(mx, x);
+  if (mx > 1e-9) return abs.map((x) => x / mx);
+  return abs.map(() => 0.22);
+}
+
+/** Absolute: distance from shared mean, scaled so |v - mean| === max hits the outer radius. */
+function radiiForSpiderAbsolute(vals) {
+  const mean = spiderAbsoluteMean();
+  const maxAbs = spiderAbsoluteMax();
+  if (maxAbs <= 1e-12) return radiiForSpiderRelative(vals);
+  return vals.map((v) => {
+    const n = typeof v === "number" && isFinite(v) ? v : 0;
+    const t = Math.abs(n - mean) / maxAbs;
+    return constrain(t, 0, 1);
+  });
+}
+
+/** Map 5 raw values to [0,1] radii — mode from host (`data.__radiusMode`). */
+function radiiForSpider(vals) {
+  if (spiderRadiusMode() === "absolute") return radiiForSpiderAbsolute(vals);
+  return radiiForSpiderRelative(vals);
+}
+
+function rgbaString(rgb, alpha) {
+  const [r, g, b] = rgb;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function setGlow(rgb, blur, alpha) {
+  drawingContext.shadowBlur = blur;
+  drawingContext.shadowColor = rgbaString(rgb, alpha);
+}
+
+function clearGlow() {
+  drawingContext.shadowBlur = 0;
+  drawingContext.shadowColor = "rgba(0, 0, 0, 0)";
+}
+
+function polarPoint(angle, radius) {
+  return {
+    x: radius * cos(angle),
+    y: radius * sin(angle)
+  };
+}
+
+function easedLerp(a, b, t) {
+  const u = t * t * (3 - 2 * t);
+  return lerp(a, b, u);
+}
+
+function pointOnSpider(radii, phase, scale, rotationOffset, ripple) {
+  const wrapped = ((phase % 5) + 5) % 5;
+  const i = Math.floor(wrapped);
+  const j = (i + 1) % 5;
+  const local = wrapped - i;
+  const base = easedLerp(radii[i], radii[j], local);
+  const angle = ROTATION + wrapped * ANGLE + rotationOffset;
+  const shimmer = 1 + ripple * sin(wrapped * TWO_PI * 2 + frameCount * 0.018);
+  return polarPoint(angle, base * RADIUS * scale * shimmer);
+}
+
+function drawClosedCurve(points, rgb, alpha, weight, glow) {
+  noFill();
+  setGlow(rgb, glow, alpha / 255);
+  stroke(rgb[0], rgb[1], rgb[2], alpha);
+  strokeWeight(weight);
+  beginShape();
+  const n = points.length;
+  for (let i = -2; i < n + 3; i++) {
+    const p = points[(i + n) % n];
+    curveVertex(p.x, p.y);
+  }
+  endShape(CLOSE);
+  clearGlow();
+}
+
+function drawPanogramFrame(displayMode) {
+  noFill();
+  strokeWeight(1);
+
+  for (let r = 0.28; r <= 1.001; r += 0.18) {
+    stroke(120, 126, 138, r > 0.95 ? 94 : 36);
+    circle(0, 0, RADIUS * 2 * r);
+  }
+
+  if (displayMode === "powerBands") {
+    stroke(105, 111, 124, 58);
+    for (let i = 0; i < AXIS_LABELS.length; i++) {
+      const a = ROTATION + i * ANGLE;
+      const p = polarPoint(a, RADIUS);
+      line(0, 0, p.x, p.y);
+    }
+  } else {
+    stroke(105, 111, 124, 40);
+    for (let i = 0; i < EEG_RING_LABELS.length; i++) {
+      const a = ROTATION + (TWO_PI * i) / EEG_RING_LABELS.length;
+      const p = polarPoint(a, RADIUS);
+      line(0, 0, p.x, p.y);
+    }
+  }
+
+  stroke(178, 184, 197, 115);
+  strokeWeight(1.4);
+  circle(0, 0, RADIUS * 2);
+}
+
+function drawAxisLabels(displayMode) {
+  textAlign(CENTER, CENTER);
+  noStroke();
+
+  if (displayMode === "powerBands") {
+    textSize(11);
+    fill(170, 176, 190, 175);
+    for (let i = 0; i < 5; i++) {
+      const a = ROTATION + i * ANGLE;
+      const p = polarPoint(a, LABEL_R);
+      text(AXIS_LABELS[i], p.x, p.y);
+    }
+    return;
+  }
+
+  textSize(10);
+  fill(176, 180, 190, 185);
+  for (let i = 0; i < EEG_RING_LABELS.length; i++) {
+    const a = ROTATION + (TWO_PI * i) / EEG_RING_LABELS.length;
+    const p = polarPoint(a, EEG_LABEL_R);
+    push();
+    translate(p.x, p.y);
+    rotate(a + HALF_PI);
+    text(EEG_RING_LABELS[i], 0, 0);
+    pop();
+  }
+}
+
+function drawNeonSpider(radii, rgb, plotIndex) {
+  const softened = radii.map((r) => constrain(0.18 + r * 0.88, 0.06, 1.08));
+  const echoCount = 18;
+  const seed = plotIndex * 0.73;
+
+  for (let e = echoCount - 1; e >= 0; e--) {
+    const t = e / (echoCount - 1);
+    const scale = 0.68 + t * 0.46;
+    const rotationOffset = sin(frameCount * 0.006 + seed + e * 0.49) * 0.09;
+    const ripple = 0.012 + t * 0.025;
+    const points = [];
+
+    for (let s = 0; s < CURVE_STEPS; s++) {
+      const phase = (s / CURVE_STEPS) * 5;
+      points.push(pointOnSpider(softened, phase, scale, rotationOffset, ripple));
+    }
+
+    const alpha = 18 + t * 68;
+    const weight = 0.8 + t * 2.2;
+    drawClosedCurve(points, rgb, alpha, weight, 14 + t * 20);
+  }
+
+  const corePoints = [];
+  for (let s = 0; s < CURVE_STEPS; s++) {
+    const phase = (s / CURVE_STEPS) * 5;
+    corePoints.push(pointOnSpider(softened, phase, 1.0, 0, 0.01));
+  }
+  drawClosedCurve(corePoints, rgb, 230, 4.2, 28);
+  drawClosedCurve(corePoints, [255, 255, 210], 98, 1.4, 18);
+}
+
+windowResized = () => {
+  resizeCanvas(windowWidth, windowHeight);
+};
+
+setup = () => {
+  createCanvas(windowWidth, windowHeight);
+  textFont("Courier New");
+};
+
+draw = () => {
+  background(0);
+
+  let nDraw = NUM_OVERLAY_PLOTS;
+  if (typeof data?.__plotCount === "number" && isFinite(data.__plotCount)) {
+    nDraw = Math.max(1, Math.min(12, Math.floor(data.__plotCount), NUM_OVERLAY_PLOTS));
+  }
+
+  push();
+  translate(width / 2, height / 2);
+
+  const dataLineDisplay = spiderDataLineDisplay();
+  drawPanogramFrame(dataLineDisplay);
+
+  blendMode(ADD);
+  for (let p = 0; p < nDraw; p++) {
+    const vals = axisValuesForPlot(p);
+    const radii = radiiForSpider(vals);
+    const hex = data?.[`plot_${p}_color`];
+    const rgb = parseHexColor(hex || "#ff00cc");
+    drawNeonSpider(radii, rgb, p);
+  }
+  blendMode(BLEND);
+
+  drawAxisLabels(dataLineDisplay);
+  pop();
+
+  textAlign(LEFT, TOP);
+  noStroke();
+  fill(190, 194, 205, 185);
+  textSize(11);
+  const mode = spiderRadiusMode();
+  text(
+    `${mode} · ${dataLineDisplay} · ${nDraw} overlay(s) · cap ${NUM_OVERLAY_PLOTS}`,
+    12,
+    10
+  );
+};
