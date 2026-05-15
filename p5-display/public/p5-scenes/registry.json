@@ -2,7 +2,7 @@
   "scenes": [
     {
       "file": "data-representation.p5",
-      "title": "Time series (3 views)",
+      "title": "3 Time series",
       "inputs": [
         {
           "id": "Time Series",
@@ -12,7 +12,7 @@
     },
     {
       "file": "signal-view.p5",
-      "title": "Multi-channel signals",
+      "title": "📈 Signals",
       "inputs": [
         { "id": "ch0", "label": "Channel 1" },
         { "id": "ch1", "label": "Channel 2" },
@@ -24,15 +24,22 @@
     },
     {
       "file": "spider-plot.p5",
-      "title": "Spider (overlays)"
+      "title": "🕷️ Overlays"
     },
     {
       "file": "spider-plot-neon.p5",
-      "title": "Spider Neon"
+      "title": "🕷️ Neon"
     },
     {
       "file": "glass-brain.p5",
-      "title": "Glass brain OBJ"
+      "title": "🧠 Glass",
+      "inputs": [
+        { "id": "rotation", "label": "Rotation", "type": "bool", "default": true },
+        { "id": "light_1", "label": "Light 1 · pink intensity (0-1)" },
+        { "id": "light_2", "label": "Light 2 · cyan intensity (0-1)" },
+        { "id": "light_3", "label": "Light 3 · green intensity (0-1)" },
+        { "id": "light_4", "label": "Light 4 · amber intensity (0-1)" }
+      ]
     }
   ]
 }

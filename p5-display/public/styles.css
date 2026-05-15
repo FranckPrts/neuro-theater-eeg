@@ -567,6 +567,21 @@ iframe.canvas-layer {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+.mapping-bool {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: rgba(215, 220, 232, 0.95);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.mapping-bool input {
+  width: 0.8rem;
+  height: 0.8rem;
+  margin: 0;
+  accent-color: rgba(120, 210, 255, 0.95);
+}
+
 .mapping-row--hex input.spider-hex {
   width: 100%;
   box-sizing: border-box;

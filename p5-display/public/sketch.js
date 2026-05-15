@@ -56,6 +56,27 @@ let hostP5Instance = null;
 
 const rowCacheMain = new Map();
 
+function inputValueType(input) {
+  const t = String(input?.type || input?.valueType || "").trim().toLowerCase();
+  return t === "bool" || t === "boolean" ? "bool" : "osc";
+}
+
+function parseBoolValue(value, fallback) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") {
+    if (value === 0) return false;
+    if (value === 1) return true;
+  }
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  return fallback;
+}
+
+function defaultBoolValue(input) {
+  return parseBoolValue(input?.default, false);
+}
+
 function wsUrl() {
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
   return `${proto}//${window.location.host}/ws`;
@@ -566,6 +587,11 @@ function buildSceneData() {
   const maps = allMaps[activeSceneFile] || {};
   const out = {};
   for (const inp of scene.inputs) {
+    if (inputValueType(inp) === "bool") {
+      out[inp.id] = parseBoolValue(maps[inp.id], defaultBoolValue(inp));
+      continue;
+    }
+
     const addr = maps[inp.id];
     if (!addr) continue;
     const rec = latestByAddress[addr];
@@ -706,7 +732,12 @@ function getExpectedMappingFields(scene, sceneFile) {
     return out;
   }
   for (const inp of scene.inputs || []) {
-    out.push({ inputId: inp.id, label: inp.label || inp.id, valueType: "osc" });
+    out.push({
+      inputId: inp.id,
+      label: inp.label || inp.id,
+      valueType: inputValueType(inp),
+      defaultValue: inputValueType(inp) === "bool" ? defaultBoolValue(inp) : undefined,
+    });
   }
   return out;
 }
@@ -754,6 +785,8 @@ function buildMappingCsvString() {
     let addr = "";
     if (f.valueType === "osc") {
       addr = maps[f.inputId] || "";
+    } else if (f.valueType === "bool") {
+      addr = String(parseBoolValue(maps[f.inputId], Boolean(f.defaultValue)));
     } else if (f.valueType === "hex") {
       const m = /^plot_(\d+)_color$/.exec(f.inputId);
       addr = m && hexAll[String(m[1])] != null ? String(hexAll[String(m[1])]) : "";
@@ -806,6 +839,7 @@ function applyMappingCsvText(csvText) {
 
     if (!row) {
       if (vType === "osc") delete sceneMap[exp.inputId];
+      else if (vType === "bool") delete sceneMap[exp.inputId];
       else if (vType === "hex") {
         const m = /^plot_(\d+)_color$/.exec(exp.inputId);
         if (m) writeSpiderHexForScene(activeSceneFile, parseInt(m[1], 10), "");
@@ -834,6 +868,8 @@ function applyMappingCsvText(csvText) {
       } else {
         delete sceneMap[exp.inputId];
       }
+    } else if (vType === "bool") {
+      sceneMap[exp.inputId] = parseBoolValue(addr, Boolean(exp.defaultValue));
     } else if (vType === "hex") {
       const m = /^plot_(\d+)_color$/.exec(exp.inputId);
       if (m) writeSpiderHexForScene(activeSceneFile, parseInt(m[1], 10), addr);
@@ -930,6 +966,89 @@ function suggestMappingCsvBasename() {
   }
   const base = activeSceneFile.replace(/\.p5$/i, "");
   mappingCsvFilenameEl.value = `${base}-mapping`;
+}
+
+function writeSceneMappingValue(inputId, value) {
+  const cur = readMappings();
+  const next = { ...cur };
+  const sceneMap = { ...(next[activeSceneFile] || {}) };
+  if (value === undefined || value === null || value === "") delete sceneMap[inputId];
+  else sceneMap[inputId] = value;
+  next[activeSceneFile] = sceneMap;
+  writeMappings(next);
+}
+
+function createOscMappingRow(input, addrs, maps) {
+  const id = input.id;
+  const row = document.createElement("div");
+  row.className = "mapping-row";
+
+  const lab = document.createElement("label");
+  lab.htmlFor = `map-${id}`;
+  lab.textContent = input.label || id;
+
+  const sel = document.createElement("select");
+  sel.id = `map-${id}`;
+  sel.className = "mapping-osc";
+  sel.dataset.inputId = id;
+
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = "— none —";
+  sel.appendChild(empty);
+
+  for (const addr of addrs) {
+    const opt = document.createElement("option");
+    opt.value = addr;
+    opt.textContent = addr;
+    if (maps[id] === addr) opt.selected = true;
+    sel.appendChild(opt);
+  }
+
+  sel.addEventListener("change", () => {
+    writeSceneMappingValue(id, sel.value || undefined);
+  });
+
+  row.appendChild(lab);
+  row.appendChild(sel);
+  return row;
+}
+
+function createBoolMappingRow(input, maps) {
+  const id = input.id;
+  const row = document.createElement("div");
+  row.className = "mapping-row mapping-row--bool";
+
+  const lab = document.createElement("label");
+  lab.htmlFor = `map-${id}`;
+  lab.textContent = input.label || id;
+
+  const boolWrap = document.createElement("label");
+  boolWrap.className = "mapping-bool";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.id = `map-${id}`;
+  checkbox.dataset.inputId = id;
+  checkbox.checked = parseBoolValue(maps[id], defaultBoolValue(input));
+
+  const text = document.createElement("span");
+  text.textContent = "Enabled";
+
+  checkbox.addEventListener("change", () => {
+    writeSceneMappingValue(id, checkbox.checked);
+  });
+
+  boolWrap.appendChild(checkbox);
+  boolWrap.appendChild(text);
+  row.appendChild(lab);
+  row.appendChild(boolWrap);
+  return row;
+}
+
+function createSceneInputMappingRow(input, addrs, maps) {
+  if (inputValueType(input) === "bool") return createBoolMappingRow(input, maps);
+  return createOscMappingRow(input, addrs, maps);
 }
 
 function buildMappingRows() {
@@ -1170,44 +1289,7 @@ function buildMappingRows() {
   }
 
   for (const inp of scene.inputs) {
-    const row = document.createElement("div");
-    row.className = "mapping-row";
-
-    const lab = document.createElement("label");
-    lab.htmlFor = `map-${inp.id}`;
-    lab.textContent = inp.label || inp.id;
-
-    const sel = document.createElement("select");
-    sel.id = `map-${inp.id}`;
-    sel.className = "mapping-osc";
-    sel.dataset.inputId = inp.id;
-
-    const empty = document.createElement("option");
-    empty.value = "";
-    empty.textContent = "— none —";
-    sel.appendChild(empty);
-
-    for (const a of addrs) {
-      const opt = document.createElement("option");
-      opt.value = a;
-      opt.textContent = a;
-      if (maps[inp.id] === a) opt.selected = true;
-      sel.appendChild(opt);
-    }
-
-    sel.addEventListener("change", () => {
-      const cur = readMappings();
-      const next = { ...cur };
-      const sceneMap = { ...(next[activeSceneFile] || {}) };
-      if (sel.value) sceneMap[inp.id] = sel.value;
-      else delete sceneMap[inp.id];
-      next[activeSceneFile] = sceneMap;
-      writeMappings(next);
-    });
-
-    row.appendChild(lab);
-    row.appendChild(sel);
-    mappingRowsEl.appendChild(row);
+    mappingRowsEl.appendChild(createSceneInputMappingRow(inp, addrs, maps));
   }
 
   syncSeenAddressesFromSelects();
