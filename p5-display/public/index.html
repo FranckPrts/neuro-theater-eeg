@@ -60,7 +60,10 @@
           </div>
           <div id="sceneModePanel" class="panel-block is-hidden">
             <section class="dash-section" aria-label="p5 scene scripts">
-              <h2 class="dash-section__title">Scene</h2>
+              <h2 class="dash-section__title dash-section__title--with-util">
+                <span>Scene</span>
+                <span id="sceneStatus" class="scene-status is-idle" aria-live="polite">Blank</span>
+              </h2>
               <div id="sceneButtons" class="scene-buttons"></div>
             </section>
             <section class="dash-section" aria-label="OSC CSV mapping">

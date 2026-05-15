@@ -313,6 +313,52 @@ iframe.canvas-layer {
   color: rgba(185, 190, 202, 0.8);
 }
 
+.dash-section__title--with-util {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+}
+
+.scene-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  font-size: 0.48rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: rgba(185, 190, 202, 0.78);
+  white-space: nowrap;
+}
+
+.scene-status::before {
+  content: "";
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 999px;
+  background: rgba(145, 150, 164, 0.55);
+  box-shadow: 0 0 0.3rem rgba(145, 150, 164, 0.15);
+}
+
+.scene-status.is-loading::before {
+  background: rgba(245, 195, 90, 0.9);
+  box-shadow: 0 0 0.45rem rgba(245, 195, 90, 0.35);
+}
+
+.scene-status.is-ready::before {
+  background: rgba(95, 220, 150, 0.9);
+  box-shadow: 0 0 0.45rem rgba(95, 220, 150, 0.35);
+}
+
+.scene-status.is-error {
+  color: rgba(255, 145, 145, 0.9);
+}
+
+.scene-status.is-error::before {
+  background: rgba(255, 105, 105, 0.95);
+  box-shadow: 0 0 0.45rem rgba(255, 105, 105, 0.35);
+}
+
 .banner__oscbind--in-panel {
   padding: 0.12rem 0.4rem 0.2rem;
   border-bottom: none;

@@ -10,6 +10,13 @@ window.addEventListener("message", (e) => {
   }
 });
 
+function postSceneStatus(scene, status, message) {
+  window.parent.postMessage(
+    { type: "nt-scene-status", scene, status, message: message || "" },
+    window.location.origin
+  );
+}
+
 async function main() {
   const params = new URLSearchParams(window.location.search);
   const scene = params.get("scene") || "";
@@ -22,10 +29,12 @@ async function main() {
     return;
   }
 
+  postSceneStatus(scene, "loading");
   const url = "p5-scenes/" + encodeURIComponent(scene);
   const res = await fetch(url);
   if (!res.ok) {
     document.body.textContent = "Failed to load scene: " + res.status;
+    postSceneStatus(scene, "error", "HTTP " + res.status);
     return;
   }
   const code = await res.text();
@@ -52,9 +61,12 @@ async function main() {
     }
     window.__ntSceneP5 = new p5();
   }
+  postSceneStatus(scene, "ready");
 }
 
 main().catch((err) => {
   console.error(err);
   document.body.textContent = String(err && err.message ? err.message : err);
+  const params = new URLSearchParams(window.location.search);
+  postSceneStatus(params.get("scene") || "", "error", err && err.message ? err.message : String(err));
 });

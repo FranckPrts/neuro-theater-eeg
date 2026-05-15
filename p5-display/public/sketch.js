@@ -31,6 +31,7 @@ let modeSceneBtn;
 let streamsModePanel;
 let sceneModePanel;
 let sceneButtonsEl;
+let sceneStatusEl;
 let mappingRowsEl;
 let sceneFrameEl;
 let placeholderMountEl;
@@ -90,6 +91,18 @@ function formatArgs(args) {
 
 function setStatus(text) {
   if (statusEl) statusEl.textContent = text;
+}
+
+function setSceneLoadStatus(status, message) {
+  if (!sceneStatusEl) return;
+  const label =
+    status === "loading" ? "Loading" : status === "ready" ? "Displayed" : status === "error" ? "Error" : "Blank";
+  sceneStatusEl.textContent = label;
+  sceneStatusEl.title = message || label;
+  sceneStatusEl.classList.toggle("is-loading", status === "loading");
+  sceneStatusEl.classList.toggle("is-ready", status === "ready");
+  sceneStatusEl.classList.toggle("is-error", status === "error");
+  sceneStatusEl.classList.toggle("is-idle", !status || status === "idle");
 }
 
 function isValidOscUdpPort(n) {
@@ -1239,6 +1252,7 @@ function selectScene(file) {
   }
 
   if (!activeSceneFile) {
+    setSceneLoadStatus("idle");
     if (sceneFrameEl) {
       sceneFrameEl.hidden = true;
       sceneFrameEl.removeAttribute("src");
@@ -1247,6 +1261,7 @@ function selectScene(file) {
     startPlaceholderP5();
   } else {
     stopPlaceholderP5();
+    setSceneLoadStatus("loading");
     if (sceneFrameEl) {
       sceneFrameEl.hidden = false;
       sceneFrameEl.src = `scene-frame.html?scene=${encodeURIComponent(activeSceneFile)}`;
@@ -1312,11 +1327,13 @@ function applySavedActiveScene() {
   buildSceneButtons();
   if (activeSceneFile) {
     stopPlaceholderP5();
+    setSceneLoadStatus("loading");
     if (sceneFrameEl) {
       sceneFrameEl.hidden = false;
       sceneFrameEl.src = `scene-frame.html?scene=${encodeURIComponent(activeSceneFile)}`;
     }
   } else {
+    setSceneLoadStatus("idle");
     startPlaceholderP5();
   }
   buildMappingRows();
@@ -1433,6 +1450,7 @@ function setupDomControls() {
   streamsModePanel = document.getElementById("streamsModePanel");
   sceneModePanel = document.getElementById("sceneModePanel");
   sceneButtonsEl = document.getElementById("sceneButtons");
+  sceneStatusEl = document.getElementById("sceneStatus");
   mappingRowsEl = document.getElementById("mappingRows");
   mappingCsvSelectEl = document.getElementById("mappingCsvSelect");
   mappingCsvLoadBtn = document.getElementById("mappingCsvLoad");
@@ -1501,6 +1519,14 @@ function setupDomControls() {
 
   modeStreamsBtn.addEventListener("click", () => setPanelMode("streams"));
   modeSceneBtn.addEventListener("click", () => setPanelMode("scene"));
+
+  window.addEventListener("message", (e) => {
+    if (e.origin !== window.location.origin) return;
+    const data = e.data || {};
+    if (data.type !== "nt-scene-status") return;
+    if ((data.scene || "") !== activeSceneFile) return;
+    setSceneLoadStatus(data.status, data.message);
+  });
 }
 
 async function init() {
