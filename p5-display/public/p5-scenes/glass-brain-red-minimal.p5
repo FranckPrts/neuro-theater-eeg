@@ -1,0 +1,153 @@
+/* global WEBGL, CENTER, loadModel, createCanvas, resizeCanvas, windowWidth, windowHeight */
+/* global background, ambientLight, orbitControl, push, pop, rotateX, rotateY */
+/* global scale, model, textAlign, textSize, noStroke, constrain */
+/* global pointLight, emissiveMaterial, sphere, translate */
+/* global ambientMaterial, specularMaterial, shininess, specularColor, lightFalloff */
+
+// Brain 3D model credit: https://sketchfab.com/3d-models/brain-7a2c96d2bc5c4068b3f715fd5ed95b67
+const BRAIN_MODEL_PATH = "p5-misc/glass-brain/cebb95ce6f8a4ebc94a6239e89907345.obj";
+const BRAIN_SCALE = 0.014;
+const SCROLL_ZOOM_SENSITIVITY = 0.85;
+
+/** One red lamp above the brain, shining inward */
+const RED_LIGHT = [255, 45, 40];
+const ELECTRODE_POSITION = [0, -68, 54];
+/** Lamp + glow: offset outward from brain center so light is not inside mesh; omnidirectional reaches brain and shell sphere */
+const LAMP_OUTWARD_BIAS = 10;
+/** Small emissive marker only — avoids a large ball occluding the brain in the depth buffer */
+const LAMP_GLOW_RADIUS = 1.25;
+/** Satellite sphere: same material as brain, offset outward from brain center past the electrode */
+const SHELL_SPHERE_OFFSET = 14;
+const SHELL_SPHERE_RADIUS = 5;
+/** pointLight only (omnidirectional); strength tuned for former spot + point */
+const OMNI_LIGHT_POWER = 115;
+const LIGHT_FALLOFF = { constant: 1, linear: 0.006, quadratic: 0.00028 };
+
+const AMBIENT_SCENE = [38, 48, 92];
+const BRAIN_AMBIENT = [8, 32, 108, 130];
+const BRAIN_SPECULAR = [30, 70, 180, 220];
+const BRAIN_SHININESS = 88;
+/** Opaque white specular for pointLight on specularMaterial (p5 specularColor) */
+const SPECULAR_LIGHT_COLOR = [255, 255, 255, 255];
+/** So mapped OSC at 0 still shows some lamp response on the shell */
+const LIGHT_1_INTENSITY_FLOOR = 0.08;
+
+let brainModel;
+
+preload = () => {
+  brainModel = loadModel(BRAIN_MODEL_PATH, true);
+};
+
+windowResized = () => {
+  resizeCanvas(windowWidth, windowHeight);
+};
+
+setup = () => {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  textAlign(CENTER, CENTER);
+};
+
+function withBrainTransform(drawFn) {
+  push();
+  rotateX(-0.18);
+  rotateY(0.35);
+  scale(Math.min(width, height) * BRAIN_SCALE);
+  drawFn();
+  pop();
+}
+
+function lightIntensity() {
+  const raw = data?.light_1;
+  const t =
+    typeof raw !== "number" || !isFinite(raw) ? 1 : constrain(raw, 0, 1);
+  return Math.max(t, LIGHT_1_INTENSITY_FLOOR);
+}
+
+function lampPositionWorld() {
+  const [x, y, z] = ELECTRODE_POSITION;
+  const mag = Math.sqrt(x * x + y * y + z * z) || 1;
+  const nx = x / mag;
+  const ny = y / mag;
+  const nz = z / mag;
+  return [
+    x + nx * LAMP_OUTWARD_BIAS,
+    y + ny * LAMP_OUTWARD_BIAS,
+    z + nz * LAMP_OUTWARD_BIAS,
+  ];
+}
+
+function addRedLamp() {
+  const i = lightIntensity();
+  const power = i * OMNI_LIGHT_POWER;
+  if (power <= 0) return;
+
+  lightFalloff(LIGHT_FALLOFF.constant, LIGHT_FALLOFF.linear, LIGHT_FALLOFF.quadratic);
+  const [r, g, b] = RED_LIGHT;
+  const [lx, ly, lz] = lampPositionWorld();
+
+  withBrainTransform(() => {
+    pointLight(r * power, g * power, b * power, lx, ly, lz);
+  });
+}
+
+function drawBrain() {
+  withBrainTransform(() => {
+    noStroke();
+    ambientMaterial(...BRAIN_AMBIENT);
+    specularMaterial(...BRAIN_SPECULAR);
+    shininess(BRAIN_SHININESS);
+    model(brainModel);
+  });
+}
+
+function shellSphereCenterAboveElectrode() {
+  const [x, y, z] = ELECTRODE_POSITION;
+  const mag = Math.sqrt(x * x + y * y + z * z) || 1;
+  const t = 1 + SHELL_SPHERE_OFFSET / mag;
+  return [x * t, y * t, z * t];
+}
+
+function drawShellSphereAboveElectrode() {
+  withBrainTransform(() => {
+    noStroke();
+    ambientMaterial(...BRAIN_AMBIENT);
+    specularMaterial(...BRAIN_SPECULAR);
+    shininess(BRAIN_SHININESS);
+    const [sx, sy, sz] = shellSphereCenterAboveElectrode();
+    push();
+    translate(sx, sy, sz);
+    sphere(SHELL_SPHERE_RADIUS, 24, 18);
+    pop();
+  });
+}
+
+function drawElectrodeCore() {
+  const i = lightIntensity();
+  if (i <= 0) return;
+  withBrainTransform(() => {
+    const [lx, ly, lz] = lampPositionWorld();
+    const [r, g, b] = RED_LIGHT;
+    const glow = 0.35 + i * 0.65;
+    push();
+    translate(lx, ly, lz);
+    noStroke();
+    emissiveMaterial(r * glow, g * glow, b * glow);
+    sphere(LAMP_GLOW_RADIUS * (0.85 + i * 0.15), 12, 10);
+    pop();
+  });
+}
+
+draw = () => {
+  background(6, 8, 14);
+
+  orbitControl(1, 1, SCROLL_ZOOM_SENSITIVITY);
+
+  ambientLight(...AMBIENT_SCENE);
+  specularColor(...SPECULAR_LIGHT_COLOR);
+
+  addRedLamp();
+
+  drawBrain();
+  drawShellSphereAboveElectrode();
+  drawElectrodeCore();
+};

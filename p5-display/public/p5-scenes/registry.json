@@ -31,6 +31,13 @@
       "title": "🕷️ Neon"
     },
     {
+      "file": "glass-brain-red-minimal.p5",
+      "title": "🧠 Glass · red lamp",
+      "inputs": [
+        { "id": "light_1", "label": "Red lamp intensity (0–1)" }
+      ]
+    },
+    {
       "file": "glass-brain.p5",
       "title": "🧠 Glass",
       "inputs": [

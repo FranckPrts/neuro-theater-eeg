@@ -171,3 +171,7 @@ spider-plot.p5,__absoluteMax,Absolute · max deviation (outer),1,control
 ## Security note
 
 Scene code is loaded and executed in the iframe from **trusted local files** only. Do not point this tool at untrusted remote `.p5` sources.
+
+## Attribution
+
+- Brain 3D model: [Brain](https://sketchfab.com/3d-models/brain-7a2c96d2bc5c4068b3f715fd5ed95b67) by [JuanG3D](https://sketchfab.com/JuanG3D), licensed under [Creative Commons Attribution](https://creativecommons.org/licenses/by/4.0/).
