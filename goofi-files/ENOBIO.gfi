@@ -141,8 +141,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 444
-      - 160
+      - 415
+      - 157
       viewers:
         out:
           viewer_idx: 0
@@ -165,7 +165,7 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 448
+      - 415
       - 66
       viewers:
         out:
@@ -611,7 +611,7 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: ENOBIO-32-NE-Wifi(00:07:80:0D:71:FF) Acc
+        source_name: ENOBIO-32-NE-Wifi(00:07:80:0D:71:FF)
         stream_name: ENOBIO-Accelerometer
         source_type: Accelerometer
         refresh: true

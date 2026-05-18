@@ -1,0 +1,1524 @@
+nodes:
+  constantstring0:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: ENOBIO-32-NE-Wifi(00:07:80:0D:71:FF)
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 273
+      - 178
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  lslclient0:
+    _type: LSLClient
+    category: inputs
+    params:
+      lsl_stream:
+        source_name: ENOBIO-32-NE-Wifi(00:07:80:0D:71:FF)
+        stream_name: ''
+        source_type: ''
+        refresh: false
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 523
+      - 249
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  select0:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 001
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1255
+      - 54
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  buffer0:
+    _type: Buffer
+    category: signal
+    params:
+      buffer:
+        size: 10.0
+        axis: -1
+        unit: samples
+        reset: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 731
+      - 361
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 435
+          height: 360
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  select1:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 002
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1256
+      - 137
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select2:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 003
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1257
+      - 218
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select3:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 004
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1256
+      - 303
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select4:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 005
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1258
+      - 386
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select5:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 006
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1259
+      - 468
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select6:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 007
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1259
+      - 549
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select7:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 008
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1259
+      - 630
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select8:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 009
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1259
+      - 711
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select9:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 010
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1259
+      - 796
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select10:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 011
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1462
+      - 56
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select11:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 012
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1463
+      - 139
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select12:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 013
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1464
+      - 220
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select13:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 014
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1463
+      - 305
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select14:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 015
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1465
+      - 388
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select15:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 016
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1466
+      - 470
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select16:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 017
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1466
+      - 551
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select17:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 018
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1466
+      - 632
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select18:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 019
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1466
+      - 713
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select19:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: 'EEG 020[{"_type": "Select", "category": "array", "params": {"select":
+          {"axis": 0, "selection_mode": "by_name", "include": "EEG 020", "exclude":
+          "", "expand_asterisk": false}, "common": {"autotrigger": false, "max_frequency":
+          30.0, "frequency_mode": "updates-per-second", "process_group": ""}}, "gui_kwargs":
+          {"offset": [0.0, 0.0]}, "name": "select19", "input_links": [["buffer0",
+          "select19", "out", "data"]]}]'
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1466
+      - 799
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select20:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 021
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1666
+      - 55
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select21:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 022
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1668
+      - 139
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select22:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 023
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1669
+      - 222
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select23:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 024
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1671
+      - 304
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select24:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 025
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1670
+      - 385
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select25:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 026
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1672
+      - 467
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select26:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 027
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1672
+      - 549
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select27:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 028
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1673
+      - 632
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select28:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 029
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1672
+      - 715
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select29:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 030
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1670
+      - 801
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select30:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 031
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1869
+      - 57
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select31:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 032
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1870
+      - 141
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  tablenormalization0:
+    _type: TableNormalization
+    category: signal
+    params:
+      normalization:
+        method: z-score
+        buffer_size: 1024
+        reset: false
+        axis: -1
+      quantile:
+        n_quantiles: 1000
+        output_distribution: uniform
+      robust:
+        quantile_min: 25
+        quantile_max: 75
+        unit_variance: false
+      minmax:
+        feature_min: 0.0
+        feature_max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2610
+      - 361
+      viewers:
+        normalized:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable0:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: P7
+        param2: P4
+        param3: Cz
+        param4: Pz
+        param5: P3
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1925
+      - 261
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable1:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: P8
+        param2: O1
+        param3: O2
+        param4: T8
+        param5: F8
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2135
+      - 264
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable2:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: C4
+        param2: F4
+        param3: Fp2
+        param4: Fz
+        param5: C3
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2345
+      - 267
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable3:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: F3
+        param2: Fp1
+        param3: T7
+        param4: F7
+        param5: Oz
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1926
+      - 644
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable4:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: PO4
+        param2: FC6
+        param3: FC2
+        param4: AF4
+        param5: CP6
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2139
+      - 650
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable5:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: CP2
+        param2: CP1
+        param3: CP5
+        param4: FC1
+        param5: FC5
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2349
+      - 651
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable6:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: AF3
+        param2: PO3
+        param3: value3
+        param4: value4
+        param5: value5
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2561
+      - 653
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  oscout0:
+    _type: OSCOut
+    category: outputs
+    params:
+      osc:
+        address: localhost
+        port: 8080
+        prefix: /RAWE
+        bundle: false
+        broadcast: false
+        require_change: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2827
+      - 432
+      viewers: {}
+links:
+- node_out: constantstring0
+  node_in: lslclient0
+  slot_out: out
+  slot_in: source_name
+- node_out: lslclient0
+  node_in: buffer0
+  slot_out: out
+  slot_in: val
+- node_out: select0
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input1
+- node_out: buffer0
+  node_in: select0
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select1
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select2
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select3
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select4
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select5
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select6
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select7
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select8
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select9
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select10
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select11
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select12
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select13
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select14
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select15
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select16
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select17
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select18
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select19
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select20
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select21
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select22
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select23
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select24
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select25
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select26
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select27
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select28
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select29
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select30
+  slot_out: out
+  slot_in: data
+- node_out: buffer0
+  node_in: select31
+  slot_out: out
+  slot_in: data
+- node_out: select1
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input2
+- node_out: select2
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input3
+- node_out: select3
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input4
+- node_out: select4
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input5
+- node_out: select5
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input1
+- node_out: select6
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input2
+- node_out: select7
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input3
+- node_out: select8
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input4
+- node_out: select9
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input5
+- node_out: select10
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input1
+- node_out: select11
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input2
+- node_out: select12
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input3
+- node_out: select13
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input4
+- node_out: select14
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input5
+- node_out: select15
+  node_in: extendedtable3
+  slot_out: out
+  slot_in: array_input1
+- node_out: select16
+  node_in: extendedtable3
+  slot_out: out
+  slot_in: array_input2
+- node_out: select17
+  node_in: extendedtable3
+  slot_out: out
+  slot_in: array_input3
+- node_out: select18
+  node_in: extendedtable3
+  slot_out: out
+  slot_in: array_input4
+- node_out: select19
+  node_in: extendedtable3
+  slot_out: out
+  slot_in: array_input5
+- node_out: select20
+  node_in: extendedtable4
+  slot_out: out
+  slot_in: array_input1
+- node_out: select21
+  node_in: extendedtable4
+  slot_out: out
+  slot_in: array_input2
+- node_out: select22
+  node_in: extendedtable4
+  slot_out: out
+  slot_in: array_input3
+- node_out: select23
+  node_in: extendedtable4
+  slot_out: out
+  slot_in: array_input4
+- node_out: select24
+  node_in: extendedtable4
+  slot_out: out
+  slot_in: array_input5
+- node_out: select25
+  node_in: extendedtable5
+  slot_out: out
+  slot_in: array_input1
+- node_out: select26
+  node_in: extendedtable5
+  slot_out: out
+  slot_in: array_input2
+- node_out: select27
+  node_in: extendedtable5
+  slot_out: out
+  slot_in: array_input3
+- node_out: select28
+  node_in: extendedtable5
+  slot_out: out
+  slot_in: array_input4
+- node_out: select29
+  node_in: extendedtable5
+  slot_out: out
+  slot_in: array_input5
+- node_out: select30
+  node_in: extendedtable6
+  slot_out: out
+  slot_in: array_input1
+- node_out: select31
+  node_in: extendedtable6
+  slot_out: out
+  slot_in: array_input2
+- node_out: tablenormalization0
+  node_in: oscout0
+  slot_out: normalized
+  slot_in: data
+- node_out: extendedtable0
+  node_in: extendedtable1
+  slot_out: table
+  slot_in: base
+- node_out: extendedtable1
+  node_in: extendedtable2
+  slot_out: table
+  slot_in: base
+- node_out: extendedtable2
+  node_in: extendedtable3
+  slot_out: table
+  slot_in: base
+- node_out: extendedtable3
+  node_in: extendedtable4
+  slot_out: table
+  slot_in: base
+- node_out: extendedtable4
+  node_in: extendedtable5
+  slot_out: table
+  slot_in: base
+- node_out: extendedtable5
+  node_in: extendedtable6
+  slot_out: table
+  slot_in: base
+- node_out: extendedtable6
+  node_in: tablenormalization0
+  slot_out: table
+  slot_in: table

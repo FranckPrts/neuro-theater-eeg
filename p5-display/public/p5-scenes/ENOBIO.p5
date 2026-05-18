@@ -1,0 +1,348 @@
+/* global WEBGL, CENTER, RGB, loadModel, createCanvas, resizeCanvas, windowWidth, windowHeight */
+/* global background, ambientLight, directionalLight, orbitControl, push, pop, rotateX, rotateY */
+/* global scale, model, text, textAlign, textSize, noStroke, fill, noFill, constrain, millis, sin, TWO_PI, PI */
+/* global pointLight, spotLight, emissiveMaterial, sphere, translate, stroke, strokeWeight, line */
+/* global ambientMaterial, specularMaterial, shininess, specularColor, lightFalloff, colorMode */
+
+// Brain 3D model credit: https://sketchfab.com/3d-models/brain-7a2c96d2bc5c4068b3f715fd5ed95b67
+const BRAIN_MODEL_PATH = "p5-misc/glass-brain/brain2.obj";
+const BRAIN_SCALE = 0.004;
+const SCROLL_ZOOM_SENSITIVITY = 0.85;
+
+const MARKER_LIGHT_POWER = 120;
+const MARKER_SPOT_POWER = 255;
+const MARKER_SPOT_ANGLE = Math.PI / 3;
+const MARKER_SPOT_CONCENTRATION = 24;
+const MARKER_OUTWARD_BIAS = 16;
+const MARKER_GLOW_RADIUS = 5.35;
+const LIGHT_FALLOFF = { constant: 1, linear: 0.001, quadratic: 0 };
+
+const SCENE_AMBIENT_LIGHT = [28, 34, 58];
+const SCENE_KEY_LIGHT = [55, 62, 88];
+const SCENE_KEY_DIRECTION = [-0.4, 0.35, -1];
+
+const BRAIN_AMBIENT_MATERIAL = [10, 22, 62];
+// const BRAIN_SPECULAR_MATERIAL = [95, 42, 72];
+const BRAIN_SPECULAR_MATERIAL = [255, 255, 255];
+const BRAIN_SHININESS = 24;
+const BRAIN_ROTATION_X = -0.18;
+
+const LIGHT_INTENSITY_MIN = 0.12;
+const LIGHT_INTENSITY_MAX = 5;
+const LIGHT_PULSE_PERIOD_MS = 2800;
+
+const AXIS_VECTOR_LENGTH = 108;
+const AXIS_LABEL_OFFSET = 3.5;
+const AXIS_DOT_RADIUS = 0.7;
+
+/** Set false when done tuning lamp position / aim */
+const DEBUG_LAMP = true;
+const DEBUG_CONTACT_SPHERE_RADIUS = 2.5;
+const DEBUG_LAMP_WIREFRAME_RADIUS = 1.8;
+const DEBUG_AIM_LINE_LENGTH = 45;
+
+const ENOBIO_32_COLOR = [198, 114, 195];
+const WHITE_LIGHT_COLOR = [255, 255, 255];
+const MONTAGE_BACK_TILT_RADIANS = Math.PI / 6;
+const LIGHT_MARKERS = [
+  { id: "Fp1", color: ENOBIO_32_COLOR, position: [-30, -74, 34], radius: 1.35 },
+  { id: "Fp2", color: ENOBIO_32_COLOR, position: [30, -74, 34], radius: 1.35 },
+  { id: "AF3", color: ENOBIO_32_COLOR, position: [-34, -62, 48], radius: 1.35 },
+  { id: "AF4", color: ENOBIO_32_COLOR, position: [34, -62, 48], radius: 1.35 },
+  { id: "F7", color: ENOBIO_32_COLOR, position: [-70, -44, 24], radius: 1.35 },
+  { id: "F8", color: ENOBIO_32_COLOR, position: [70, -44, 24], radius: 1.35 },
+  { id: "F3", color: ENOBIO_32_COLOR, position: [-38, -40, 56], radius: 1.35 },
+  { id: "F4", color: ENOBIO_32_COLOR, position: [38, -40, 56], radius: 1.35 },
+  { id: "Fz", color: ENOBIO_32_COLOR, position: [0, -44, 64], radius: 1.35 },
+  { id: "FC5", color: ENOBIO_32_COLOR, position: [-66, -20, 38], radius: 1.35 },
+  { id: "FC6", color: ENOBIO_32_COLOR, position: [66, -20, 38], radius: 1.35 },
+  { id: "FC1", color: ENOBIO_32_COLOR, position: [-20, -22, 68], radius: 1.35 },
+  { id: "FC2", color: ENOBIO_32_COLOR, position: [20, -22, 68], radius: 1.35 },
+  { id: "T7", color: ENOBIO_32_COLOR, position: [-84, 0, 10], radius: 1.35 },
+  { id: "T8", color: ENOBIO_32_COLOR, position: [84, 0, 10], radius: 1.35 },
+  { id: "C3", color: ENOBIO_32_COLOR, position: [-44, 0, 64], radius: 1.35 },
+  { id: "C4", color: ENOBIO_32_COLOR, position: [44, 0, 64], radius: 1.35 },
+  { id: "Cz", color: ENOBIO_32_COLOR, position: [0, 0, 78], radius: 1.35 },
+  { id: "CP5", color: ENOBIO_32_COLOR, position: [-70, 30, 36], radius: 1.35 },
+  { id: "CP6", color: ENOBIO_32_COLOR, position: [70, 30, 36], radius: 1.35 },
+  { id: "CP1", color: ENOBIO_32_COLOR, position: [-22, 28, 66], radius: 1.35 },
+  { id: "CP2", color: ENOBIO_32_COLOR, position: [22, 28, 66], radius: 1.35 },
+  { id: "P7", color: ENOBIO_32_COLOR, position: [-76, 58, 18], radius: 1.35 },
+  { id: "P8", color: ENOBIO_32_COLOR, position: [76, 58, 18], radius: 1.35 },
+  { id: "P3", color: ENOBIO_32_COLOR, position: [-38, 58, 44], radius: 1.35 },
+  { id: "P4", color: ENOBIO_32_COLOR, position: [38, 58, 44], radius: 1.35 },
+  { id: "Pz", color: ENOBIO_32_COLOR, position: [0, 62, 52], radius: 1.35 },
+  { id: "PO3", color: ENOBIO_32_COLOR, position: [-34, 80, 24], radius: 1.35 },
+  { id: "PO4", color: ENOBIO_32_COLOR, position: [34, 80, 24], radius: 1.35 },
+  { id: "O1", color: ENOBIO_32_COLOR, position: [-30, 94, 6], radius: 1.35 },
+  { id: "O2", color: ENOBIO_32_COLOR, position: [30, 94, 6], radius: 1.35 },
+  { id: "Oz", color: ENOBIO_32_COLOR, position: [0, 98, 8], radius: 1.35 },
+];
+
+let brainModel;
+let autoRotation = 0;
+
+function sceneRotationEnabled() {
+  const raw = data?.rotation;
+  if (raw === undefined || raw === null || raw === "") return true;
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "number") return raw !== 0;
+
+  const normalized = String(raw).trim().toLowerCase();
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  return true;
+}
+
+preload = () => {
+  brainModel = loadModel(BRAIN_MODEL_PATH, true);
+};
+
+windowResized = () => {
+  resizeCanvas(windowWidth, windowHeight);
+};
+
+setup = () => {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  textAlign(CENTER, CENTER);
+  colorMode(RGB, 255);
+};
+
+function withBrainTransform(drawFn) {
+  push();
+  rotateX(BRAIN_ROTATION_X);
+  rotateZ(autoRotation);
+  scale(brainWorldScale());
+  drawFn();
+  pop();
+}
+
+function brainWorldScale() {
+  return Math.min(width, height) * BRAIN_SCALE;
+}
+
+function rotateZPoint([x, y, z], angle) {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return [x * c - y * s, x * s + y * c, z];
+}
+
+function rotateXPoint([x, y, z], angle) {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return [x, y * c - z * s, y * s + z * c];
+}
+
+function brainPointToWorld(point) {
+  const s = brainWorldScale();
+  return rotateXPoint(rotateZPoint(point.map((v) => v * s), autoRotation), BRAIN_ROTATION_X);
+}
+
+function brainDirectionToWorld(direction) {
+  return rotateXPoint(rotateZPoint(direction, autoRotation), BRAIN_ROTATION_X);
+}
+
+function oscillatingLightFactor() {
+  const phase = ((millis() % LIGHT_PULSE_PERIOD_MS) / LIGHT_PULSE_PERIOD_MS) * TWO_PI;
+  const u = 0.5 + 0.5 * sin(phase);
+  return LIGHT_INTENSITY_MIN + u * (LIGHT_INTENSITY_MAX - LIGHT_INTENSITY_MIN);
+}
+
+function markerIntensity(marker) {
+  const pulse = constrain(oscillatingLightFactor(), 0, 1);
+  const raw = data?.[marker.id];
+  if (typeof raw !== "number" || !isFinite(raw)) return pulse;
+  return constrain(raw * pulse, 0, 1);
+}
+
+function markerContactPosition(marker) {
+  const [x, y, z] = marker.position;
+  const c = Math.cos(MONTAGE_BACK_TILT_RADIANS);
+  const s = Math.sin(MONTAGE_BACK_TILT_RADIANS);
+  return [x, y * c - z * s, y * s + z * c];
+}
+
+function markerLampPosition(marker) {
+  const [x, y, z] = markerContactPosition(marker);
+  const mag = Math.sqrt(x * x + y * y + z * z) || 1;
+  return [
+    x + (x / mag) * MARKER_OUTWARD_BIAS,
+    y + (y / mag) * MARKER_OUTWARD_BIAS,
+    z + (z / mag) * MARKER_OUTWARD_BIAS,
+  ];
+}
+
+function inwardFromLamp(lx, ly, lz) {
+  const mag = Math.sqrt(lx * lx + ly * ly + lz * lz) || 1;
+  return [-lx / mag, -ly / mag, -lz / mag];
+}
+
+function addEmitterLights() {
+  lightFalloff(LIGHT_FALLOFF.constant, LIGHT_FALLOFF.linear, LIGHT_FALLOFF.quadratic);
+  for (const marker of LIGHT_MARKERS) {
+    const i = markerIntensity(marker);
+    if (i <= 0) continue;
+    const lampPosition = markerLampPosition(marker);
+    const [lx, ly, lz] = brainPointToWorld(lampPosition);
+    const [dx, dy, dz] = brainDirectionToWorld(inwardFromLamp(...lampPosition));
+    const [r, g, b] = marker.color;
+    const spotP = i * MARKER_SPOT_POWER;
+    const pointP = i * MARKER_LIGHT_POWER;
+
+    spotLight(
+      (r / 255) * spotP,
+      (g / 255) * spotP,
+      (b / 255) * spotP,
+      lx,
+      ly,
+      lz,
+      dx,
+      dy,
+      dz,
+      MARKER_SPOT_ANGLE,
+      MARKER_SPOT_CONCENTRATION
+    );
+
+    if (debugPointLightsEnabled()) {
+      pointLight((r / 255) * pointP, (g / 255) * pointP, (b / 255) * pointP, lx, ly, lz);
+    }
+  }
+}
+
+function drawBrainModel() {
+  withBrainTransform(() => {
+    noStroke();
+    ambientMaterial(...BRAIN_AMBIENT_MATERIAL);
+    specularMaterial(...BRAIN_SPECULAR_MATERIAL);
+    shininess(BRAIN_SHININESS);
+    model(brainModel);
+    //sphere(60)
+  });
+}
+
+function debugLampEnabled() {
+  if (typeof data?.debug_lamp === "boolean") return data.debug_lamp;
+  if (typeof data?.debug_lamp === "number") return data.debug_lamp !== 0;
+  const s = String(data?.debug_lamp ?? "").trim().toLowerCase();
+  if (["0", "false", "no", "off"].includes(s)) return false;
+  if (["1", "true", "yes", "on"].includes(s)) return true;
+  return DEBUG_LAMP;
+}
+
+function debugPointLightsEnabled() {
+  if (typeof data?.debug_point_lights === "boolean") return data.debug_point_lights;
+  if (typeof data?.debug_point_lights === "number") return data.debug_point_lights !== 0;
+  const s = String(data?.debug_point_lights ?? "").trim().toLowerCase();
+  return ["1", "true", "yes", "on"].includes(s);
+}
+
+function drawLampDebug() {
+  if (!debugLampEnabled()) return;
+  withBrainTransform(() => {
+    strokeWeight(0.4);
+    for (const marker of LIGHT_MARKERS) {
+      const [cx, cy, cz] = markerContactPosition(marker);
+      const [lx, ly, lz] = markerLampPosition(marker);
+      const [dx, dy, dz] = inwardFromLamp(lx, ly, lz);
+      const [r, g, b] = marker.color;
+
+      stroke(255, 220, 80, 210);
+      push();
+      translate(cx, cy, cz);
+      noFill();
+      sphere(DEBUG_CONTACT_SPHERE_RADIUS, 10, 8);
+      pop();
+
+      stroke(80, 255, 255, 220);
+      push();
+      translate(lx, ly, lz);
+      noFill();
+      sphere(DEBUG_LAMP_WIREFRAME_RADIUS, 10, 8);
+      pop();
+
+      stroke(255, 220, 80, 170);
+      line(cx, cy, cz, lx, ly, lz);
+
+      stroke(r, g, b, 220);
+      line(lx, ly, lz, lx + dx * DEBUG_AIM_LINE_LENGTH, ly + dy * DEBUG_AIM_LINE_LENGTH, lz + dz * DEBUG_AIM_LINE_LENGTH);
+    }
+
+    stroke(140, 140, 150, 140);
+    const o = 5;
+    line(-o, 0, 0, o, 0, 0);
+    line(0, -o, 0, 0, o, 0);
+    line(0, 0, -o, 0, 0, o);
+  });
+}
+
+function drawLightMarkers() {
+  withBrainTransform(() => {
+    noStroke();
+    for (const marker of LIGHT_MARKERS) {
+      const i = markerIntensity(marker);
+      if (i <= 0) continue;
+      const [r, g, b] = marker.color;
+      const [lx, ly, lz] = markerLampPosition(marker);
+      const glow = 0.45 + i * 0.55;
+      push();
+      translate(lx, ly, lz);
+      emissiveMaterial(r * glow, g * glow, b * glow, 255);
+      //sphere(MARKER_GLOW_RADIUS * glow, 20, 20);
+ 
+      pop();
+    }
+  });
+}
+
+function drawMinimalXyzVector() {
+  withBrainTransform(() => {
+    const length = AXIS_VECTOR_LENGTH;
+    const label = length + AXIS_LABEL_OFFSET;
+    const axes = [
+      { label: "X", color: [255, 75, 90], end: [length, 0, 0], text: [label, 0, 0] },
+      { label: "Y", color: [92, 255, 126], end: [0, length, 0], text: [0, label, 0] },
+      { label: "Z", color: [78, 160, 255], end: [0, 0, length], text: [0, 0, label] },
+    ];
+
+    strokeWeight(0.55);
+    textSize(5);
+    for (const axis of axes) {
+      const [r, g, b] = axis.color;
+      const [x, y, z] = axis.end;
+      stroke(r, g, b, 220);
+      line(0, 0, 0, x, y, z);
+
+      push();
+      translate(x, y, z);
+      noStroke();
+      emissiveMaterial(r, g, b, 255);
+      sphere(AXIS_DOT_RADIUS, 8, 6);
+      pop();
+
+      push();
+      translate(...axis.text);
+      fill(r, g, b, 230);
+      noStroke();
+      text(axis.label, 0, 0);
+      pop();
+    }
+  });
+}
+
+draw = () => {
+  background(8, 10, 16);
+
+  orbitControl(1, 1, SCROLL_ZOOM_SENSITIVITY);
+  if (sceneRotationEnabled()) autoRotation += 0.004;
+
+  ambientLight(...SCENE_AMBIENT_LIGHT);
+  directionalLight(...SCENE_KEY_LIGHT, ...SCENE_KEY_DIRECTION);
+  specularColor(...WHITE_LIGHT_COLOR, 255);
+
+  addEmitterLights();
+
+  drawBrainModel();
+  drawLampDebug();
+  drawLightMarkers();
+  drawMinimalXyzVector();
+};
