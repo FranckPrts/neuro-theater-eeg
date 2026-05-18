@@ -1,0 +1,198 @@
+/* global WEBGL, CENTER, LEFT, TOP, createCanvas, resizeCanvas, windowWidth, windowHeight */
+/* global background, ambientLight, directionalLight, orbitControl, push, pop, rotateX, rotateY, rotateZ */
+/* global translate, scale, box, line, stroke, strokeWeight, noFill, noStroke, fill, text, textAlign, textSize */
+/* global colorMode, RGB, width, height */
+
+// Computed IMU orientation only.
+// Euler mode: IMU1/2/3 = roll/pitch/yaw degrees.
+// Quaternion mode: IMU1/2/3/4 = x/y/z/w from Goofi's quaternion_xyzw output.
+const SCROLL_ZOOM_SENSITIVITY = 0.85;
+
+const CUBE_SIZE = 170;
+const CUBE_EDGE_COLOR = [88, 190, 255];
+const CUBE_FACE_COLOR = [18, 42, 92, 40];
+const AXIS_VECTOR_LENGTH = 145;
+const STATUS_MARGIN = 18;
+
+let orientation = { roll: 0, pitch: 0, yaw: 0 };
+let hasOrientation = false;
+
+const DEG_TO_RAD = Math.PI / 180;
+const RAD_TO_DEG = 180 / Math.PI;
+
+function readNumber(id, fallback = null) {
+  const raw = data?.[id];
+  return typeof raw === "number" && isFinite(raw) ? raw : fallback;
+}
+
+function quaternionModeEnabled() {
+  return data?.quaternion_mode === true;
+}
+
+function readEulerDegrees() {
+  const roll = readNumber("IMU1");
+  const pitch = readNumber("IMU2");
+  const yaw = readNumber("IMU3");
+  if ([roll, pitch, yaw].some((v) => v === null)) return null;
+  return { roll, pitch, yaw };
+}
+
+function readQuaternionXyzw() {
+  let x = readNumber("IMU1");
+  let y = readNumber("IMU2");
+  let z = readNumber("IMU3");
+  let w = readNumber("IMU4");
+  if ([x, y, z, w].some((v) => v === null)) return null;
+
+  const mag = Math.sqrt(x * x + y * y + z * z + w * w);
+  if (!isFinite(mag) || mag <= 0) return null;
+  x /= mag;
+  y /= mag;
+  z /= mag;
+  w /= mag;
+  return { x, y, z, w };
+}
+
+function quaternionToEulerDegrees(q) {
+  const { x, y, z, w } = q;
+
+  const sinrCosp = 2 * (w * x + y * z);
+  const cosrCosp = 1 - 2 * (x * x + y * y);
+  const roll = Math.atan2(sinrCosp, cosrCosp) * RAD_TO_DEG;
+
+  const sinp = 2 * (w * y - z * x);
+  let pitch;
+  if (Math.abs(sinp) >= 1) {
+    pitch = Math.sign(sinp) * 90;
+  } else {
+    pitch = Math.asin(sinp) * RAD_TO_DEG;
+  }
+
+  const sinyCosp = 2 * (w * z + x * y);
+  const cosyCosp = 1 - 2 * (y * y + z * z);
+  const yaw = Math.atan2(sinyCosp, cosyCosp) * RAD_TO_DEG;
+
+  return { roll, pitch, yaw };
+}
+
+function updateOrientationFromComputedData() {
+  let next = null;
+  if (quaternionModeEnabled()) {
+    const q = readQuaternionXyzw();
+    if (q) next = quaternionToEulerDegrees(q);
+  } else {
+    next = readEulerDegrees();
+  }
+  if (!next) return;
+  orientation = next;
+  hasOrientation = true;
+}
+
+windowResized = () => {
+  resizeCanvas(windowWidth, windowHeight);
+};
+
+setup = () => {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  textAlign(CENTER, CENTER);
+  textSize(13);
+  colorMode(RGB, 255);
+};
+
+function drawHeadCube() {
+  push();
+  rotateZ(orientation.yaw * DEG_TO_RAD);
+  rotateY(orientation.pitch * DEG_TO_RAD);
+  rotateX(orientation.roll * DEG_TO_RAD);
+
+  noStroke();
+  fill(...CUBE_FACE_COLOR);
+  box(CUBE_SIZE * 0.985);
+
+  noFill();
+  stroke(...CUBE_EDGE_COLOR, 230);
+  strokeWeight(2.2);
+  box(CUBE_SIZE);
+
+  stroke(255, 255, 255, 55);
+  strokeWeight(0.8);
+  box(CUBE_SIZE * 1.02);
+
+  drawLocalAxes(CUBE_SIZE * 0.62);
+  pop();
+}
+
+function drawLocalAxes(length) {
+  const axes = [
+    { label: "X", color: [255, 80, 95], end: [length, 0, 0] },
+    { label: "Y", color: [95, 255, 130], end: [0, length, 0] },
+    { label: "Z", color: [90, 165, 255], end: [0, 0, length] },
+  ];
+
+  for (const axis of axes) {
+    const [r, g, b] = axis.color;
+    const [x, y, z] = axis.end;
+    stroke(r, g, b, 230);
+    strokeWeight(2);
+    line(0, 0, 0, x, y, z);
+
+    push();
+    translate(x * 1.12, y * 1.12, z * 1.12);
+    noStroke();
+    fill(r, g, b, 235);
+    text(axis.label, 0, 0);
+    pop();
+  }
+}
+
+function drawWorldAxes() {
+  push();
+  translate(-width * 0.34, height * 0.28, 0);
+  scale(0.55);
+  strokeWeight(1.4);
+  stroke(255, 80, 95, 145);
+  line(0, 0, 0, AXIS_VECTOR_LENGTH, 0, 0);
+  stroke(95, 255, 130, 145);
+  line(0, 0, 0, 0, AXIS_VECTOR_LENGTH, 0);
+  stroke(90, 165, 255, 145);
+  line(0, 0, 0, 0, 0, AXIS_VECTOR_LENGTH);
+  pop();
+}
+
+function drawStatusOverlay() {
+  const mode = quaternionModeEnabled() ? "Quaternion" : "Euler";
+  const status = hasOrientation
+    ? `${mode} mode · computed IMU mapped`
+    : `Waiting for ${mode} IMU${quaternionModeEnabled() ? "1-4" : "1-3"}`;
+
+  push();
+  translate(-width / 2 + STATUS_MARGIN, -height / 2 + STATUS_MARGIN, 0);
+  noStroke();
+  fill(hasOrientation ? 120 : 220, hasOrientation ? 255 : 120, hasOrientation ? 150 : 90, 235);
+  textAlign(LEFT, TOP);
+  text(status, 0, 0);
+
+  fill(170, 185, 215, 220);
+  text(
+    `roll ${orientation.roll.toFixed(1)}°  pitch ${orientation.pitch.toFixed(1)}°  yaw ${orientation.yaw.toFixed(1)}°`,
+    0,
+    20
+  );
+  text(quaternionModeEnabled() ? "IMU1=x  IMU2=y  IMU3=z  IMU4=w" : "IMU1=roll  IMU2=pitch  IMU3=yaw", 0, 40);
+  pop();
+}
+
+draw = () => {
+  updateOrientationFromComputedData();
+
+  background(8, 10, 16);
+  orbitControl(1, 1, SCROLL_ZOOM_SENSITIVITY);
+
+  ambientLight(30, 38, 70);
+  directionalLight(75, 90, 130, -0.45, 0.4, -1);
+  directionalLight(40, 140, 255, 0.6, -0.2, 0.75);
+
+  drawHeadCube();
+  drawWorldAxes();
+  drawStatusOverlay();
+};

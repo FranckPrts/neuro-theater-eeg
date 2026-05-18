@@ -31,8 +31,19 @@
       "title": "🕷️ Neon"
     },
     {
-      "file": "glass-brain-red-minimal.p5",
-      "title": "🧠 Glass · red lamp",
+      "file": "head-cube.p5",
+      "title": "Head Cube",
+      "inputs": [
+        { "id": "quaternion_mode", "label": "Quaternion mode (off = Euler)", "type": "bool", "default": false },
+        { "id": "IMU1", "label": "IMU1 · Euler roll or quaternion x" },
+        { "id": "IMU2", "label": "IMU2 · Euler pitch or quaternion y" },
+        { "id": "IMU3", "label": "IMU3 · Euler yaw or quaternion z" },
+        { "id": "IMU4", "label": "IMU4 · quaternion w" }
+      ]
+    },
+    {
+      "file": "ENOBIO.p5",
+      "title": "ENOBIO",
       "inputs": [
         { "id": "light_1", "label": "Red lamp intensity (0–1)" }
       ]
