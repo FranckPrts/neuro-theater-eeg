@@ -1,0 +1,364 @@
+/* global WEBGL, CENTER, RGB, loadModel, createCanvas, resizeCanvas, windowWidth, windowHeight */
+/* global background, ambientLight, directionalLight, orbitControl, push, pop, rotateX, rotateY, rotateZ */
+/* global scale, model, text, textAlign, textSize, noStroke, fill, noFill, constrain, millis, sin, TWO_PI, PI */
+/* global pointLight, spotLight, emissiveMaterial, sphere, translate, stroke, strokeWeight, line */
+/* global ambientMaterial, specularMaterial, shininess, specularColor, lightFalloff, colorMode */
+
+// Brain 3D model credit: https://sketchfab.com/3d-models/brain-7a2c96d2bc5c4068b3f715fd5ed95b67
+const BRAIN_MODEL_PATH = "p5-misc/glass-brain/brain2.obj";
+const BRAIN_SCALE = 0.0045;
+const SCROLL_ZOOM_SENSITIVITY = 0.85;
+
+const MARKER_LIGHT_POWER = 120;
+const MARKER_SPOT_POWER = 85;
+const MARKER_SPOT_ANGLE = Math.PI / 3;
+const MARKER_SPOT_CONCENTRATION = 9;
+const MARKER_OUTWARD_BIAS = 16;
+const MARKER_GLOW_RADIUS = 5.35;
+const LIGHT_FALLOFF = { constant: 1, linear: 0.8, quadratic: 0.00028 }
+
+const SCENE_AMBIENT_LIGHT = [28, 34, 58];
+const SCENE_KEY_LIGHT = [55, 62, 88];
+const SCENE_KEY_DIRECTION = [-0.4, 0.35, -1];
+
+const BRAIN_AMBIENT_MATERIAL = [10, 22, 62, 125];
+const BRAIN_SPECULAR_MATERIAL = [95, 42, 72, 225];
+const BRAIN_SHININESS = 86;
+
+const LIGHT_INTENSITY_MIN = 0.12;
+const LIGHT_INTENSITY_MAX = 1;
+const LIGHT_PULSE_PERIOD_MS = 2800;
+
+const AXIS_VECTOR_LENGTH = 108;
+const AXIS_LABEL_OFFSET = 3.5;
+const AXIS_DOT_RADIUS = 0.7;
+
+/** Set false when done tuning lamp position / aim */
+const DEBUG_LAMP = true;
+const DEBUG_CONTACT_SPHERE_RADIUS = 2.5;
+const DEBUG_LAMP_WIREFRAME_RADIUS = 1.8;
+const DEBUG_AIM_LINE_LENGTH = 45;
+
+const MUSE_COLOR = [80, 220, 255];
+const MONTAGE_BACK_TILT_RADIANS = Math.PI / 6;
+const LIGHT_MARKERS = [
+  { id: "AF7", color: MUSE_COLOR, position: [-58, -62, 42], radius: 1.35 },
+  { id: "AF8", color: MUSE_COLOR, position: [58, -62, 42], radius: 1.35 },
+  { id: "TP9", color: MUSE_COLOR, position: [-86, 44, 4], radius: 1.35 },
+  { id: "TP10", color: MUSE_COLOR, position: [86, 44, 4], radius: 1.35 },
+];
+
+let brainModel;
+let autoRotation = 0;
+let orientation = { roll: 0, pitch: 0, yaw: 0 };
+let hasOrientation = false;
+
+const DEG_TO_RAD = Math.PI / 180;
+const RAD_TO_DEG = 180 / Math.PI;
+
+function readNumber(id, fallback = null) {
+  const raw = data?.[id];
+  return typeof raw === "number" && isFinite(raw) ? raw : fallback;
+}
+
+function quaternionModeEnabled() {
+  return data?.quaternion_mode === true;
+}
+
+function readEulerDegrees() {
+  const roll = readNumber("IMU1");
+  const pitch = readNumber("IMU2");
+  const yaw = readNumber("IMU3");
+  if ([roll, pitch, yaw].some((v) => v === null)) return null;
+  return { roll, pitch, yaw };
+}
+
+function readQuaternionXyzw() {
+  let x = readNumber("IMU1");
+  let y = readNumber("IMU2");
+  let z = readNumber("IMU3");
+  let w = readNumber("IMU4");
+  if ([x, y, z, w].some((v) => v === null)) return null;
+
+  const mag = Math.sqrt(x * x + y * y + z * z + w * w);
+  if (!isFinite(mag) || mag <= 0) return null;
+  x /= mag;
+  y /= mag;
+  z /= mag;
+  w /= mag;
+  return { x, y, z, w };
+}
+
+function quaternionToEulerDegrees(q) {
+  const { x, y, z, w } = q;
+
+  const sinrCosp = 2 * (w * x + y * z);
+  const cosrCosp = 1 - 2 * (x * x + y * y);
+  const roll = Math.atan2(sinrCosp, cosrCosp) * RAD_TO_DEG;
+
+  const sinp = 2 * (w * y - z * x);
+  const pitch = Math.abs(sinp) >= 1
+    ? Math.sign(sinp) * 90
+    : Math.asin(sinp) * RAD_TO_DEG;
+
+  const sinyCosp = 2 * (w * z + x * y);
+  const cosyCosp = 1 - 2 * (y * y + z * z);
+  const yaw = Math.atan2(sinyCosp, cosyCosp) * RAD_TO_DEG;
+
+  return { roll, pitch, yaw };
+}
+
+function updateOrientationFromComputedData() {
+  let next = null;
+  if (quaternionModeEnabled()) {
+    const q = readQuaternionXyzw();
+    if (q) next = quaternionToEulerDegrees(q);
+  } else {
+    next = readEulerDegrees();
+  }
+  if (!next) return;
+  orientation = next;
+  hasOrientation = true;
+}
+
+function sceneRotationEnabled() {
+  const raw = data?.rotation;
+  if (raw === undefined || raw === null || raw === "") return true;
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "number") return raw !== 0;
+
+  const normalized = String(raw).trim().toLowerCase();
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  return true;
+}
+
+preload = () => {
+  brainModel = loadModel(BRAIN_MODEL_PATH, true);
+};
+
+windowResized = () => {
+  resizeCanvas(windowWidth, windowHeight);
+};
+
+setup = () => {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  textAlign(CENTER, CENTER);
+  colorMode(RGB, 255);
+};
+
+function withBrainTransform(drawFn) {
+  push();
+  rotateX(-0.18);
+  if (hasOrientation) {
+    rotateZ(orientation.yaw * DEG_TO_RAD);
+    rotateY(orientation.pitch * DEG_TO_RAD);
+    rotateX(orientation.roll * DEG_TO_RAD);
+  } else {
+    rotateZ(autoRotation);
+  }
+  scale(Math.min(width, height) * BRAIN_SCALE);
+  drawFn();
+  pop();
+}
+
+function oscillatingLightFactor() {
+  const phase = ((millis() % LIGHT_PULSE_PERIOD_MS) / LIGHT_PULSE_PERIOD_MS) * TWO_PI;
+  const u = 0.5 + 0.5 * sin(phase);
+  return LIGHT_INTENSITY_MIN + u * (LIGHT_INTENSITY_MAX - LIGHT_INTENSITY_MIN);
+}
+
+function markerIntensity(marker) {
+  const pulse = constrain(oscillatingLightFactor(), 0, 1);
+  const raw = data?.[marker.id];
+  if (typeof raw !== "number" || !isFinite(raw)) return pulse;
+  return constrain(raw * pulse, 0, 1);
+}
+
+function markerContactPosition(marker) {
+  const [x, y, z] = marker.position;
+  const c = Math.cos(MONTAGE_BACK_TILT_RADIANS);
+  const s = Math.sin(MONTAGE_BACK_TILT_RADIANS);
+  return [x, y * c - z * s, y * s + z * c];
+}
+
+function markerLampPosition(marker) {
+  const [x, y, z] = markerContactPosition(marker);
+  const mag = Math.sqrt(x * x + y * y + z * z) || 1;
+  return [
+    x + (x / mag) * MARKER_OUTWARD_BIAS,
+    y + (y / mag) * MARKER_OUTWARD_BIAS,
+    z + (z / mag) * MARKER_OUTWARD_BIAS,
+  ];
+}
+
+function inwardFromLamp(lx, ly, lz) {
+  const mag = Math.sqrt(lx * lx + ly * ly + lz * lz) || 1;
+  return [-lx / mag, -ly / mag, -lz / mag];
+}
+
+function lampSpecularColor(marker) {
+  const [r, g, b] = marker.color;
+  return [r, g, b, 255];
+}
+
+function addEmitterLights() {
+  lightFalloff(LIGHT_FALLOFF.constant, LIGHT_FALLOFF.linear, LIGHT_FALLOFF.quadratic);
+  withBrainTransform(() => {
+    for (const marker of LIGHT_MARKERS) {
+      const i = markerIntensity(marker);
+      if (i <= 0) continue;
+      const [r, g, b] = marker.color;
+      const [lx, ly, lz] = markerLampPosition(marker);
+      const [dx, dy, dz] = inwardFromLamp(lx, ly, lz);
+      const pointP = i * MARKER_LIGHT_POWER;
+      const spotP = i * MARKER_SPOT_POWER;
+
+      pointLight(r * pointP, g * pointP, b * pointP, lx, ly, lz);
+      spotLight(
+        r * spotP,
+        g * spotP,
+        b * spotP,
+        lx,
+        ly,
+        lz,
+        dx,
+        dy,
+        dz,
+        MARKER_SPOT_ANGLE,
+        MARKER_SPOT_CONCENTRATION
+      );
+    }
+  });
+}
+
+function drawBrainModel() {
+  withBrainTransform(() => {
+    noStroke();
+    ambientMaterial(...BRAIN_AMBIENT_MATERIAL);
+    specularMaterial(...BRAIN_SPECULAR_MATERIAL);
+    shininess(BRAIN_SHININESS);
+    model(brainModel);
+  });
+}
+
+function debugLampEnabled() {
+  if (typeof data?.debug_lamp === "boolean") return data.debug_lamp;
+  if (typeof data?.debug_lamp === "number") return data.debug_lamp !== 0;
+  const s = String(data?.debug_lamp ?? "").trim().toLowerCase();
+  if (["0", "false", "no", "off"].includes(s)) return false;
+  if (["1", "true", "yes", "on"].includes(s)) return true;
+  return DEBUG_LAMP;
+}
+
+function drawLampDebug() {
+  if (!debugLampEnabled()) return;
+  withBrainTransform(() => {
+    strokeWeight(0.4);
+    for (const marker of LIGHT_MARKERS) {
+      const [cx, cy, cz] = markerContactPosition(marker);
+      const [lx, ly, lz] = markerLampPosition(marker);
+      const [dx, dy, dz] = inwardFromLamp(lx, ly, lz);
+      const [r, g, b] = marker.color;
+
+      stroke(255, 220, 80, 210);
+      push();
+      translate(cx, cy, cz);
+      noFill();
+      sphere(DEBUG_CONTACT_SPHERE_RADIUS, 10, 8);
+      pop();
+
+      stroke(80, 255, 255, 220);
+      push();
+      translate(lx, ly, lz);
+      noFill();
+      sphere(DEBUG_LAMP_WIREFRAME_RADIUS, 10, 8);
+      pop();
+
+      stroke(255, 220, 80, 170);
+      line(cx, cy, cz, lx, ly, lz);
+
+      stroke(r, g, b, 220);
+      line(lx, ly, lz, lx + dx * DEBUG_AIM_LINE_LENGTH, ly + dy * DEBUG_AIM_LINE_LENGTH, lz + dz * DEBUG_AIM_LINE_LENGTH);
+    }
+
+    stroke(140, 140, 150, 140);
+    const o = 5;
+    line(-o, 0, 0, o, 0, 0);
+    line(0, -o, 0, 0, o, 0);
+    line(0, 0, -o, 0, 0, o);
+  });
+}
+
+function drawLightMarkers() {
+  withBrainTransform(() => {
+    noStroke();
+    for (const marker of LIGHT_MARKERS) {
+      const i = markerIntensity(marker);
+      if (i <= 0) continue;
+      const [r, g, b] = marker.color;
+      const [lx, ly, lz] = markerLampPosition(marker);
+      const glow = 0.45 + i * 0.55;
+      push();
+      translate(lx, ly, lz);
+      emissiveMaterial(r * glow, g * glow, b * glow, 255);
+      sphere(MARKER_GLOW_RADIUS * glow, 20, 20);
+ 
+      pop();
+    }
+  });
+}
+
+function drawMinimalXyzVector() {
+  withBrainTransform(() => {
+    const length = AXIS_VECTOR_LENGTH;
+    const label = length + AXIS_LABEL_OFFSET;
+    const axes = [
+      { label: "X", color: [255, 75, 90], end: [length, 0, 0], text: [label, 0, 0] },
+      { label: "Y", color: [92, 255, 126], end: [0, length, 0], text: [0, label, 0] },
+      { label: "Z", color: [78, 160, 255], end: [0, 0, length], text: [0, 0, label] },
+    ];
+
+    strokeWeight(0.55);
+    textSize(5);
+    for (const axis of axes) {
+      const [r, g, b] = axis.color;
+      const [x, y, z] = axis.end;
+      stroke(r, g, b, 220);
+      line(0, 0, 0, x, y, z);
+
+      push();
+      translate(x, y, z);
+      noStroke();
+      emissiveMaterial(r, g, b, 255);
+      sphere(AXIS_DOT_RADIUS, 8, 6);
+      pop();
+
+      push();
+      translate(...axis.text);
+      fill(r, g, b, 230);
+      noStroke();
+      text(axis.label, 0, 0);
+      pop();
+    }
+  });
+}
+
+draw = () => {
+  updateOrientationFromComputedData();
+  background(8, 10, 16);
+
+  orbitControl(1, 1, SCROLL_ZOOM_SENSITIVITY);
+  if (!hasOrientation && sceneRotationEnabled()) autoRotation += 0.004;
+
+  ambientLight(...SCENE_AMBIENT_LIGHT);
+  directionalLight(...SCENE_KEY_LIGHT, ...SCENE_KEY_DIRECTION);
+  specularColor(...lampSpecularColor(LIGHT_MARKERS[0]));
+
+  addEmitterLights();
+
+  drawBrainModel();
+  drawLampDebug();
+  drawLightMarkers();
+  drawMinimalXyzVector();
+};
