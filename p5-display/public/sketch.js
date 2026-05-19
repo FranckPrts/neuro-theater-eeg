@@ -537,6 +537,96 @@ function sortedStreamAddresses() {
     .sort();
 }
 
+/** Default stream suffix per spider axis when no mapping exists yet. */
+const SPIDER_AXIS_DEFAULT_SUFFIX = [
+  "deltaNorm",
+  "thetaNorm",
+  "alphaNorm",
+  "lowbetaNorm",
+  "highbetaNorm",
+];
+
+function parseOscAddressParts(address) {
+  if (!isDeviceStreamAddress(address)) return null;
+  const parts = String(address).split("/").filter(Boolean);
+  if (parts.length < 2) return null;
+  return { prefix: parts[0], suffix: parts.slice(1).join("/") };
+}
+
+function composeOscAddress(prefix, suffix) {
+  const p = String(prefix || "").replace(/^\/+|\/+$/g, "");
+  const s = String(suffix || "").replace(/^\/+|\/+$/g, "");
+  if (!p || !s) return "";
+  return `/${p}/${s}`;
+}
+
+/** Unique headset prefixes from live OSC addresses and saved mappings. */
+function discoverOscPrefixes(addressList, sceneMaps) {
+  const set = new Set();
+  for (const addr of addressList || []) {
+    const parsed = parseOscAddressParts(addr);
+    if (parsed) set.add(parsed.prefix);
+  }
+  if (sceneMaps && typeof sceneMaps === "object") {
+    for (const v of Object.values(sceneMaps)) {
+      if (typeof v !== "string") continue;
+      const parsed = parseOscAddressParts(v);
+      if (parsed) set.add(parsed.prefix);
+    }
+  }
+  return [...set].sort();
+}
+
+function activePrefixForPlot(plotIndex, maps) {
+  for (let a = 0; a < 5; a++) {
+    const parsed = parseOscAddressParts(maps[`plot_${plotIndex}_axis_${a}`]);
+    if (parsed) return parsed.prefix;
+  }
+  return null;
+}
+
+/** Rewrite all five band mappings for one plot to use a new headset prefix. */
+function applyPlotGroupPrefix(plotIndex, newPrefix, maps) {
+  const updates = {};
+  const prefix = String(newPrefix || "").replace(/^\/+|\/+$/g, "");
+  if (!prefix) return updates;
+  for (let a = 0; a < 5; a++) {
+    const id = `plot_${plotIndex}_axis_${a}`;
+    const cur = maps[id];
+    let suffix = SPIDER_AXIS_DEFAULT_SUFFIX[a];
+    const parsed = parseOscAddressParts(cur);
+    if (parsed) suffix = parsed.suffix;
+    const addr = composeOscAddress(prefix, suffix);
+    if (addr && isDeviceStreamAddress(addr)) updates[id] = addr;
+  }
+  return updates;
+}
+
+function syncPlotPrefixButtons(groupEl, plotIndex) {
+  if (!groupEl) return;
+  const maps = readMappings()[activeSceneFile] || {};
+  const active = activePrefixForPlot(plotIndex, maps);
+  for (const btn of groupEl.querySelectorAll(".mapping-prefix-btn")) {
+    const p = btn.dataset.prefix || "";
+    btn.classList.toggle("is-active", Boolean(active && p === active));
+  }
+}
+
+function writePlotGroupMappings(plotIndex, patchByInputId) {
+  const cur = readMappings();
+  const next = { ...cur };
+  const sceneMap = { ...(next[activeSceneFile] || {}) };
+  for (const [id, addr] of Object.entries(patchByInputId)) {
+    if (addr) sceneMap[id] = addr;
+    else delete sceneMap[id];
+  }
+  next[activeSceneFile] = sceneMap;
+  writeMappings(next);
+  for (const addr of Object.values(patchByInputId)) {
+    if (addr) seedMappingSelectAddresses(addr);
+  }
+}
+
 function coerceFirstNumeric(v) {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string") {
@@ -602,6 +692,17 @@ function buildSceneData() {
   return out;
 }
 
+function maybeRefreshMappingPrefixBars(addr) {
+  if (!mappingRowsEl || !activeSceneFile) return;
+  const scene = sceneList.find((s) => s.file === activeSceneFile);
+  if (!getSpiderPlotCount(scene)) return;
+  const parsed = parseOscAddressParts(addr);
+  if (!parsed) return;
+  const bar = mappingRowsEl.querySelector(".mapping-prefix-bar");
+  if (!bar || bar.querySelector(`[data-prefix="${parsed.prefix}"]`)) return;
+  buildMappingRows();
+}
+
 function addAddressOptionToMappingSelects(addr) {
   if (!isDeviceStreamAddress(addr) || seenStreamAddresses.has(addr)) return;
   seenStreamAddresses.add(addr);
@@ -629,6 +730,7 @@ function addAddressOptionToMappingSelects(addr) {
     }
     if (!inserted) sel.appendChild(opt);
   }
+  maybeRefreshMappingPrefixBars(addr);
 }
 
 function syncSeenAddressesFromSelects() {
@@ -1209,10 +1311,62 @@ function buildMappingRows() {
 
     const hint = document.createElement("p");
     hint.className = "mapping-hint";
-    hint.textContent = `Up to ${spiderN} plot(s) can be mapped (from NUM_OVERLAY_PLOTS in the .p5 file).`;
+    hint.textContent = `Up to ${spiderN} plot(s) can be mapped (from NUM_OVERLAY_PLOTS in the .p5 file). Use headset prefix buttons to remap all five bands for a plot.`;
     mappingRowsEl.appendChild(hint);
 
+    const oscPrefixes = discoverOscPrefixes(addrs, maps);
+
     for (let p = 0; p < spiderN; p++) {
+      const group = document.createElement("section");
+      group.className = "mapping-plot-group";
+      group.dataset.plotIndex = String(p);
+
+      const head = document.createElement("div");
+      head.className = "mapping-plot-group__head";
+
+      const title = document.createElement("span");
+      title.className = "mapping-plot-group__title";
+      title.textContent = `Plot ${p + 1}`;
+
+      const prefixBar = document.createElement("div");
+      prefixBar.className = "mapping-prefix-bar";
+      prefixBar.setAttribute("role", "group");
+      prefixBar.setAttribute("aria-label", `Plot ${p + 1} headset prefix`);
+
+      if (oscPrefixes.length) {
+        for (const prefix of oscPrefixes) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "mapping-prefix-btn";
+          btn.dataset.prefix = prefix;
+          btn.textContent = prefix;
+          btn.title = `Map Plot ${p + 1} bands to /${prefix}/…`;
+          btn.addEventListener("click", () => {
+            const patch = applyPlotGroupPrefix(p, prefix, readMappings()[activeSceneFile] || {});
+            if (!Object.keys(patch).length) return;
+            writePlotGroupMappings(p, patch);
+            for (const sel of group.querySelectorAll("select.mapping-osc")) {
+              const inputId = sel.dataset.inputId;
+              if (inputId && patch[inputId]) sel.value = patch[inputId];
+            }
+            syncPlotPrefixButtons(group, p);
+          });
+          prefixBar.appendChild(btn);
+        }
+      } else {
+        const noPrefix = document.createElement("span");
+        noPrefix.className = "mapping-prefix-bar__empty";
+        noPrefix.textContent = "No prefixes yet";
+        prefixBar.appendChild(noPrefix);
+      }
+
+      head.appendChild(title);
+      head.appendChild(prefixBar);
+      group.appendChild(head);
+
+      const bands = document.createElement("div");
+      bands.className = "mapping-plot-group__bands";
+
       for (let a = 0; a < 5; a++) {
         const id = `plot_${p}_axis_${a}`;
         const row = document.createElement("div");
@@ -1220,7 +1374,7 @@ function buildMappingRows() {
 
         const lab = document.createElement("label");
         lab.htmlFor = `map-${id}`;
-        lab.textContent = `Plot ${p + 1} · ${axisNames[a]}`;
+        lab.textContent = axisNames[a];
 
         const sel = document.createElement("select");
         sel.id = `map-${id}`;
@@ -1248,19 +1402,22 @@ function buildMappingRows() {
           else delete sceneMap[id];
           next[activeSceneFile] = sceneMap;
           writeMappings(next);
+          syncPlotPrefixButtons(group, p);
         });
 
         row.appendChild(lab);
         row.appendChild(sel);
-        mappingRowsEl.appendChild(row);
+        bands.appendChild(row);
       }
+
+      group.appendChild(bands);
 
       const hexRow = document.createElement("div");
       hexRow.className = "mapping-row mapping-row--hex";
 
       const hexLab = document.createElement("label");
       hexLab.htmlFor = `hex-plot-${p}`;
-      hexLab.textContent = `Plot ${p + 1} · color (HEX)`;
+      hexLab.textContent = "Color (HEX)";
 
       const hexInp = document.createElement("input");
       hexInp.type = "text";
@@ -1280,7 +1437,10 @@ function buildMappingRows() {
 
       hexRow.appendChild(hexLab);
       hexRow.appendChild(hexInp);
-      mappingRowsEl.appendChild(hexRow);
+      group.appendChild(hexRow);
+
+      syncPlotPrefixButtons(group, p);
+      mappingRowsEl.appendChild(group);
     }
 
     syncSeenAddressesFromSelects();

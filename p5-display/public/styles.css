@@ -625,6 +625,71 @@ iframe.canvas-layer {
   color: rgba(130, 138, 152, 0.88);
 }
 
+.mapping-plot-group {
+  margin: 0.15rem 0 0.45rem;
+  padding: 0.35rem 0.4rem 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  background: rgba(18, 18, 24, 0.55);
+}
+
+.mapping-plot-group__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  margin-bottom: 0.3rem;
+}
+
+.mapping-plot-group__title {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(200, 205, 215, 0.82);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.mapping-prefix-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.22rem;
+}
+
+.mapping-prefix-bar__empty {
+  font-size: 0.52rem;
+  color: rgba(130, 138, 152, 0.75);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.mapping-prefix-btn {
+  font-size: 0.52rem;
+  padding: 0.12rem 0.35rem;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(28, 28, 36, 0.95);
+  color: rgba(200, 210, 225, 0.92);
+  cursor: pointer;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  line-height: 1.2;
+}
+
+.mapping-prefix-btn:hover {
+  border-color: rgba(120, 210, 255, 0.45);
+  color: rgba(230, 238, 248, 0.98);
+}
+
+.mapping-prefix-btn.is-active {
+  border-color: rgba(120, 210, 255, 0.75);
+  background: rgba(50, 90, 120, 0.55);
+  color: rgba(235, 245, 255, 1);
+}
+
+.mapping-plot-group__bands {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
 .mapping-row--control select.mapping-osc--control {
   max-width: 100%;
 }
