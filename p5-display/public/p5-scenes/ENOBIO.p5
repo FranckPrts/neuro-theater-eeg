@@ -27,9 +27,13 @@ const BRAIN_SPECULAR_MATERIAL = [255, 255, 255];
 const BRAIN_SHININESS = 24;
 const BRAIN_ROTATION_X = -0.18;
 
-const LIGHT_INTENSITY_MIN = 0.12;
-const LIGHT_INTENSITY_MAX = 5;
-const LIGHT_PULSE_PERIOD_MS = 2800;
+const DATA_INTENSITY_MIN = 0.2;
+const DATA_INTENSITY_MAX = 1;
+const DATA_STALE_MS = 2000;
+const LIGHT_PULSE_PERIOD_MS = 2000;
+
+/** Per-marker last value and time of last change (for stale detection). */
+const markerDataState = {};
 
 const AXIS_VECTOR_LENGTH = 108;
 const AXIS_LABEL_OFFSET = 3.5;
@@ -94,6 +98,15 @@ function sceneRotationEnabled() {
   return true;
 }
 
+function referentialUtilityEnabled() {
+  if (typeof data?.referential_utility === "boolean") return data.referential_utility;
+  if (typeof data?.referential_utility === "number") return data.referential_utility !== 0;
+  const s = String(data?.referential_utility ?? "").trim().toLowerCase();
+  if (["0", "false", "no", "off"].includes(s)) return false;
+  if (["1", "true", "yes", "on"].includes(s)) return true;
+  return true;
+}
+
 preload = () => {
   brainModel = loadModel(BRAIN_MODEL_PATH, true);
 };
@@ -145,14 +158,44 @@ function brainDirectionToWorld(direction) {
 function oscillatingLightFactor() {
   const phase = ((millis() % LIGHT_PULSE_PERIOD_MS) / LIGHT_PULSE_PERIOD_MS) * TWO_PI;
   const u = 0.5 + 0.5 * sin(phase);
-  return LIGHT_INTENSITY_MIN + u * (LIGHT_INTENSITY_MAX - LIGHT_INTENSITY_MIN);
+  return DATA_INTENSITY_MIN + u * (DATA_INTENSITY_MAX - DATA_INTENSITY_MIN);
+}
+
+function mapDataToIntensity(raw) {
+  const n = constrain(raw, 0, 1);
+  return DATA_INTENSITY_MIN + n * (DATA_INTENSITY_MAX - DATA_INTENSITY_MIN);
+}
+
+function updateMarkerDataState(markerId, value) {
+  const now = millis();
+  const state = markerDataState[markerId];
+  if (!state) {
+    markerDataState[markerId] = { lastValue: value, changedAt: now };
+    return;
+  }
+  if (value !== state.lastValue) {
+    state.lastValue = value;
+    state.changedAt = now;
+  }
+}
+
+function isMarkerDataFresh(markerId) {
+  const state = markerDataState[markerId];
+  if (!state) return false;
+  return millis() - state.changedAt < DATA_STALE_MS;
 }
 
 function markerIntensity(marker) {
-  const pulse = constrain(oscillatingLightFactor(), 0, 1);
   const raw = data?.[marker.id];
-  if (typeof raw !== "number" || !isFinite(raw)) return pulse;
-  return constrain(raw * pulse, 0, 1);
+  if (typeof raw !== "number" || !isFinite(raw)) {
+    return constrain(oscillatingLightFactor(), 0, 1);
+  }
+  const value = constrain(raw, 0, 1);
+  updateMarkerDataState(marker.id, value);
+  if (isMarkerDataFresh(marker.id)) {
+    return mapDataToIntensity(value);
+  }
+  return constrain(oscillatingLightFactor(), 0, 1);
 }
 
 function markerContactPosition(marker) {
@@ -287,7 +330,7 @@ function drawLightMarkers() {
       push();
       translate(lx, ly, lz);
       emissiveMaterial(r * glow, g * glow, b * glow, 255);
-      //sphere(MARKER_GLOW_RADIUS * glow, 20, 20);
+      sphere(MARKER_GLOW_RADIUS * glow, 20, 20);
  
       pop();
     }
@@ -295,22 +338,57 @@ function drawLightMarkers() {
 }
 
 function drawMinimalXyzVector() {
+  if (!referentialUtilityEnabled()) return;
   withBrainTransform(() => {
     const length = AXIS_VECTOR_LENGTH;
     const label = length + AXIS_LABEL_OFFSET;
+    const tickValues = [25, 50, 75, 100];
     const axes = [
-      { label: "X", color: [255, 75, 90], end: [length, 0, 0], text: [label, 0, 0] },
-      { label: "Y", color: [92, 255, 126], end: [0, length, 0], text: [0, label, 0] },
-      { label: "Z", color: [78, 160, 255], end: [0, 0, length], text: [0, 0, label] },
+      {
+        label: "X axis",
+        color: [255, 75, 90],
+        end: [length, 0, 0],
+        text: [label, 0, 0],
+        tickMark: (value) => [value, -2, 0, value, 2, 0],
+        tickText: (value) => [value, -6, 0],
+      },
+      {
+        label: "Y axis",
+        color: [92, 255, 126],
+        end: [0, length, 0],
+        text: [0, label, 0],
+        tickMark: (value) => [-2, value, 0, 2, value, 0],
+        tickText: (value) => [6, value, 0],
+      },
+      {
+        label: "Z axis",
+        color: [78, 160, 255],
+        end: [0, 0, length],
+        text: [0, 0, label],
+        tickMark: (value) => [-2, 0, value, 2, 0, value],
+        tickText: (value) => [6, 0, value],
+      },
     ];
 
     strokeWeight(0.55);
-    textSize(5);
     for (const axis of axes) {
       const [r, g, b] = axis.color;
       const [x, y, z] = axis.end;
       stroke(r, g, b, 220);
       line(0, 0, 0, x, y, z);
+
+      for (const value of tickValues) {
+        stroke(r, g, b, 170);
+        line(...axis.tickMark(value));
+
+        push();
+        translate(...axis.tickText(value));
+        fill(r, g, b, 210);
+        noStroke();
+        textSize(3.5);
+        text(String(value), 0, 0);
+        pop();
+      }
 
       push();
       translate(x, y, z);
@@ -323,6 +401,7 @@ function drawMinimalXyzVector() {
       translate(...axis.text);
       fill(r, g, b, 230);
       noStroke();
+      textSize(5);
       text(axis.label, 0, 0);
       pop();
     }
