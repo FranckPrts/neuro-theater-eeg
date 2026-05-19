@@ -28,7 +28,11 @@
     },
     {
       "file": "spider-plot-neon.p5",
-      "title": "🕷️ Neon"
+      "title": "Neon 〽️"
+    },
+    {
+      "file": "spider-plot-neon-cells.p5",
+      "title": "Neon 🦠"
     },
     {
       "file": "head-cube.p5",
@@ -77,7 +81,10 @@
         { "id": "PO4", "label": "PO4 intensity (0-1)" },
         { "id": "O1", "label": "O1 intensity (0-1)" },
         { "id": "O2", "label": "O2 intensity (0-1)" },
-        { "id": "Oz", "label": "Oz intensity (0-1)" }
+        { "id": "Oz", "label": "Oz intensity (0-1)" },
+        { "id": "referential_utility", "label": "Referential utility", "type": "bool", "default": true },
+        { "id": "debug_lamp", "label": "Debug · lamp guides", "type": "bool", "default": true },
+        { "id": "debug_point_lights", "label": "Debug · point lights", "type": "bool", "default": false }
       ]
     },
     {
@@ -93,7 +100,10 @@
         { "id": "AF7", "label": "AF7 intensity (0-1)" },
         { "id": "AF8", "label": "AF8 intensity (0-1)" },
         { "id": "TP9", "label": "TP9 intensity (0-1)" },
-        { "id": "TP10", "label": "TP10 intensity (0-1)" }
+        { "id": "TP10", "label": "TP10 intensity (0-1)" },
+        { "id": "referential_utility", "label": "Referential utility", "type": "bool", "default": true },
+        { "id": "debug_lamp", "label": "Debug · lamp guides", "type": "bool", "default": true },
+        { "id": "debug_point_lights", "label": "Debug · point lights", "type": "bool", "default": false }
       ]
     }
   ]

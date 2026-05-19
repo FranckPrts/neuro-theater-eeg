@@ -5,17 +5,26 @@
  * Absolute scale: `__absoluteMean` (branch value at center), `__absoluteMax` (|v−mean| at outer edge).
  *
  * Max mappable overlays (OSC rail size). Server reads this exact line for /api/p5-scenes:
- *   const NUM_OVERLAY_PLOTS = 3;
+ *   const NUM_OVERLAY_PLOTS = 6;
  */
-const NUM_OVERLAY_PLOTS = 3;
+const NUM_OVERLAY_PLOTS = 6;
 
 const ANGLE = (2 * Math.PI) / 5;
 const AXIS_LABELS = ["Delta", "Theta", "Alpha", "Low β", "High β"];
+const PLANET_BASE_COLORS = [
+  "#F53645",
+  "#F5A636",
+  "#D0F536",
+  "#36F563",
+  "#36E3F5",
+  "#3647F5",
+  "#A136F5"
+];
 const RADIUS = 200;
 const LABEL_R = 230;
 
-function parseHexColor(h) {
-  if (typeof h !== "string") return [120, 160, 200];
+function parseHexColor(h, fallback = [120, 160, 200]) {
+  if (typeof h !== "string") return fallback;
   let s = h.trim();
   if (s.startsWith("0x")) s = "#" + s.slice(2);
   if (!s.startsWith("#")) s = "#" + s;
@@ -24,7 +33,7 @@ function parseHexColor(h) {
     const r = parseInt(hex[0] + hex[0], 16);
     const g = parseInt(hex[1] + hex[1], 16);
     const b = parseInt(hex[2] + hex[2], 16);
-    return [r, g, b];
+    if ([r, g, b].every((x) => !isNaN(x))) return [r, g, b];
   }
   if (hex.length === 6) {
     const r = parseInt(hex.slice(0, 2), 16);
@@ -32,7 +41,12 @@ function parseHexColor(h) {
     const b = parseInt(hex.slice(4, 6), 16);
     if ([r, g, b].every((x) => !isNaN(x))) return [r, g, b];
   }
-  return [120, 160, 200];
+  return fallback;
+}
+
+function planetColorForPlot(p) {
+  const base = parseHexColor(PLANET_BASE_COLORS[p % PLANET_BASE_COLORS.length]);
+  return parseHexColor(data?.[`plot_${p}_color`], base);
 }
 
 function axisValuesForPlot(p) {
@@ -44,6 +58,14 @@ function axisValuesForPlot(p) {
     out.push(n);
   }
   return out;
+}
+
+function plotHasAllBands(p) {
+  for (let a = 0; a < 5; a++) {
+    const v = data?.[`plot_${p}_axis_${a}`];
+    if (typeof v !== "number" || !isFinite(v)) return false;
+  }
+  return true;
 }
 
 function spiderRadiusMode() {
@@ -167,12 +189,14 @@ draw = () => {
   drawPentagonOutline();
   drawAxisLabels();
 
+  let visiblePlots = 0;
   for (let p = 0; p < nDraw; p++) {
+    if (!plotHasAllBands(p)) continue;
     const vals = axisValuesForPlot(p);
     const radii = radiiForSpider(vals);
-    const hex = data?.[`plot_${p}_color`];
-    const rgb = parseHexColor(hex || "#7896b0");
+    const rgb = planetColorForPlot(p);
     drawFilledSpider(radii, rgb, 72, 235);
+    visiblePlots++;
   }
 
   pop();
@@ -183,7 +207,7 @@ draw = () => {
   textSize(11);
   const mode = spiderRadiusMode();
   text(
-    `${mode} · ${nDraw} overlay(s) · cap ${NUM_OVERLAY_PLOTS}`,
+    `${mode} · ${visiblePlots}/${nDraw} overlay(s) · cap ${NUM_OVERLAY_PLOTS}`,
     12,
     10
   );

@@ -1,0 +1,14 @@
+scene,inputId,label,address,valueType
+MUSE.p5,rotation,Rotation,true,bool
+MUSE.p5,quaternion_mode,Quaternion mode (off = Euler),false,bool
+MUSE.p5,IMU1,IMU1 · Euler roll or quaternion x,/1FD6/IMU1,osc
+MUSE.p5,IMU2,IMU2 · Euler pitch or quaternion y,/1FD6/IMU2,osc
+MUSE.p5,IMU3,IMU3 · Euler yaw or quaternion z,,osc
+MUSE.p5,IMU4,IMU4 · quaternion w,,osc
+MUSE.p5,AF7,AF7 intensity (0-1),/1FD6/AF7,osc
+MUSE.p5,AF8,AF8 intensity (0-1),/1FD6/AF8,osc
+MUSE.p5,TP9,TP9 intensity (0-1),/1FD6/TP9,osc
+MUSE.p5,TP10,TP10 intensity (0-1),/1FD6/TP10,osc
+MUSE.p5,referential_utility,Referential utility,false,bool
+MUSE.p5,debug_lamp,Debug · lamp guides,false,bool
+MUSE.p5,debug_point_lights,Debug · point lights,true,bool

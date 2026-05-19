@@ -1,0 +1,42 @@
+scene,inputId,label,address,valueType
+spider-plot-neon-cells.p5,__plotCount,Overlays to visualize,5,control
+spider-plot-neon-cells.p5,__dataLineDisplay,Data line display,powerBands,control
+spider-plot-neon-cells.p5,__radiusMode,Radius mode,relative,control
+spider-plot-neon-cells.p5,__absoluteMean,Absolute · mean (center),0,control
+spider-plot-neon-cells.p5,__absoluteMax,Absolute · max deviation (outer),1,control
+spider-plot-neon-cells.p5,plot_0_axis_0,Plot 1 · Δ,/1D1A/deltaNorm,osc
+spider-plot-neon-cells.p5,plot_0_axis_1,Plot 1 · θ,/1D1A/thetaNorm,osc
+spider-plot-neon-cells.p5,plot_0_axis_2,Plot 1 · α,/1D1A/alphaNorm,osc
+spider-plot-neon-cells.p5,plot_0_axis_3,Plot 1 · low β,/1D1A/lowbetaNorm,osc
+spider-plot-neon-cells.p5,plot_0_axis_4,Plot 1 · high β,/1D1A/highbetaNorm,osc
+spider-plot-neon-cells.p5,plot_0_color,Plot 1 · color (HEX),#F53645,hex
+spider-plot-neon-cells.p5,plot_1_axis_0,Plot 2 · Δ,/2262/deltaNorm,osc
+spider-plot-neon-cells.p5,plot_1_axis_1,Plot 2 · θ,/2262/thetaNorm,osc
+spider-plot-neon-cells.p5,plot_1_axis_2,Plot 2 · α,/2262/alphaNorm,osc
+spider-plot-neon-cells.p5,plot_1_axis_3,Plot 2 · low β,/2262/lowbetaNorm,osc
+spider-plot-neon-cells.p5,plot_1_axis_4,Plot 2 · high β,/2262/highbetaNorm,osc
+spider-plot-neon-cells.p5,plot_1_color,Plot 2 · color (HEX),#F5A636,hex
+spider-plot-neon-cells.p5,plot_2_axis_0,Plot 3 · Δ,/2265/deltaNorm,osc
+spider-plot-neon-cells.p5,plot_2_axis_1,Plot 3 · θ,/2265/thetaNorm,osc
+spider-plot-neon-cells.p5,plot_2_axis_2,Plot 3 · α,/2265/alphaNorm,osc
+spider-plot-neon-cells.p5,plot_2_axis_3,Plot 3 · low β,/2265/lowbetaNorm,osc
+spider-plot-neon-cells.p5,plot_2_axis_4,Plot 3 · high β,/2265/highbetaNorm,osc
+spider-plot-neon-cells.p5,plot_2_color,Plot 3 · color (HEX),#D0F536,hex
+spider-plot-neon-cells.p5,plot_3_axis_0,Plot 4 · Δ,/22FC/deltaNorm,osc
+spider-plot-neon-cells.p5,plot_3_axis_1,Plot 4 · θ,/22FC/thetaNorm,osc
+spider-plot-neon-cells.p5,plot_3_axis_2,Plot 4 · α,/22FC/alphaNorm,osc
+spider-plot-neon-cells.p5,plot_3_axis_3,Plot 4 · low β,/22FC/lowbetaNorm,osc
+spider-plot-neon-cells.p5,plot_3_axis_4,Plot 4 · high β,/22FC/highbetaNorm,osc
+spider-plot-neon-cells.p5,plot_3_color,Plot 4 · color (HEX),#36F563,hex
+spider-plot-neon-cells.p5,plot_4_axis_0,Plot 5 · Δ,/2615/deltaNorm,osc
+spider-plot-neon-cells.p5,plot_4_axis_1,Plot 5 · θ,/2615/thetaNorm,osc
+spider-plot-neon-cells.p5,plot_4_axis_2,Plot 5 · α,/2615/alphaNorm,osc
+spider-plot-neon-cells.p5,plot_4_axis_3,Plot 5 · low β,/2615/lowbetaNorm,osc
+spider-plot-neon-cells.p5,plot_4_axis_4,Plot 5 · high β,/2615/highbetaNorm,osc
+spider-plot-neon-cells.p5,plot_4_color,Plot 5 · color (HEX),#36E3F5,hex
+spider-plot-neon-cells.p5,plot_5_axis_0,Plot 6 · Δ,,osc
+spider-plot-neon-cells.p5,plot_5_axis_1,Plot 6 · θ,,osc
+spider-plot-neon-cells.p5,plot_5_axis_2,Plot 6 · α,,osc
+spider-plot-neon-cells.p5,plot_5_axis_3,Plot 6 · low β,,osc
+spider-plot-neon-cells.p5,plot_5_axis_4,Plot 6 · high β,,osc
+spider-plot-neon-cells.p5,plot_5_color,Plot 6 · color (HEX),,hex
