@@ -116,7 +116,7 @@ nodes:
       osc:
         address: localhost
         port: 8001
-        prefix: /1FD6
+        prefix: /22FC
         bundle: true
         broadcast: false
         require_change: false
@@ -127,7 +127,7 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2006
+      - 2007
       - 1343
       viewers: {}
   reduce2:
@@ -567,7 +567,7 @@ nodes:
     category: inputs
     params:
       constant:
-        value: 1FD6
+        value: 22FC
         overwrite_timeout: 5.0
       common:
         autotrigger: true

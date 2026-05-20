@@ -116,7 +116,7 @@ nodes:
       osc:
         address: localhost
         port: 8001
-        prefix: /1FD6
+        prefix: /1E58
         bundle: true
         broadcast: false
         require_change: false
@@ -567,7 +567,7 @@ nodes:
     category: inputs
     params:
       constant:
-        value: 1FD6
+        value: 1E58
         overwrite_timeout: 5.0
       common:
         autotrigger: true
