@@ -379,7 +379,6 @@ To start the OSC proxy on ports 8001 (input) and 8000 (output), use:
 ```bash
 python osc-io/osc_proxy_failover.py \
   --config proxy_config.json \
-  --status-hz 2 \
   --allowed-hardware 22FC,2265,2262,1D1A,1FD6,2615,ENOB \
   --in-port 8001 \
   --out-port 8000

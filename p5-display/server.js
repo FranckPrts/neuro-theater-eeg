@@ -313,6 +313,14 @@ function main() {
         return Math.max(1, Math.min(12, n));
       }
 
+      function extractSpiderBranchCount(src) {
+        const m = String(src).match(/\bNUM_SPIDER_BRANCHES\s*=\s*(\d+)\s*;/);
+        if (!m) return 5;
+        const n = parseInt(m[1], 10);
+        if (!Number.isFinite(n)) return 5;
+        return Math.max(3, Math.min(16, n));
+      }
+
       const scenes = files.map((file) => {
         const r = regByFile.get(file);
         const base = {
@@ -323,7 +331,10 @@ function main() {
         try {
           const src = fs.readFileSync(path.join(scenesDir, file), "utf8");
           if (/\bNUM_OVERLAY_PLOTS\s*=\s*\d+\s*;/.test(src)) {
-            base.spiderPlot = { plotCount: extractSpiderOverlayCount(src) };
+            base.spiderPlot = {
+              plotCount: extractSpiderOverlayCount(src),
+              branchCount: extractSpiderBranchCount(src),
+            };
           }
         } catch (_) {
           /* ignore unreadable scenes */

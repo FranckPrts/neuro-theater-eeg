@@ -429,6 +429,16 @@ function getSpiderPlotCount(scene) {
   return typeof n === "number" && n > 0 ? Math.floor(n) : 0;
 }
 
+function getSpiderBranchCount(scene) {
+  if (!scene || !scene.spiderPlot) return 5;
+  const n = scene.spiderPlot.branchCount;
+  return typeof n === "number" && n >= 3 ? Math.floor(n) : 5;
+}
+
+function isSpiderStreamGroupedScene(scene) {
+  return Boolean(scene && scene.file === "spider-plot-neon-streams.p5");
+}
+
 function readSpiderDrawCount(sceneFile, railMax) {
   try {
     const raw = localStorage.getItem(LS_SPIDER_DRAW);
@@ -577,23 +587,71 @@ function discoverOscPrefixes(addressList, sceneMaps) {
   return [...set].sort();
 }
 
-function activePrefixForPlot(plotIndex, maps) {
-  for (let a = 0; a < 5; a++) {
+/** Unique stream suffixes from live OSC addresses (defaults first when present). */
+function discoverStreamSuffixes(addressList, sceneMaps) {
+  const set = new Set();
+  for (const addr of addressList || []) {
+    const parsed = parseOscAddressParts(addr);
+    if (parsed && parsed.suffix) set.add(parsed.suffix);
+  }
+  if (sceneMaps && typeof sceneMaps === "object") {
+    for (const v of Object.values(sceneMaps)) {
+      if (typeof v !== "string") continue;
+      const parsed = parseOscAddressParts(v);
+      if (parsed && parsed.suffix) set.add(parsed.suffix);
+    }
+  }
+  const ordered = [];
+  for (const s of SPIDER_AXIS_DEFAULT_SUFFIX) {
+    if (set.has(s)) {
+      ordered.push(s);
+      set.delete(s);
+    }
+  }
+  return ordered.concat([...set].sort());
+}
+
+/** All device OSC addresses for one stream suffix, sorted by headset prefix. */
+function addressesForStreamSuffix(suffix, addressList) {
+  const want = String(suffix || "").replace(/^\/+|\/+$/g, "");
+  if (!want) return [];
+  const out = [];
+  for (const addr of addressList || []) {
+    const parsed = parseOscAddressParts(addr);
+    if (parsed && parsed.suffix === want) out.push(addr);
+  }
+  return out.sort((a, b) => {
+    const pa = parseOscAddressParts(a)?.prefix || "";
+    const pb = parseOscAddressParts(b)?.prefix || "";
+    return pa.localeCompare(pb);
+  });
+}
+
+function activePrefixForPlot(plotIndex, maps, branchN = 5) {
+  for (let a = 0; a < branchN; a++) {
     const parsed = parseOscAddressParts(maps[`plot_${plotIndex}_axis_${a}`]);
     if (parsed) return parsed.prefix;
   }
   return null;
 }
 
-/** Rewrite all five band mappings for one plot to use a new headset prefix. */
-function applyPlotGroupPrefix(plotIndex, newPrefix, maps) {
+function activeSuffixForPlot(plotIndex, maps, branchN = 5) {
+  for (let a = 0; a < branchN; a++) {
+    const parsed = parseOscAddressParts(maps[`plot_${plotIndex}_axis_${a}`]);
+    if (parsed) return parsed.suffix;
+  }
+  return null;
+}
+
+/** Rewrite band/stream mappings for one plot to use a new headset prefix (band spider scenes). */
+function applyPlotGroupPrefix(plotIndex, newPrefix, maps, branchN = 5) {
   const updates = {};
   const prefix = String(newPrefix || "").replace(/^\/+|\/+$/g, "");
   if (!prefix) return updates;
-  for (let a = 0; a < 5; a++) {
+  for (let a = 0; a < branchN; a++) {
     const id = `plot_${plotIndex}_axis_${a}`;
     const cur = maps[id];
-    let suffix = SPIDER_AXIS_DEFAULT_SUFFIX[a];
+    let suffix = SPIDER_AXIS_DEFAULT_SUFFIX[a] || SPIDER_AXIS_DEFAULT_SUFFIX[0];
     const parsed = parseOscAddressParts(cur);
     if (parsed) suffix = parsed.suffix;
     const addr = composeOscAddress(prefix, suffix);
@@ -602,13 +660,96 @@ function applyPlotGroupPrefix(plotIndex, newPrefix, maps) {
   return updates;
 }
 
-function syncPlotPrefixButtons(groupEl, plotIndex) {
+/**
+ * Stream-grouped spider: map one stream onto branches — one device per branch.
+ * Uses all live/mapped addresses that publish that suffix (sorted by headset prefix).
+ */
+function applyPlotStreamSuffix(plotIndex, newSuffix, maps, branchN = 5, addressList = null) {
+  const updates = {};
+  const suffix = String(newSuffix || "").replace(/^\/+|\/+$/g, "");
+  if (!suffix) return updates;
+
+  const addrs = addressList || sortedStreamAddresses();
+  const matching = addressesForStreamSuffix(suffix, addrs);
+
+  if (matching.length) {
+    for (let a = 0; a < branchN; a++) {
+      const id = `plot_${plotIndex}_axis_${a}`;
+      if (a < matching.length) updates[id] = matching[a];
+      else updates[id] = "";
+    }
+    return updates;
+  }
+
+  for (let a = 0; a < branchN; a++) {
+    const id = `plot_${plotIndex}_axis_${a}`;
+    const cur = maps[id];
+    const parsed = parseOscAddressParts(cur);
+    if (!parsed || !parsed.prefix) continue;
+    const addr = composeOscAddress(parsed.prefix, suffix);
+    if (addr && isDeviceStreamAddress(addr)) updates[id] = addr;
+  }
+  return updates;
+}
+
+function applyPlotStreamFromAddress(plotIndex, selectedAddress, branchN = 5, addressList = null) {
+  const parsed = parseOscAddressParts(selectedAddress);
+  if (!parsed || !parsed.suffix) return {};
+  return applyPlotStreamSuffix(
+    plotIndex,
+    parsed.suffix,
+    readMappings()[activeSceneFile] || {},
+    branchN,
+    addressList
+  );
+}
+
+function applyStreamGroupPatchToUi(group, plotIndex, patch, branchN) {
+  if (!group || !patch) return;
+  writePlotGroupMappings(plotIndex, patch);
+  for (const sel of group.querySelectorAll("select.mapping-osc")) {
+    const inputId = sel.dataset.inputId;
+    if (!inputId || !Object.prototype.hasOwnProperty.call(patch, inputId)) continue;
+    sel.value = patch[inputId] || "";
+  }
+  const freshMaps = readMappings()[activeSceneFile] || {};
+  for (const row of group.querySelectorAll(".mapping-plot-group__bands .mapping-row")) {
+    const sel = row.querySelector("select.mapping-osc");
+    const lab = row.querySelector("label");
+    if (!sel || !lab) continue;
+    const m = /^plot_(\d+)_axis_(\d+)$/.exec(sel.dataset.inputId || "");
+    if (!m || parseInt(m[1], 10) !== plotIndex) continue;
+    const a = parseInt(m[2], 10);
+    lab.textContent = branchLabelFromMaps(freshMaps, a, branchN);
+  }
+  syncPlotSuffixButtons(group, plotIndex, branchN);
+}
+
+function branchLabelFromMaps(maps, branchIndex, branchN) {
+  for (let p = 0; p < 12; p++) {
+    const parsed = parseOscAddressParts(maps[`plot_${p}_axis_${branchIndex}`]);
+    if (parsed && parsed.prefix) return parsed.prefix;
+  }
+  return `Branch ${branchIndex + 1}`;
+}
+
+function syncPlotPrefixButtons(groupEl, plotIndex, branchN = 5) {
   if (!groupEl) return;
   const maps = readMappings()[activeSceneFile] || {};
-  const active = activePrefixForPlot(plotIndex, maps);
+  const active = activePrefixForPlot(plotIndex, maps, branchN);
   for (const btn of groupEl.querySelectorAll(".mapping-prefix-btn")) {
     const p = btn.dataset.prefix || "";
     btn.classList.toggle("is-active", Boolean(active && p === active));
+  }
+}
+
+function syncPlotSuffixButtons(groupEl, plotIndex, branchN = 5) {
+  if (!groupEl) return;
+  const maps = readMappings()[activeSceneFile] || {};
+  const active = activeSuffixForPlot(plotIndex, maps, branchN);
+  for (const btn of groupEl.querySelectorAll(".mapping-suffix-btn")) {
+    const s = btn.dataset.suffix || "";
+    btn.classList.toggle("is-active", Boolean(active && s === active));
   }
 }
 
@@ -644,17 +785,26 @@ function buildSceneData() {
   if (spiderN > 0) {
     const allMaps = readMappings();
     const maps = allMaps[activeSceneFile] || {};
+    const branchN = getSpiderBranchCount(scene);
     const out = {};
     const railN = spiderN;
     const drawN = Math.max(1, Math.min(railN, readSpiderDrawCount(activeSceneFile, railN)));
     out.__plotCount = drawN;
+    out.__branchCount = branchN;
     const rad = readSpiderRadiusAll(activeSceneFile);
     out.__radiusMode = rad.mode;
     out.__absoluteMean = rad.mean;
     out.__absoluteMax = rad.max;
-    out.__dataLineDisplay = readSpiderDataLineDisplay(activeSceneFile);
+    if (!isSpiderStreamGroupedScene(scene)) {
+      out.__dataLineDisplay = readSpiderDataLineDisplay(activeSceneFile);
+    }
+    if (isSpiderStreamGroupedScene(scene)) {
+      for (let a = 0; a < branchN; a++) {
+        out[`__branchLabel_${a}`] = branchLabelFromMaps(maps, a, branchN);
+      }
+    }
     for (let p = 0; p < railN; p++) {
-      for (let a = 0; a < 5; a++) {
+      for (let a = 0; a < branchN; a++) {
         const id = `plot_${p}_axis_${a}`;
         const addr = maps[id];
         if (!addr) continue;
@@ -816,20 +966,31 @@ function parseMappingCsvDataRows(text) {
 function getExpectedMappingFields(scene, sceneFile) {
   if (!scene || !sceneFile) return [];
   const spiderN = getSpiderPlotCount(scene);
+  const branchN = getSpiderBranchCount(scene);
+  const streamGrouped = isSpiderStreamGroupedScene(scene);
   const out = [];
   if (spiderN > 0) {
     const axisNames = ["Δ", "θ", "α", "low β", "high β"];
     out.push({ inputId: "__plotCount", label: "Overlays to visualize", valueType: "control" });
-    out.push({ inputId: "__dataLineDisplay", label: "Data line display", valueType: "control" });
+    if (!streamGrouped) {
+      out.push({ inputId: "__dataLineDisplay", label: "Data line display", valueType: "control" });
+    }
     out.push({ inputId: "__radiusMode", label: "Radius mode", valueType: "control" });
     out.push({ inputId: "__absoluteMean", label: "Absolute · mean (center)", valueType: "control" });
     out.push({ inputId: "__absoluteMax", label: "Absolute · max deviation (outer)", valueType: "control" });
     for (let p = 0; p < spiderN; p++) {
-      for (let a = 0; a < 5; a++) {
+      for (let a = 0; a < branchN; a++) {
         const id = `plot_${p}_axis_${a}`;
-        out.push({ inputId: id, label: `Plot ${p + 1} · ${axisNames[a]}`, valueType: "osc" });
+        const axisLabel = streamGrouped
+          ? `Headset branch ${a + 1}`
+          : axisNames[a] || `axis ${a + 1}`;
+        const plotLabel = streamGrouped ? `Stream group ${p + 1}` : `Plot ${p + 1}`;
+        out.push({ inputId: id, label: `${plotLabel} · ${axisLabel}`, valueType: "osc" });
       }
-      out.push({ inputId: `plot_${p}_color`, label: `Plot ${p + 1} · color (HEX)`, valueType: "hex" });
+      const colorLabel = streamGrouped
+        ? `Stream group ${p + 1} · color (HEX)`
+        : `Plot ${p + 1} · color (HEX)`;
+      out.push({ inputId: `plot_${p}_color`, label: colorLabel, valueType: "hex" });
     }
     return out;
   }
@@ -1175,6 +1336,8 @@ function buildMappingRows() {
   const addrs = sortedStreamAddresses();
 
   if (spiderN > 0) {
+    const branchN = getSpiderBranchCount(scene);
+    const streamGrouped = isSpiderStreamGroupedScene(scene);
     const axisNames = ["Δ", "θ", "α", "low β", "high β"];
     const hexStore = readSpiderHex()[activeSceneFile] || {};
     const drawSelVal = readSpiderDrawCount(activeSceneFile, spiderN);
@@ -1205,31 +1368,33 @@ function buildMappingRows() {
     ctrl.appendChild(ctrlSel);
     mappingRowsEl.appendChild(ctrl);
 
-    const dataLineRow = document.createElement("div");
-    dataLineRow.className = "mapping-row mapping-row--control";
-    const dataLineLab = document.createElement("label");
-    dataLineLab.htmlFor = "spider-data-line-display";
-    dataLineLab.textContent = "Data line display";
-    const dataLineSel = document.createElement("select");
-    dataLineSel.id = "spider-data-line-display";
-    dataLineSel.className = "mapping-osc mapping-osc--control";
-    const dataLineValue = readSpiderDataLineDisplay(activeSceneFile);
-    for (const [val, lab] of [
-      ["electrodes", "Electrode labels"],
-      ["powerBands", "Power-band axes"],
-    ]) {
-      const opt = document.createElement("option");
-      opt.value = val;
-      opt.textContent = lab;
-      if (val === dataLineValue) opt.selected = true;
-      dataLineSel.appendChild(opt);
+    if (!streamGrouped) {
+      const dataLineRow = document.createElement("div");
+      dataLineRow.className = "mapping-row mapping-row--control";
+      const dataLineLab = document.createElement("label");
+      dataLineLab.htmlFor = "spider-data-line-display";
+      dataLineLab.textContent = "Data line display";
+      const dataLineSel = document.createElement("select");
+      dataLineSel.id = "spider-data-line-display";
+      dataLineSel.className = "mapping-osc mapping-osc--control";
+      const dataLineValue = readSpiderDataLineDisplay(activeSceneFile);
+      for (const [val, lab] of [
+        ["electrodes", "Electrode labels"],
+        ["powerBands", "Power-band axes"],
+      ]) {
+        const opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = lab;
+        if (val === dataLineValue) opt.selected = true;
+        dataLineSel.appendChild(opt);
+      }
+      dataLineSel.addEventListener("change", () => {
+        writeSpiderDataLineDisplay(activeSceneFile, dataLineSel.value);
+      });
+      dataLineRow.appendChild(dataLineLab);
+      dataLineRow.appendChild(dataLineSel);
+      mappingRowsEl.appendChild(dataLineRow);
     }
-    dataLineSel.addEventListener("change", () => {
-      writeSpiderDataLineDisplay(activeSceneFile, dataLineSel.value);
-    });
-    dataLineRow.appendChild(dataLineLab);
-    dataLineRow.appendChild(dataLineSel);
-    mappingRowsEl.appendChild(dataLineRow);
 
     const radCfg = readSpiderRadiusAll(activeSceneFile);
 
@@ -1311,10 +1476,13 @@ function buildMappingRows() {
 
     const hint = document.createElement("p");
     hint.className = "mapping-hint";
-    hint.textContent = `Up to ${spiderN} plot(s) can be mapped (from NUM_OVERLAY_PLOTS in the .p5 file). Use headset prefix buttons to remap all five bands for a plot.`;
+    hint.textContent = streamGrouped
+      ? `Up to ${spiderN} stream group(s), ${branchN} headset branch(es) each. Pick a stream (button or any branch dropdown) to map that stream from every device that publishes it.`
+      : `Up to ${spiderN} plot(s) can be mapped (from NUM_OVERLAY_PLOTS in the .p5 file). Use headset prefix buttons to remap all bands for a plot.`;
     mappingRowsEl.appendChild(hint);
 
     const oscPrefixes = discoverOscPrefixes(addrs, maps);
+    const streamSuffixes = streamGrouped ? discoverStreamSuffixes(addrs, maps) : [];
 
     for (let p = 0; p < spiderN; p++) {
       const group = document.createElement("section");
@@ -1326,14 +1494,45 @@ function buildMappingRows() {
 
       const title = document.createElement("span");
       title.className = "mapping-plot-group__title";
-      title.textContent = `Plot ${p + 1}`;
+      title.textContent = streamGrouped ? `Stream group ${p + 1}` : `Plot ${p + 1}`;
 
-      const prefixBar = document.createElement("div");
-      prefixBar.className = "mapping-prefix-bar";
-      prefixBar.setAttribute("role", "group");
-      prefixBar.setAttribute("aria-label", `Plot ${p + 1} headset prefix`);
+      const quickBar = document.createElement("div");
+      quickBar.className = streamGrouped ? "mapping-suffix-bar" : "mapping-prefix-bar";
+      quickBar.setAttribute("role", "group");
+      quickBar.setAttribute(
+        "aria-label",
+        streamGrouped ? `Stream group ${p + 1} stream suffix` : `Plot ${p + 1} headset prefix`
+      );
 
-      if (oscPrefixes.length) {
+      if (streamGrouped) {
+        if (streamSuffixes.length) {
+          for (const suffix of streamSuffixes) {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "mapping-suffix-btn mapping-prefix-btn";
+            btn.dataset.suffix = suffix;
+            btn.textContent = suffix;
+            btn.title = `Map stream group ${p + 1} to …/${suffix} on all devices that stream it`;
+            btn.addEventListener("click", () => {
+              const patch = applyPlotStreamSuffix(
+                p,
+                suffix,
+                readMappings()[activeSceneFile] || {},
+                branchN,
+                addrs
+              );
+              if (!Object.keys(patch).length) return;
+              applyStreamGroupPatchToUi(group, p, patch, branchN);
+            });
+            quickBar.appendChild(btn);
+          }
+        } else {
+          const noStreams = document.createElement("span");
+          noStreams.className = "mapping-prefix-bar__empty";
+          noStreams.textContent = "No streams yet";
+          quickBar.appendChild(noStreams);
+        }
+      } else if (oscPrefixes.length) {
         for (const prefix of oscPrefixes) {
           const btn = document.createElement("button");
           btn.type = "button";
@@ -1342,39 +1541,47 @@ function buildMappingRows() {
           btn.textContent = prefix;
           btn.title = `Map Plot ${p + 1} bands to /${prefix}/…`;
           btn.addEventListener("click", () => {
-            const patch = applyPlotGroupPrefix(p, prefix, readMappings()[activeSceneFile] || {});
+            const patch = applyPlotGroupPrefix(
+              p,
+              prefix,
+              readMappings()[activeSceneFile] || {},
+              branchN
+            );
             if (!Object.keys(patch).length) return;
             writePlotGroupMappings(p, patch);
             for (const sel of group.querySelectorAll("select.mapping-osc")) {
               const inputId = sel.dataset.inputId;
               if (inputId && patch[inputId]) sel.value = patch[inputId];
             }
-            syncPlotPrefixButtons(group, p);
+            syncPlotPrefixButtons(group, p, branchN);
           });
-          prefixBar.appendChild(btn);
+          quickBar.appendChild(btn);
         }
       } else {
-        const noPrefix = document.createElement("span");
-        noPrefix.className = "mapping-prefix-bar__empty";
-        noPrefix.textContent = "No prefixes yet";
-        prefixBar.appendChild(noPrefix);
+        const noQuick = document.createElement("span");
+        noQuick.className = "mapping-prefix-bar__empty";
+        noQuick.textContent = streamGrouped ? "Map branches first" : "No prefixes yet";
+        quickBar.appendChild(noQuick);
       }
 
       head.appendChild(title);
-      head.appendChild(prefixBar);
+      head.appendChild(quickBar);
       group.appendChild(head);
 
       const bands = document.createElement("div");
       bands.className = "mapping-plot-group__bands";
 
-      for (let a = 0; a < 5; a++) {
+      for (let a = 0; a < branchN; a++) {
         const id = `plot_${p}_axis_${a}`;
         const row = document.createElement("div");
         row.className = "mapping-row";
 
         const lab = document.createElement("label");
         lab.htmlFor = `map-${id}`;
-        lab.textContent = axisNames[a];
+        const branchLabel = branchLabelFromMaps(maps, a, branchN);
+        lab.textContent = streamGrouped
+          ? branchLabel
+          : axisNames[a] || `axis ${a + 1}`;
 
         const sel = document.createElement("select");
         sel.id = `map-${id}`;
@@ -1395,6 +1602,13 @@ function buildMappingRows() {
         }
 
         sel.addEventListener("change", () => {
+          if (streamGrouped && sel.value) {
+            const patch = applyPlotStreamFromAddress(p, sel.value, branchN, addrs);
+            if (Object.keys(patch).length) {
+              applyStreamGroupPatchToUi(group, p, patch, branchN);
+              return;
+            }
+          }
           const cur = readMappings();
           const next = { ...cur };
           const sceneMap = { ...(next[activeSceneFile] || {}) };
@@ -1402,7 +1616,13 @@ function buildMappingRows() {
           else delete sceneMap[id];
           next[activeSceneFile] = sceneMap;
           writeMappings(next);
-          syncPlotPrefixButtons(group, p);
+          if (streamGrouped) {
+            const freshMaps = readMappings()[activeSceneFile] || {};
+            lab.textContent = branchLabelFromMaps(freshMaps, a, branchN);
+            syncPlotSuffixButtons(group, p, branchN);
+          } else {
+            syncPlotPrefixButtons(group, p, branchN);
+          }
         });
 
         row.appendChild(lab);
@@ -1439,7 +1659,8 @@ function buildMappingRows() {
       hexRow.appendChild(hexInp);
       group.appendChild(hexRow);
 
-      syncPlotPrefixButtons(group, p);
+      if (streamGrouped) syncPlotSuffixButtons(group, p, branchN);
+      else syncPlotPrefixButtons(group, p, branchN);
       mappingRowsEl.appendChild(group);
     }
 
