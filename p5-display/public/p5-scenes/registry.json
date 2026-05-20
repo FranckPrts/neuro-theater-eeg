@@ -35,6 +35,10 @@
       "title": "Neon 🦠"
     },
     {
+      "file": "spider-plot-neon-streams.p5",
+      "title": "👥 Branch"
+    },
+    {
       "file": "head-cube.p5",
       "title": "Head Cube",
       "inputs": [
