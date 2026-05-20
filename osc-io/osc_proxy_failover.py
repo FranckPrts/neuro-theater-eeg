@@ -15,10 +15,13 @@ Core behavior
 ``[8000, 7999]``). ``--out-port`` on the CLI overrides the config when present; comma-separated
 ports duplicate each emitted OSC packet to every listed UDP port on ``--out-host``.
 
-**Status OSC (monitoring)** — optional UDP OSC on port ``8888`` by default, same ``--out-host``
-unless ``status_host`` is set. Each known stream is reported at
-``/nt/proxy/stream/<hardware>/<stream...>/status`` with args ``mode, blend, bootstrapped``. Use
-``--no-status`` to disable.
+**Status OSC (monitoring)** — off by default. Enable with ``--status`` or
+``"status_enabled": true`` in config. UDP on port ``8888`` by default (same ``--out-host`` unless
+``status_host`` is set). Each known stream is reported at
+``/nt/proxy/stream/<hardware>/<stream...>/status`` with args ``mode, blend, bootstrapped``.
+
+**Console panel** — low-rate terminal summary (default ~1 Hz, ``--console-hz``). No per-packet
+logging; mode changes update on the next panel tick.
 
 OSC addresses are expected as ``/<hardware_id>/<stream>`` (see ``_extract_hardware_prefix``).
 
@@ -64,8 +67,8 @@ Usage:
     python osc_proxy_failover.py --in-port 8001 --out-port 8000 --recording recordings/random_recordings/session.json
     python osc_proxy_failover.py --in-port 8001 --out-port 8000,7999
     python osc_proxy_failover.py --config proxy_config.json --allowed-hardware 22FC,2265,1D1A
-    python osc_proxy_failover.py --status-port 8888 --status-hz 10
-    python osc_proxy_failover.py --no-status
+    python osc_proxy_failover.py --status --status-port 8888 --status-hz 10
+    python osc_proxy_failover.py --console-hz 1
     python osc_proxy_failover.py --config proxy_config.json --allowed-hardware 22FC,2265,2262,1D1A,1FD6,2615,1E58,ENOB --in-port 8001 --out-port 8000
 """
 
@@ -245,10 +248,11 @@ class ProxyEngine:
         fallback_tracks: dict[str, FallbackTrack],
         allowed_hardware: frozenset[str] | None = None,
         *,
-        status_enabled: bool = True,
+        status_enabled: bool = False,
         status_host: str | None = None,
         status_port: int = 8888,
         status_osc_hz: float = 10.0,
+        console_panel_hz: float = 1.0,
     ):
         if not out_ports:
             raise ValueError("out_ports must be non-empty.")
@@ -261,6 +265,9 @@ class ProxyEngine:
         self._status_clients: list[udp_client.SimpleUDPClient] = []
         self.status_osc_hz = max(0.1, float(status_osc_hz))
         self._last_status_emit_at = 0.0
+        self.console_panel_hz = max(0.0, float(console_panel_hz))
+        self._last_console_panel_at = 0.0
+        self._started_at = _now()
         if status_enabled:
             sh = status_host if (status_host is not None and str(status_host).strip()) else out_host
             self._status_clients = [
@@ -348,6 +355,48 @@ class ProxyEngine:
             ui += "*"
         return ui
 
+    def _mode_counts_unlocked(self) -> dict[str, int]:
+        live = fallback = fading = 0
+        for state in self.streams.values():
+            if not self._address_allowed(state.address):
+                continue
+            if state.mode == "LIVE":
+                live += 1
+            elif state.mode == "FALLBACK":
+                fallback += 1
+            else:
+                fading += 1
+        return {"live": live, "rec": fallback, "mix": fading}
+
+    def maybe_print_console_panel(self, now: float | None = None) -> None:
+        """Print a compact status matrix at most ``console_panel_hz`` (0 = disabled)."""
+        if self.console_panel_hz <= 0:
+            return
+        now = now if now is not None else _now()
+        interval = 1.0 / self.console_panel_hz
+        if self._last_console_panel_at > 0 and (now - self._last_console_panel_at) < interval:
+            return
+        self._last_console_panel_at = now
+        with self.lock:
+            if not self.streams:
+                return
+            counts = self._mode_counts_unlocked()
+            n_streams = sum(counts.values())
+        uptime = now - self._started_at
+        out_dest = f"{self._out_host}:" + ",".join(str(p) for p in self._out_ports)
+        allow = (
+            ", ".join(sorted(self.allowed_hardware))
+            if self.allowed_hardware is not None
+            else "all"
+        )
+        print(
+            f"\n── proxy  up {uptime:6.1f}s  streams {n_streams}  "
+            f"live={counts['live']} rec={counts['rec']} mix={counts['mix']}  "
+            f"out {out_dest}  allow [{allow}]",
+            flush=True,
+        )
+        self._print_stream_status_table(now)
+
     def _print_stream_status_table(self, now: float) -> None:
         """Log one matrix: rows = sub-stream paths, columns = headset IDs."""
         by_hw: dict[str, dict[str, StreamState]] = {}
@@ -387,7 +436,6 @@ class ProxyEngine:
             return
         state.mode = new_mode
         state.fade_started_at = _now()
-        self._print_stream_status_table(_now())
         if new_mode in {"FADING_TO_FALLBACK", "FALLBACK"}:
             track = self.fallback_tracks.get(state.address)
             if track:
@@ -956,9 +1004,20 @@ def main():
         "filter + bootstrap (recording on wire until live). Example: 22FC,2265,1D1A",
     )
     parser.add_argument(
+        "--status",
+        action="store_true",
+        help="Enable monitoring OSC on /nt/proxy/stream/.../status (default: off).",
+    )
+    parser.add_argument(
         "--no-status",
         action="store_true",
-        help="Disable monitoring OSC (default: send /nt/proxy/stream/.../status on UDP 8888).",
+        help="Disable monitoring OSC (overrides --status and config status_enabled).",
+    )
+    parser.add_argument(
+        "--console-hz",
+        type=float,
+        default=None,
+        help="Console status panel refresh rate in Hz (default: 1.0 or config console_panel_hz; 0=off).",
     )
     parser.add_argument(
         "--status-host",
@@ -1049,7 +1108,19 @@ def main():
     stale_overrides = {str(k): float(v) for k, v in config.get("stale_timeout_overrides", {}).items()}
     epsilon_overrides = {str(k): float(v) for k, v in config.get("change_epsilon_overrides", {}).items()}
 
-    status_enabled = not args.no_status
+    status_enabled = bool(config.get("status_enabled", False))
+    if args.status:
+        status_enabled = True
+    if args.no_status:
+        status_enabled = False
+
+    console_hz_val = args.console_hz
+    if console_hz_val is None:
+        console_hz_val = float(config.get("console_panel_hz", 1.0))
+    if not math.isfinite(console_hz_val) or console_hz_val < 0:
+        print("✗ --console-hz / console_panel_hz must be a non-negative finite number.", file=sys.stderr)
+        sys.exit(1)
+
     status_port_val = args.status_port
     if status_port_val is None:
         status_port_val = int(config.get("status_port", 8888))
@@ -1089,6 +1160,7 @@ def main():
         status_host=status_host_val,
         status_port=status_port_val,
         status_osc_hz=status_hz_val,
+        console_panel_hz=console_hz_val,
     )
 
     boot_count = engine.seed_streams_from_fallback()
@@ -1121,9 +1193,15 @@ def main():
         sh_disp = status_host_val or args.out_host
         print(f"  status OSC      : {sh_disp}:{status_port_val} (up to {status_hz_val} Hz)")
     else:
-        print("  status OSC      : off (--no-status)")
+        print("  status OSC      : off (use --status to enable)")
+    if console_hz_val > 0:
+        print(f"  console panel   : {console_hz_val} Hz")
+    else:
+        print("  console panel   : off")
     print("\n  Running... press Ctrl+C to stop.\n")
-    print("\n  Have fun :)\n")
+
+    if console_hz_val > 0:
+        engine.maybe_print_console_panel()
 
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
@@ -1132,6 +1210,7 @@ def main():
     try:
         while not _stop:
             engine.tick()
+            engine.maybe_print_console_panel()
             time.sleep(tick_sleep)
     finally:
         server.shutdown()
