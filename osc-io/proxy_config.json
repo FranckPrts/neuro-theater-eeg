@@ -12,7 +12,9 @@
   "stale_timeout_default_seconds": 2.0,
   "fade_to_fallback_seconds": 2.0,
   "fade_to_live_seconds": 2.0,
-  "proxy_tick_hz": 120.0,
+  "proxy_tick_hz": 60.0,
+  "console_panel_hz": 1.0,
+  "status_enabled": false,
   "change_epsilon_default": 1e-06,
   "stale_timeout_overrides": {
     "/ENOB/thetaNorm": 5,

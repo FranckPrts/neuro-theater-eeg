@@ -16,6 +16,7 @@ Usage:
     python osc_replay.py session.json --loop --loops 3         # loop 3 times
     python osc_replay.py session.json --start 5.0 --end 30.0   # replay a time window (seconds)
     python osc_replay.py session.json --dry-run                # print without sending
+    python osc_replay.py session.json --verbose                # log every message (heavy)
 """
 
 # @author: @franckPrts
@@ -46,6 +47,9 @@ signal.signal(signal.SIGINT, request_stop)
 
 # ── Core replay ───────────────────────────────────────────────────────────────
 
+_PROGRESS_INTERVAL_S = 1.0
+
+
 def replay_once(
     messages: list[dict],
     client: udp_client.SimpleUDPClient | None,
@@ -53,6 +57,8 @@ def replay_once(
     dry_run: bool,
     loop_index: int,
     total_loops: int | None,
+    *,
+    verbose: bool = False,
 ):
     """
     Replay a list of messages with wall-clock accurate timing.
@@ -64,41 +70,67 @@ def replay_once(
         dry_run:     If True, print messages without sending.
         loop_index:  Current loop iteration (0-based).
         total_loops: Total loops to run, or None for infinite.
+        verbose:     Log every message (default: ~1 Hz progress only).
     """
     loop_label = f"∞" if total_loops is None else f"{loop_index + 1}/{total_loops}"
-    print(f"\n▶  Loop {loop_label}  —  {len(messages)} messages  (speed ×{speed})\n")
+    n = len(messages)
+    rec_duration = (messages[-1]["t"] - messages[0]["t"]) / speed if n else 0.0
+    mode = "DRY" if dry_run else "SEND"
+    print(f"\n▶  Loop {loop_label}  —  {n} messages  (speed ×{speed}, {mode})\n")
 
     t0_wall = time.perf_counter()
-    t0_rec  = messages[0]["t"]
+    t0_rec = messages[0]["t"]
+    last_progress_at = 0.0
+    sent = 0
+    errors = 0
 
     for i, msg in enumerate(messages):
         if _stop:
             break
 
-        # How far into the recording this message sits (scaled by speed)
         rec_offset = (msg["t"] - t0_rec) / speed
-
-        # How long we've actually been playing
         elapsed = time.perf_counter() - t0_wall
 
-        # Sleep for any remaining gap (can be negative if we're behind — skip sleep)
         gap = rec_offset - elapsed
-        if gap > 0.0005:                # 0.5 ms threshold to avoid busy-waiting on tiny gaps
+        if gap > 0.0005:
             time.sleep(gap)
 
         address = msg["address"]
-        args    = msg["args"]
+        args = msg["args"]
 
         if dry_run:
-            print(f"  [DRY {i+1:>5}]  t+{rec_offset:7.3f}s  {address}  →  {args}")
+            if verbose:
+                print(f"  [DRY {i+1:>5}]  t+{rec_offset:7.3f}s  {address}  →  {args}")
         else:
             try:
-                # pythonosc expects individual args, not a list
                 client.send_message(address, args)
-                args_preview = ", ".join(str(a) for a in args[:4])
-                print(f"  [{i+1:>5}]  t+{rec_offset:7.3f}s  {address}  →  {args_preview}")
+                sent += 1
+                if verbose:
+                    args_preview = ", ".join(str(a) for a in args[:4])
+                    print(f"  [{i+1:>5}]  t+{rec_offset:7.3f}s  {address}  →  {args_preview}")
             except Exception as e:
+                errors += 1
                 print(f"  [ERR  ]  {address}  →  {e}", file=sys.stderr)
+
+        if not verbose:
+            now = time.perf_counter()
+            if last_progress_at == 0.0 or (now - last_progress_at) >= _PROGRESS_INTERVAL_S:
+                last_progress_at = now
+                done = i + 1
+                pct = (100.0 * done / n) if n else 100.0
+                t_pos = rec_offset
+                print(
+                    f"  … {done}/{n} ({pct:5.1f}%)  t+{t_pos:7.2f}s"
+                    f"/{rec_duration:7.2f}s  sent={sent}  err={errors}",
+                    flush=True,
+                )
+
+    if not verbose and n:
+        print(
+            f"  ✓ loop done  {min(n, sent if not dry_run else n)}/{n} messages"
+            f"  err={errors}",
+            flush=True,
+        )
 
 
 # ── Load & filter ─────────────────────────────────────────────────────────────
@@ -151,6 +183,11 @@ def main():
     parser.add_argument("--start",           type=float,         default=None,        help="Start offset in seconds (relative to recording start)")
     parser.add_argument("--end",             type=float,         default=None,        help="End offset in seconds (relative to recording start)")
     parser.add_argument("--dry-run",         action="store_true",                     help="Print messages without sending over UDP")
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Log every message (default: ~1 Hz progress summary only)",
+    )
     args = parser.parse_args()
 
     path = Path(args.file)
@@ -174,6 +211,7 @@ def main():
     print(f"  duration  : {duration:.2f}s  (at speed ×{args.speed})")
     print(f"  loop      : {'∞' if args.loop and args.loops is None else args.loops if args.loop else 'no'}")
     print(f"  dry run   : {'yes' if args.dry_run else 'no'}")
+    print(f"  verbose   : {'yes' if args.verbose else 'no (~1 Hz progress)'}")
 
     if args.dry_run:
         client = None
@@ -190,12 +228,16 @@ def main():
         while not _stop:
             if total is not None and i >= total:
                 break
-            replay_once(messages, client, args.speed, args.dry_run, i, total)
+            replay_once(
+                messages, client, args.speed, args.dry_run, i, total, verbose=args.verbose
+            )
             i += 1
             if not _stop and (total is None or i < total):
                 print("  ↺  Looping…")
     else:
-        replay_once(messages, client, args.speed, args.dry_run, 0, 1)
+        replay_once(
+            messages, client, args.speed, args.dry_run, 0, 1, verbose=args.verbose
+        )
 
     print("\n✓ Done.")
 
