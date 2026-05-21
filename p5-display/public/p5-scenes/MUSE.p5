@@ -5,9 +5,9 @@
 /* global ambientMaterial, specularMaterial, shininess, specularColor, lightFalloff, colorMode */
 
 // Brain 3D model credit: https://sketchfab.com/3d-models/brain-7a2c96d2bc5c4068b3f715fd5ed95b67
-const BRAIN_MODEL_PATH = "p5-misc/glass-brain/brain2.obj";
+const BRAIN_MODEL_PATH = "p5-misc/glass-brain/brain-light.obj";
 const BRAIN_SCALE = 0.0045;
-const SCROLL_ZOOM_SENSITIVITY = 0.85;
+const SCROLL_ZOOM_SENSITIVITY   = 0.85;
 
 const MARKER_LIGHT_POWER = 120;
 const MARKER_SPOT_POWER = 255;

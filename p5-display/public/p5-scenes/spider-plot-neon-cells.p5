@@ -11,7 +11,7 @@ const NUM_OVERLAY_PLOTS = 6;
 
 const ANGLE = (2 * Math.PI) / 5;
 const AXIS_LABELS = ["Delta", "Theta", "Alpha", "Low β", "High β"];
-const AXIS_SHORT_LABELS = ["D", "T", "A", "B", "G"];
+const AXIS_SHORT_LABELS = ["D", "T", "A", "lB", "hB"];
 const PLANET_BASE_COLORS = [
   "#F53645",
   "#F5A636",
