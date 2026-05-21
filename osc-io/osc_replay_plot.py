@@ -39,6 +39,9 @@ Quick examples:
     # Overlay y-axis value histograms (one per trace, semi-transparent)
     python osc_replay_plot.py session.json --histogram
 
+    # Preview 3-bin, 4-bin, or 5-bin histograms on [0, 1] in separate windows
+    python osc_replay_plot.py session.json --q-3 --q-4 --q-5
+
 Selection UX (step 2):
 
 - If recordings include multiple headsets, you can choose:
@@ -542,6 +545,68 @@ def _y_histogram_bin_edges(arrays: list, *, max_bins: int = 64):
     return edges
 
 
+def _fixed_unit_bin_edges(n_bins: int):
+    import numpy as np
+
+    n_bins = max(1, int(n_bins))
+    return np.linspace(0.0, 1.0, n_bins + 1)
+
+
+def _histogram_densities(series: list, edges) -> list:
+    import numpy as np
+
+    densities: list = []
+    for values in series:
+        finite = np.asarray(values, dtype=np.float64).ravel()
+        finite = finite[np.isfinite(finite)]
+        if finite.size == 0:
+            densities.append(np.zeros(len(edges) - 1, dtype=np.float64))
+            continue
+        counts, _ = np.histogram(finite, bins=edges, density=True)
+        densities.append(counts.astype(np.float64))
+    return densities
+
+
+def _draw_horizontal_density_bars(
+    ax,
+    edges,
+    densities: list,
+    colors: list,
+    *,
+    left: float,
+    max_width: float,
+    alpha: float = 0.35,
+) -> float:
+    import numpy as np
+
+    centers = (edges[:-1] + edges[1:]) / 2.0
+    bar_heights = np.diff(edges) * 0.92
+    max_peak = 0.0
+    for counts in densities:
+        if counts.size:
+            max_peak = max(max_peak, float(counts.max()))
+    if max_peak <= 0:
+        return 0.0
+
+    for counts, color in zip(densities, colors):
+        if counts.sum() == 0:
+            continue
+        widths = counts / max_peak * max_width
+        ax.barh(
+            centers,
+            widths,
+            height=bar_heights,
+            left=left,
+            color=color,
+            alpha=alpha,
+            edgecolor=color,
+            linewidth=0.2,
+            align="center",
+            zorder=1,
+        )
+    return max_peak
+
+
 def _overlay_y_histograms(ax, *, width_frac: float = 0.18, alpha: float = 0.35) -> None:
     """Draw horizontal value histograms in a strip on the right, one per plotted trace."""
     import numpy as np
@@ -553,8 +618,6 @@ def _overlay_y_histograms(ax, *, width_frac: float = 0.18, alpha: float = 0.35) 
     series = [np.asarray(line.get_ydata(), dtype=np.float64) for line in lines]
     colors = [line.get_color() for line in lines]
     edges = _y_histogram_bin_edges(series)
-    centers = (edges[:-1] + edges[1:]) / 2.0
-    bar_heights = np.diff(edges) * 0.92
 
     x0, x1 = ax.get_xlim()
     x_span = x1 - x0
@@ -562,43 +625,121 @@ def _overlay_y_histograms(ax, *, width_frac: float = 0.18, alpha: float = 0.35) 
         return
     strip = x_span * width_frac
 
-    max_peak = 0.0
-    densities: list[np.ndarray] = []
-    for values in series:
-        finite = values[np.isfinite(values)]
-        if finite.size == 0:
-            densities.append(np.zeros(len(edges) - 1, dtype=np.float64))
-            continue
-        counts, _ = np.histogram(finite, bins=edges, density=True)
-        densities.append(counts.astype(np.float64))
-        max_peak = max(max_peak, float(counts.max()) if counts.size else 0.0)
-
+    densities = _histogram_densities(series, edges)
+    max_peak = _draw_horizontal_density_bars(
+        ax,
+        edges,
+        densities,
+        colors,
+        left=x1,
+        max_width=strip,
+        alpha=alpha,
+    )
     if max_peak <= 0:
         return
-
-    for counts, color in zip(densities, colors):
-        if counts.sum() == 0:
-            continue
-        widths = counts / max_peak * strip
-        ax.barh(
-            centers,
-            widths,
-            height=bar_heights,
-            left=x1,
-            color=color,
-            alpha=alpha,
-            edgecolor=color,
-            linewidth=0.2,
-            align="center",
-            zorder=1,
-        )
 
     ax.set_xlim(x0, x1 + strip * 1.08)
     for line in lines:
         line.set_zorder(3)
 
 
-def run_plot(path: Path, address: str, messages: list[dict], meta: dict, *, show_histogram: bool = False) -> None:
+def _plotted_series_from_ax(ax) -> tuple[list, list[str], list]:
+    series: list = []
+    labels: list[str] = []
+    colors: list = []
+    for line in ax.get_lines():
+        y = line.get_ydata()
+        if y is None or len(y) == 0:
+            continue
+        label = line.get_label()
+        if not label or label.startswith("_"):
+            label = f"trace {len(series) + 1}"
+        series.append(y)
+        labels.append(label)
+        colors.append(line.get_color())
+    return series, labels, colors
+
+
+def _unit_bin_histogram_densities(series: list, n_bins: int) -> tuple:
+    import numpy as np
+
+    edges = _fixed_unit_bin_edges(n_bins)
+    clipped_series: list = []
+    for values in series:
+        finite = np.asarray(values, dtype=np.float64).ravel()
+        finite = finite[np.isfinite(finite)]
+        clipped_series.append(np.clip(finite, 0.0, 1.0))
+    return edges, _histogram_densities(clipped_series, edges)
+
+
+def _show_fixed_bin_histogram_figure(
+    series: list,
+    labels: list[str],
+    colors: list,
+    *,
+    n_bins: int,
+    title: str,
+) -> None:
+    import matplotlib.pyplot as plt
+
+    if not series:
+        return
+
+    edges, densities = _unit_bin_histogram_densities(series, n_bins)
+    fig, ax = plt.subplots(figsize=(6.5, 6))
+    max_peak = _draw_horizontal_density_bars(
+        ax,
+        edges,
+        densities,
+        colors,
+        left=0.0,
+        max_width=1.0,
+        alpha=0.35,
+    )
+    if max_peak <= 0:
+        plt.close(fig)
+        return
+
+    for edge in edges:
+        ax.axhline(edge, color="0.55", linestyle="--", linewidth=0.6, alpha=0.75, zorder=0)
+
+    ax.set_ylim(0.0, 1.0)
+    ax.set_xlim(0.0, 1.08)
+    ax.set_xlabel("Density (normalized to peak = 1.0)")
+    ax.set_ylabel("Value")
+    ax.set_title(f"{title}\n{n_bins}-bin histogram on [0, 1]", fontsize=10)
+    if len(labels) <= 20:
+        ax.legend(
+            [plt.Line2D([0], [0], color=c, linewidth=2) for c in colors],
+            labels,
+            loc="upper right",
+            fontsize=7,
+            ncol=2 if len(labels) > 1 else 1,
+        )
+    else:
+        ax.text(0.01, 0.98, f"{len(labels)} traces (legend hidden)", transform=ax.transAxes, va="top", fontsize=8)
+    fig.tight_layout()
+
+
+def _show_fixed_bin_histogram_previews(ax, *, n_bins_list: list[int], title: str) -> None:
+    if not n_bins_list:
+        return
+    series, labels, colors = _plotted_series_from_ax(ax)
+    if not series:
+        return
+    for n_bins in n_bins_list:
+        _show_fixed_bin_histogram_figure(series, labels, colors, n_bins=n_bins, title=title)
+
+
+def run_plot(
+    path: Path,
+    address: str,
+    messages: list[dict],
+    meta: dict,
+    *,
+    show_histogram: bool = False,
+    fixed_bin_counts: list[int] | None = None,
+) -> None:
     import numpy as np
     import matplotlib.pyplot as plt
 
@@ -630,6 +771,7 @@ def run_plot(path: Path, address: str, messages: list[dict], meta: dict, *, show
         ax.text(0.01, 0.98, f"{n_ch} channels (legend omitted)", transform=ax.transAxes, va="top", fontsize=8)
     if show_histogram:
         _overlay_y_histograms(ax)
+    _show_fixed_bin_histogram_previews(ax, n_bins_list=fixed_bin_counts or [], title=title)
     fig.tight_layout()
     plt.show()
 
@@ -641,6 +783,7 @@ def run_plot_many(
     meta: dict,
     *,
     show_histogram: bool = False,
+    fixed_bin_counts: list[int] | None = None,
 ) -> None:
     import numpy as np
     import matplotlib.pyplot as plt
@@ -665,7 +808,8 @@ def run_plot_many(
 
     ax.set_xlabel("Time (s) from recording start")
     ax.set_ylabel("OSC args")
-    ax.set_title(f"{path.name} — {len(addresses)} selected stream(s)", fontsize=10)
+    plot_title = f"{path.name} — {len(addresses)} selected stream(s)"
+    ax.set_title(plot_title, fontsize=10)
     if plotted > 0:
         handles, labels = ax.get_legend_handles_labels()
         if len(labels) <= 20:
@@ -674,6 +818,7 @@ def run_plot_many(
             ax.text(0.01, 0.98, f"{len(labels)} traces (legend hidden)", transform=ax.transAxes, va="top", fontsize=8)
     if show_histogram:
         _overlay_y_histograms(ax)
+    _show_fixed_bin_histogram_previews(ax, n_bins_list=fixed_bin_counts or [], title=plot_title)
     fig.tight_layout()
     plt.show()
 
@@ -688,6 +833,7 @@ def run_plot_compare_mode(
     field_key: str,
     *,
     show_histogram: bool = False,
+    fixed_bin_counts: list[int] | None = None,
 ) -> None:
     import numpy as np
     import matplotlib.pyplot as plt
@@ -727,7 +873,8 @@ def run_plot_compare_mode(
 
     ax.set_xlabel("Time (s) from recording start")
     ax.set_ylabel("OSC args")
-    ax.set_title(f"Compare field '{field_key}' across {len(file_messages)} recordings", fontsize=10)
+    plot_title = f"Compare field '{field_key}' across {len(file_messages)} recordings"
+    ax.set_title(plot_title, fontsize=10)
     handles, labels = ax.get_legend_handles_labels()
     if len(labels) <= 20:
         ax.legend(loc="upper right", fontsize=7, ncol=1)
@@ -735,6 +882,7 @@ def run_plot_compare_mode(
         ax.text(0.01, 0.98, f"{len(labels)} traces (legend hidden)", transform=ax.transAxes, va="top", fontsize=8)
     if show_histogram:
         _overlay_y_histograms(ax)
+    _show_fixed_bin_histogram_previews(ax, n_bins_list=fixed_bin_counts or [], title=plot_title)
     fig.tight_layout()
     plt.show()
 
@@ -750,7 +898,33 @@ def main() -> None:
         action="store_true",
         help="Overlay semi-transparent y-axis value histograms (one per trace)",
     )
+    parser.add_argument(
+        "--q-3",
+        dest="q_3",
+        action="store_true",
+        help="Open a separate window with 3-bin histogram on [0, 1]",
+    )
+    parser.add_argument(
+        "--q-4",
+        dest="q_4",
+        action="store_true",
+        help="Open a separate window with 4-bin histogram on [0, 1]",
+    )
+    parser.add_argument(
+        "--q-5",
+        dest="q_5",
+        action="store_true",
+        help="Open a separate window with 5-bin histogram on [0, 1]",
+    )
     args = parser.parse_args()
+
+    fixed_bin_counts: list[int] = []
+    if args.q_3:
+        fixed_bin_counts.append(3)
+    if args.q_4:
+        fixed_bin_counts.append(4)
+    if args.q_5:
+        fixed_bin_counts.append(5)
 
     print("\n● Choose mode\n")
     print("  [0] single-file stream selection (headset/type)")
@@ -772,7 +946,7 @@ def main() -> None:
 
         addresses = prompt_stream_addresses(messages, args.address)
         show_histogram = prompt_show_histogram(args.histogram)
-        run_plot_many(path, addresses, messages, meta, show_histogram=show_histogram)
+        run_plot_many(path, addresses, messages, meta, show_histogram=show_histogram, fixed_bin_counts=fixed_bin_counts)
         print("\n✓ Done.")
         return
 
@@ -787,7 +961,13 @@ def main() -> None:
     by_file_field_map = {p: _field_key_to_addresses(msgs) for p, msgs in file_messages.items()}
     field_key = prompt_field_key_for_compare(by_file_field_map)
     show_histogram = prompt_show_histogram(args.histogram)
-    run_plot_compare_mode(file_messages, file_meta, field_key, show_histogram=show_histogram)
+    run_plot_compare_mode(
+        file_messages,
+        file_meta,
+        field_key,
+        show_histogram=show_histogram,
+        fixed_bin_counts=fixed_bin_counts,
+    )
     print("\n✓ Done.")
 
 
