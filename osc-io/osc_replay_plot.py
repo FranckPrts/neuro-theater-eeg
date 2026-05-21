@@ -36,6 +36,9 @@ Quick examples:
     # Plot only a time window (seconds relative to first message)
     python osc_replay_plot.py session.json --start 10 --end 45
 
+    # Overlay y-axis value histograms (one per trace, semi-transparent)
+    python osc_replay_plot.py session.json --histogram
+
 Selection UX (step 2):
 
 - If recordings include multiple headsets, you can choose:
@@ -498,7 +501,104 @@ def build_plot_arrays(
     return times, rows, truncated
 
 
-def run_plot(path: Path, address: str, messages: list[dict], meta: dict) -> None:
+def prompt_show_histogram(cli_histogram: bool) -> bool:
+    if cli_histogram:
+        return True
+    raw = input("Show y-axis value histograms for each trace? [y/N]: ").strip().lower()
+    return raw in {"y", "yes", "1"}
+
+
+def _y_histogram_bin_edges(arrays: list, *, max_bins: int = 64):
+    import numpy as np
+
+    chunks = [np.asarray(a, dtype=np.float64).ravel() for a in arrays if np.asarray(a).size]
+    if not chunks:
+        return np.array([0.0, 1.0])
+
+    stacked = np.concatenate(chunks)
+    finite = stacked[np.isfinite(stacked)]
+    if finite.size == 0:
+        return np.array([0.0, 1.0])
+    if finite.size == 1:
+        v = float(finite[0])
+        pad = max(abs(v) * 0.01, 1e-6)
+        return np.array([v - pad, v + pad])
+
+    try:
+        edges = np.histogram_bin_edges(finite, bins="fd")
+    except ValueError:
+        edges = np.histogram_bin_edges(finite, bins="auto")
+
+    if len(edges) - 1 > max_bins:
+        edges = np.histogram_bin_edges(finite, bins=max_bins)
+    if len(edges) - 1 < 1:
+        lo = float(finite.min())
+        hi = float(finite.max())
+        if lo == hi:
+            pad = max(abs(lo) * 0.01, 1e-6)
+            lo -= pad
+            hi += pad
+        edges = np.array([lo, hi])
+    return edges
+
+
+def _overlay_y_histograms(ax, *, width_frac: float = 0.18, alpha: float = 0.35) -> None:
+    """Draw horizontal value histograms in a strip on the right, one per plotted trace."""
+    import numpy as np
+
+    lines = ax.get_lines()
+    if not lines:
+        return
+
+    series = [np.asarray(line.get_ydata(), dtype=np.float64) for line in lines]
+    colors = [line.get_color() for line in lines]
+    edges = _y_histogram_bin_edges(series)
+    centers = (edges[:-1] + edges[1:]) / 2.0
+    bar_heights = np.diff(edges) * 0.92
+
+    x0, x1 = ax.get_xlim()
+    x_span = x1 - x0
+    if x_span <= 0:
+        return
+    strip = x_span * width_frac
+
+    max_peak = 0.0
+    densities: list[np.ndarray] = []
+    for values in series:
+        finite = values[np.isfinite(values)]
+        if finite.size == 0:
+            densities.append(np.zeros(len(edges) - 1, dtype=np.float64))
+            continue
+        counts, _ = np.histogram(finite, bins=edges, density=True)
+        densities.append(counts.astype(np.float64))
+        max_peak = max(max_peak, float(counts.max()) if counts.size else 0.0)
+
+    if max_peak <= 0:
+        return
+
+    for counts, color in zip(densities, colors):
+        if counts.sum() == 0:
+            continue
+        widths = counts / max_peak * strip
+        ax.barh(
+            centers,
+            widths,
+            height=bar_heights,
+            left=x1,
+            color=color,
+            alpha=alpha,
+            edgecolor=color,
+            linewidth=0.2,
+            align="center",
+            zorder=1,
+        )
+
+    ax.set_xlim(x0, x1 + strip * 1.08)
+    for line in lines:
+        line.set_zorder(3)
+
+
+def run_plot(path: Path, address: str, messages: list[dict], meta: dict, *, show_histogram: bool = False) -> None:
     import numpy as np
     import matplotlib.pyplot as plt
 
@@ -528,11 +628,20 @@ def run_plot(path: Path, address: str, messages: list[dict], meta: dict) -> None
         ax.legend(loc="upper right", fontsize=7, ncol=2)
     elif n_ch > max_legend:
         ax.text(0.01, 0.98, f"{n_ch} channels (legend omitted)", transform=ax.transAxes, va="top", fontsize=8)
+    if show_histogram:
+        _overlay_y_histograms(ax)
     fig.tight_layout()
     plt.show()
 
 
-def run_plot_many(path: Path, addresses: list[str], messages: list[dict], meta: dict) -> None:
+def run_plot_many(
+    path: Path,
+    addresses: list[str],
+    messages: list[dict],
+    meta: dict,
+    *,
+    show_histogram: bool = False,
+) -> None:
     import numpy as np
     import matplotlib.pyplot as plt
 
@@ -563,6 +672,8 @@ def run_plot_many(path: Path, addresses: list[str], messages: list[dict], meta: 
             ax.legend(loc="upper right", fontsize=7, ncol=2)
         else:
             ax.text(0.01, 0.98, f"{len(labels)} traces (legend hidden)", transform=ax.transAxes, va="top", fontsize=8)
+    if show_histogram:
+        _overlay_y_histograms(ax)
     fig.tight_layout()
     plt.show()
 
@@ -575,6 +686,8 @@ def run_plot_compare_mode(
     file_messages: dict[Path, list[dict]],
     file_meta: dict[Path, dict],
     field_key: str,
+    *,
+    show_histogram: bool = False,
 ) -> None:
     import numpy as np
     import matplotlib.pyplot as plt
@@ -620,6 +733,8 @@ def run_plot_compare_mode(
         ax.legend(loc="upper right", fontsize=7, ncol=1)
     else:
         ax.text(0.01, 0.98, f"{len(labels)} traces (legend hidden)", transform=ax.transAxes, va="top", fontsize=8)
+    if show_histogram:
+        _overlay_y_histograms(ax)
     fig.tight_layout()
     plt.show()
 
@@ -630,6 +745,11 @@ def main() -> None:
     parser.add_argument("--address", type=str, default=None, help="OSC address; skips stream menu")
     parser.add_argument("--start", type=float, default=None, help="Start offset in seconds (same as osc_replay.py)")
     parser.add_argument("--end", type=float, default=None, help="End offset in seconds")
+    parser.add_argument(
+        "--histogram",
+        action="store_true",
+        help="Overlay semi-transparent y-axis value histograms (one per trace)",
+    )
     args = parser.parse_args()
 
     print("\n● Choose mode\n")
@@ -651,7 +771,8 @@ def main() -> None:
                 print(f"  {k:<22} {v}")
 
         addresses = prompt_stream_addresses(messages, args.address)
-        run_plot_many(path, addresses, messages, meta)
+        show_histogram = prompt_show_histogram(args.histogram)
+        run_plot_many(path, addresses, messages, meta, show_histogram=show_histogram)
         print("\n✓ Done.")
         return
 
@@ -665,7 +786,8 @@ def main() -> None:
         file_meta[p] = meta
     by_file_field_map = {p: _field_key_to_addresses(msgs) for p, msgs in file_messages.items()}
     field_key = prompt_field_key_for_compare(by_file_field_map)
-    run_plot_compare_mode(file_messages, file_meta, field_key)
+    show_histogram = prompt_show_histogram(args.histogram)
+    run_plot_compare_mode(file_messages, file_meta, field_key, show_histogram=show_histogram)
     print("\n✓ Done.")
 
 
