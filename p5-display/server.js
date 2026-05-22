@@ -235,6 +235,11 @@ function main() {
           wsClients: clients.size,
           oscHost: opts.oscHost,
           oscPort: opts.oscPort,
+          ndi: {
+            outputPage: "/ndi-output.html",
+            bridgeDefaultPort: 8766,
+            note: "Run ndi-bridge separately (GPL); browser sends frames to ws://127.0.0.1:8766",
+          },
         })
       );
       return;

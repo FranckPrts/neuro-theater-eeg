@@ -1,0 +1,21 @@
+{
+  "name": "neurotheater-ndi-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GPL-3.0 NDI bridge: WebSocket RGBA frames to NDI via @vygr-labs/ndi-node",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "setup-sdk": "node scripts/setup-sdk.js",
+    "install:all": "npm install --ignore-scripts && node scripts/setup-sdk.js && npm rebuild @vygr-labs/ndi-node",
+    "postinstall": "node scripts/setup-sdk.js",
+    "start": "node src/bridge.js",
+    "test-pattern": "node examples/test-pattern.js"
+  },
+  "dependencies": {
+    "@vygr-labs/ndi-node": "^1.0.0",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
