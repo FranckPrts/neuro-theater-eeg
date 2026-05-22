@@ -327,6 +327,7 @@ function main() {
           file,
           title: r && typeof r.title === "string" ? r.title : file.replace(/\.p5$/i, ""),
           inputs: Array.isArray(r && r.inputs) ? r.inputs : [],
+          favorite: Boolean(r && r.favorite),
         };
         try {
           const src = fs.readFileSync(path.join(scenesDir, file), "utf8");

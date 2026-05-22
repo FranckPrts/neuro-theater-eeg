@@ -36,8 +36,9 @@
     },
     {
       "file": "spider-plot-neon-streams.p5",
-      "title": "👥 Branch"
-    },
+      "title": "👥 Branch",
+      "favorite": true
+      },
     {
       "file": "head-cube.p5",
       "title": "Head Cube",
@@ -52,6 +53,7 @@
     {
       "file": "ENOBIO.p5",
       "title": "ENOBIO",
+      "favorite": true,
       "inputs": [
         { "id": "rotation", "label": "Rotation", "type": "bool", "default": true },
         { "id": "Fp1", "label": "Fp1 intensity (0-1)" },
@@ -94,6 +96,7 @@
     {
       "file": "MUSE.p5",
       "title": "MUSE",
+      "favorite": true,
       "inputs": [
         { "id": "rotation", "label": "Rotation", "type": "bool", "default": true },
         { "id": "quaternion_mode", "label": "Quaternion mode (off = Euler)", "type": "bool", "default": false },

@@ -1677,9 +1677,32 @@ function buildMappingRows() {
   updateMappingCsvBarState();
 }
 
+function createSceneButton(sc) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "btn-scene";
+  b.textContent = sc.title || sc.file;
+  b.dataset.file = sc.file;
+  if (sc.file === activeSceneFile) b.classList.add("is-active");
+  b.addEventListener("click", () => selectScene(sc.file));
+  return b;
+}
+
 function buildSceneButtons() {
   if (!sceneButtonsEl) return;
   sceneButtonsEl.textContent = "";
+  sceneButtonsEl.classList.add("scene-buttons--grouped");
+
+  const favoriteFiles = new Set(sceneList.filter((s) => s.favorite).map((s) => s.file));
+  if (activeSceneFile) favoriteFiles.add(activeSceneFile);
+
+  let primaryScenes = sceneList.filter((s) => favoriteFiles.has(s.file));
+  if (!primaryScenes.length) primaryScenes = [...sceneList];
+
+  const moreScenes = sceneList.filter((s) => !favoriteFiles.has(s.file));
+
+  const primaryRow = document.createElement("div");
+  primaryRow.className = "scene-buttons__row";
 
   const none = document.createElement("button");
   none.type = "button";
@@ -1688,17 +1711,28 @@ function buildSceneButtons() {
   none.dataset.file = "";
   if (!activeSceneFile) none.classList.add("is-active");
   none.addEventListener("click", () => selectScene(""));
-  sceneButtonsEl.appendChild(none);
+  primaryRow.appendChild(none);
 
-  for (const sc of sceneList) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "btn-scene";
-    b.textContent = sc.title || sc.file;
-    b.dataset.file = sc.file;
-    if (sc.file === activeSceneFile) b.classList.add("is-active");
-    b.addEventListener("click", () => selectScene(sc.file));
-    sceneButtonsEl.appendChild(b);
+  for (const sc of primaryScenes) {
+    primaryRow.appendChild(createSceneButton(sc));
+  }
+  sceneButtonsEl.appendChild(primaryRow);
+
+  if (moreScenes.length) {
+    const details = document.createElement("details");
+    details.className = "scene-details";
+
+    const summary = document.createElement("summary");
+    summary.textContent = `More scenes (${moreScenes.length})`;
+    details.appendChild(summary);
+
+    const scroll = document.createElement("div");
+    scroll.className = "scene-buttons scene-details__scroll scene-buttons__row";
+    for (const sc of moreScenes) {
+      scroll.appendChild(createSceneButton(sc));
+    }
+    details.appendChild(scroll);
+    sceneButtonsEl.appendChild(details);
   }
 }
 

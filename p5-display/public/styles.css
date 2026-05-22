@@ -433,6 +433,24 @@ iframe.canvas-layer {
   padding: 0.35rem 0.4rem 0.45rem;
 }
 
+.scene-buttons--grouped {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 0;
+  padding-bottom: 0.2rem;
+}
+
+.scene-buttons__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.35rem 0.4rem 0.45rem;
+}
+
+.scene-buttons--grouped .scene-buttons__row {
+  padding-bottom: 0.3rem;
+}
+
 .btn-scene {
   font-size: 0.55rem;
   padding: 0.22rem 0.4rem;
