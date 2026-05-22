@@ -23,6 +23,18 @@
       ]
     },
     {
+      "file": "signal-view-concept.p5",
+      "title": "📈 Signals · concept",
+      "inputs": [
+        { "id": "ch0", "label": "Channel 1" },
+        { "id": "ch1", "label": "Channel 2" },
+        { "id": "ch2", "label": "Channel 3" },
+        { "id": "ch3", "label": "Channel 4" },
+        { "id": "ch4", "label": "Channel 5" },
+        { "id": "ch5", "label": "Channel 6" }
+      ]
+    },
+    {
       "file": "spider-plot.p5",
       "title": "🕷️ Overlays"
     },
