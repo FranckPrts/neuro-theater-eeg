@@ -14,6 +14,10 @@ const LS_OSC_PORT = "nt.p5osc.oscPort";
 
 const OSC_PORT_PRESETS = [8000, 7999, 8001, 8888];
 const LS_SPIDER_DATA_LINES = "nt.p5osc.spiderDataLines";
+const LS_SIGNAL_VIEW = "nt.p5osc.signalView";
+
+const SIGNAL_VIEW_HISTORY_PRESETS = [300, 500, 800, 1200, 1800, 2400];
+const SIGNAL_VIEW_SPEED_PRESETS = [1, 2, 3, 5, 8, 12];
 
 /** Full-address snapshot */
 const latestByAddress = {};
@@ -439,6 +443,59 @@ function isSpiderStreamGroupedScene(scene) {
   return Boolean(scene && scene.file === "spider-plot-neon-streams.p5");
 }
 
+function isSignalViewScene(scene) {
+  return Boolean(scene && /^signal-view/i.test(String(scene.file || "")));
+}
+
+function readSignalViewSettings(sceneFile) {
+  const fallback = { historyLength: 500, scrollSpeed: 4 };
+  try {
+    const raw = localStorage.getItem(LS_SIGNAL_VIEW);
+    const o = raw ? JSON.parse(raw) : {};
+    if (typeof o !== "object" || o === null) return fallback;
+    const per = o[sceneFile];
+    if (!per || typeof per !== "object") return fallback;
+    let historyLength = per.historyLength;
+    historyLength =
+      typeof historyLength === "number" && Number.isFinite(historyLength)
+        ? historyLength
+        : parseInt(String(historyLength), 10);
+    historyLength = Number.isFinite(historyLength)
+      ? Math.max(100, Math.min(4000, Math.floor(historyLength)))
+      : fallback.historyLength;
+    let scrollSpeed = per.scrollSpeed;
+    scrollSpeed =
+      typeof scrollSpeed === "number" && Number.isFinite(scrollSpeed)
+        ? scrollSpeed
+        : parseInt(String(scrollSpeed), 10);
+    scrollSpeed = Number.isFinite(scrollSpeed)
+      ? Math.max(1, Math.min(20, Math.floor(scrollSpeed)))
+      : fallback.scrollSpeed;
+    return { historyLength, scrollSpeed };
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function writeSignalViewSettings(sceneFile, patch) {
+  try {
+    const cur = readSignalViewSettings(sceneFile);
+    const next = { ...cur, ...patch };
+    next.historyLength = Math.max(100, Math.min(4000, Math.floor(next.historyLength)));
+    next.scrollSpeed = Math.max(1, Math.min(20, Math.floor(next.scrollSpeed)));
+    const raw = localStorage.getItem(LS_SIGNAL_VIEW);
+    let o = {};
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === "object" && parsed !== null) o = parsed;
+    }
+    o[sceneFile] = next;
+    localStorage.setItem(LS_SIGNAL_VIEW, JSON.stringify(o));
+  } catch (_) {
+    /* ignore */
+  }
+}
+
 function readSpiderDrawCount(sceneFile, railMax) {
   try {
     const raw = localStorage.getItem(LS_SPIDER_DRAW);
@@ -826,6 +883,11 @@ function buildSceneData() {
   const allMaps = readMappings();
   const maps = allMaps[activeSceneFile] || {};
   const out = {};
+  if (isSignalViewScene(scene)) {
+    const sv = readSignalViewSettings(activeSceneFile);
+    out.__historyLength = sv.historyLength;
+    out.__scrollSpeed = sv.scrollSpeed;
+  }
   for (const inp of scene.inputs) {
     if (inputValueType(inp) === "bool") {
       out[inp.id] = parseBoolValue(maps[inp.id], defaultBoolValue(inp));
@@ -993,6 +1055,10 @@ function getExpectedMappingFields(scene, sceneFile) {
       out.push({ inputId: `plot_${p}_color`, label: colorLabel, valueType: "hex" });
     }
     return out;
+  }
+  if (isSignalViewScene(scene)) {
+    out.push({ inputId: "__historyLength", label: "X axis · history (samples)", valueType: "control" });
+    out.push({ inputId: "__scrollSpeed", label: "Scroll speed", valueType: "control" });
   }
   for (const inp of scene.inputs || []) {
     out.push({
@@ -1667,6 +1733,73 @@ function buildMappingRows() {
     syncSeenAddressesFromSelects();
     updateMappingCsvBarState();
     return;
+  }
+
+  if (isSignalViewScene(scene)) {
+    const sv = readSignalViewSettings(activeSceneFile);
+
+    const histRow = document.createElement("div");
+    histRow.className = "mapping-row mapping-row--control";
+    const histLab = document.createElement("label");
+    histLab.htmlFor = "signal-view-history";
+    histLab.textContent = "X axis · history (samples)";
+    const histSel = document.createElement("select");
+    histSel.id = "signal-view-history";
+    histSel.className = "mapping-osc mapping-osc--control";
+    for (const n of SIGNAL_VIEW_HISTORY_PRESETS) {
+      const opt = document.createElement("option");
+      opt.value = String(n);
+      opt.textContent = String(n);
+      if (n === sv.historyLength) opt.selected = true;
+      histSel.appendChild(opt);
+    }
+    if (!SIGNAL_VIEW_HISTORY_PRESETS.includes(sv.historyLength)) {
+      const opt = document.createElement("option");
+      opt.value = String(sv.historyLength);
+      opt.textContent = String(sv.historyLength);
+      opt.selected = true;
+      histSel.appendChild(opt);
+    }
+    histSel.addEventListener("change", () => {
+      const n = parseInt(histSel.value, 10);
+      writeSignalViewSettings(activeSceneFile, {
+        historyLength: Number.isFinite(n) ? n : 500,
+      });
+    });
+    histRow.appendChild(histLab);
+    histRow.appendChild(histSel);
+    mappingRowsEl.appendChild(histRow);
+
+    const speedRow = document.createElement("div");
+    speedRow.className = "mapping-row mapping-row--control";
+    const speedLab = document.createElement("label");
+    speedLab.htmlFor = "signal-view-speed";
+    speedLab.textContent = "Scroll speed";
+    const speedSel = document.createElement("select");
+    speedSel.id = "signal-view-speed";
+    speedSel.className = "mapping-osc mapping-osc--control";
+    for (const n of SIGNAL_VIEW_SPEED_PRESETS) {
+      const opt = document.createElement("option");
+      opt.value = String(n);
+      opt.textContent = n === 1 ? "1× (normal)" : `${n}×`;
+      if (n === sv.scrollSpeed) opt.selected = true;
+      speedSel.appendChild(opt);
+    }
+    speedSel.addEventListener("change", () => {
+      const n = parseInt(speedSel.value, 10);
+      writeSignalViewSettings(activeSceneFile, {
+        scrollSpeed: Number.isFinite(n) ? n : 4,
+      });
+    });
+    speedRow.appendChild(speedLab);
+    speedRow.appendChild(speedSel);
+    mappingRowsEl.appendChild(speedRow);
+
+    const hint = document.createElement("p");
+    hint.className = "mapping-hint";
+    hint.textContent =
+      "History sets how many samples span the plot width. Scroll speed adds multiple samples per OSC update so traces move faster.";
+    mappingRowsEl.appendChild(hint);
   }
 
   for (const inp of scene.inputs) {
