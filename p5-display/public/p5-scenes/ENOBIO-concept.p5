@@ -1,0 +1,416 @@
+/* global WEBGL, CENTER, RGB, loadModel, createCanvas, resizeCanvas, windowWidth, windowHeight */
+/* global background, ambientLight, directionalLight, orbitControl, push, pop, rotateX, rotateY */
+/* global scale, model, text, textAlign, textSize, noStroke, fill, noFill, constrain, millis, sin, TWO_PI, PI */
+/* global translate, stroke, strokeWeight, line, sphere, rect, emissiveMaterial, colorMode, drawingContext */
+/* global ambientMaterial, specularMaterial, shininess, random, lerp, rotateZ, textFont */
+
+// Brain 3D model credit: https://sketchfab.com/3d-models/brain-7a2c96d2bc5c4068b3f715fd5ed95b67
+const BRAIN_MODEL_PATH = "p5-misc/glass-brain/brain2.obj";
+const BRAIN_SCALE = 0.004;
+const SCROLL_ZOOM_SENSITIVITY = 0.85;
+
+const BG_COLOR = [5, 10, 10];
+const TEAL = [72, 201, 176];
+const TEAL_DIM = [72, 201, 176, 70];
+const STARFIELD_COUNT = 96;
+const OUTER_SPHERE_RADIUS = 142;
+
+const DATA_INTENSITY_MIN = 0.2;
+const DATA_INTENSITY_MAX = 1;
+const DATA_STALE_MS = 2000;
+const LIGHT_PULSE_PERIOD_MS = 2000;
+
+const markerDataState = {};
+
+const AXIS_VECTOR_LENGTH = 108;
+const AXIS_LABEL_OFFSET = 3.5;
+const AXIS_DOT_RADIUS = 0.7;
+
+const DEBUG_LAMP = true;
+const DEBUG_CONTACT_SPHERE_RADIUS = 2.5;
+const DEBUG_LAMP_WIREFRAME_RADIUS = 1.8;
+const DEBUG_AIM_LINE_LENGTH = 45;
+
+const BRAIN_ROTATION_X = -0.18;
+
+const LIGHT_MARKERS = [
+  { id: "Fp1", position: [-30, -74, 34], radius: 1.35 },
+  { id: "Fp2", position: [30, -74, 34], radius: 1.35 },
+  { id: "AF3", position: [-34, -62, 48], radius: 1.35 },
+  { id: "AF4", position: [34, -62, 48], radius: 1.35 },
+  { id: "F7", position: [-70, -44, 24], radius: 1.35 },
+  { id: "F8", position: [70, -44, 24], radius: 1.35 },
+  { id: "F3", position: [-38, -40, 56], radius: 1.35 },
+  { id: "F4", position: [38, -40, 56], radius: 1.35 },
+  { id: "Fz", position: [0, -44, 64], radius: 1.35 },
+  { id: "FC5", position: [-66, -20, 38], radius: 1.35 },
+  { id: "FC6", position: [66, -20, 38], radius: 1.35 },
+  { id: "FC1", position: [-20, -22, 68], radius: 1.35 },
+  { id: "FC2", position: [20, -22, 68], radius: 1.35 },
+  { id: "T7", position: [-84, 0, 10], radius: 1.35 },
+  { id: "T8", position: [84, 0, 10], radius: 1.35 },
+  { id: "C3", position: [-44, 0, 64], radius: 1.35 },
+  { id: "C4", position: [44, 0, 64], radius: 1.35 },
+  { id: "Cz", position: [0, 0, 78], radius: 1.35 },
+  { id: "CP5", position: [-70, 30, 36], radius: 1.35 },
+  { id: "CP6", position: [70, 30, 36], radius: 1.35 },
+  { id: "CP1", position: [-22, 28, 66], radius: 1.35 },
+  { id: "CP2", position: [22, 28, 66], radius: 1.35 },
+  { id: "P7", position: [-76, 58, 18], radius: 1.35 },
+  { id: "P8", position: [76, 58, 18], radius: 1.35 },
+  { id: "P3", position: [-38, 58, 44], radius: 1.35 },
+  { id: "P4", position: [38, 58, 44], radius: 1.35 },
+  { id: "Pz", position: [0, 62, 52], radius: 1.35 },
+  { id: "PO3", position: [-34, 80, 24], radius: 1.35 },
+  { id: "PO4", position: [34, 80, 24], radius: 1.35 },
+  { id: "O1", position: [-30, 94, 6], radius: 1.35 },
+  { id: "O2", position: [30, 94, 6], radius: 1.35 },
+  { id: "Oz", position: [0, 98, 8], radius: 1.35 },
+];
+
+const MONTAGE_BACK_TILT_RADIANS = Math.PI / 6;
+
+let brainModel;
+let autoRotation = 0;
+let starfieldParticles = [];
+
+function sceneRotationEnabled() {
+  const raw = data?.rotation;
+  if (raw === undefined || raw === null || raw === "") return true;
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "number") return raw !== 0;
+
+  const normalized = String(raw).trim().toLowerCase();
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  return true;
+}
+
+function referentialUtilityEnabled() {
+  if (typeof data?.referential_utility === "boolean") return data.referential_utility;
+  if (typeof data?.referential_utility === "number") return data.referential_utility !== 0;
+  const s = String(data?.referential_utility ?? "").trim().toLowerCase();
+  if (["0", "false", "no", "off"].includes(s)) return false;
+  if (["1", "true", "yes", "on"].includes(s)) return true;
+  return true;
+}
+
+preload = () => {
+  brainModel = loadModel(BRAIN_MODEL_PATH, true);
+};
+
+windowResized = () => {
+  resizeCanvas(windowWidth, windowHeight);
+  initStarfield();
+};
+
+function initStarfield() {
+  starfieldParticles = [];
+  for (let i = 0; i < STARFIELD_COUNT; i++) {
+    starfieldParticles.push({
+      x: random(width),
+      y: random(height),
+      size: random(1, 2.5),
+      phase: random(TWO_PI),
+    });
+  }
+}
+
+setup = () => {
+  createCanvas(windowWidth, windowHeight, WEBGL);
+  textAlign(CENTER, CENTER);
+  colorMode(RGB, 255);
+  initStarfield();
+};
+
+function withBrainTransform(drawFn) {
+  push();
+  rotateX(BRAIN_ROTATION_X);
+  rotateZ(autoRotation);
+  scale(brainWorldScale());
+  drawFn();
+  pop();
+}
+
+function brainWorldScale() {
+  return Math.min(width, height) * BRAIN_SCALE;
+}
+
+function rotateZPoint([x, y, z], angle) {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return [x * c - y * s, x * s + y * c, z];
+}
+
+function rotateXPoint([x, y, z], angle) {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return [x, y * c - z * s, y * s + z * c];
+}
+
+function oscillatingLightFactor() {
+  const phase = ((millis() % LIGHT_PULSE_PERIOD_MS) / LIGHT_PULSE_PERIOD_MS) * TWO_PI;
+  const u = 0.5 + 0.5 * sin(phase);
+  return DATA_INTENSITY_MIN + u * (DATA_INTENSITY_MAX - DATA_INTENSITY_MIN);
+}
+
+function mapDataToIntensity(raw) {
+  const n = constrain(raw, 0, 1);
+  return DATA_INTENSITY_MIN + n * (DATA_INTENSITY_MAX - DATA_INTENSITY_MIN);
+}
+
+function updateMarkerDataState(markerId, value) {
+  const now = millis();
+  const state = markerDataState[markerId];
+  if (!state) {
+    markerDataState[markerId] = { lastValue: value, changedAt: now };
+    return;
+  }
+  if (value !== state.lastValue) {
+    state.lastValue = value;
+    state.changedAt = now;
+  }
+}
+
+function isMarkerDataFresh(markerId) {
+  const state = markerDataState[markerId];
+  if (!state) return false;
+  return millis() - state.changedAt < DATA_STALE_MS;
+}
+
+function markerIntensity(marker) {
+  const raw = data?.[marker.id];
+  if (typeof raw !== "number" || !isFinite(raw)) {
+    return constrain(oscillatingLightFactor(), 0, 1);
+  }
+  const value = constrain(raw, 0, 1);
+  updateMarkerDataState(marker.id, value);
+  if (isMarkerDataFresh(marker.id)) {
+    return mapDataToIntensity(value);
+  }
+  return constrain(oscillatingLightFactor(), 0, 1);
+}
+
+function markerContactPosition(marker) {
+  const [x, y, z] = marker.position;
+  const c = Math.cos(MONTAGE_BACK_TILT_RADIANS);
+  const s = Math.sin(MONTAGE_BACK_TILT_RADIANS);
+  return [x, y * c - z * s, y * s + z * c];
+}
+
+function markerLabelPosition(marker) {
+  const [x, y, z] = markerContactPosition(marker);
+  const mag = Math.sqrt(x * x + y * y + z * z) || 1;
+  const offset = 20;
+  return [x + (x / mag) * offset, y + (y / mag) * offset, z + (z / mag) * offset];
+}
+
+function markerColorFromIntensity(i) {
+  const t = constrain(i, 0, 1);
+  return [
+    Math.round(lerp(248, 255, t)),
+    Math.round(lerp(238, 95, t)),
+    Math.round(lerp(195, 48, t)),
+  ];
+}
+
+function setDepthTest(enabled) {
+  const gl = drawingContext;
+  if (enabled) gl.enable(gl.DEPTH_TEST);
+  else gl.disable(gl.DEPTH_TEST);
+}
+
+function drawStarfield() {
+  setDepthTest(false);
+  push();
+  translate(0, 0, -600);
+  noStroke();
+  for (const p of starfieldParticles) {
+    const flicker = 0.35 + 0.65 * (0.5 + 0.5 * sin(millis() * 0.0012 + p.phase));
+    fill(TEAL[0], TEAL[1], TEAL[2], 35 + flicker * 70);
+    rect(p.x - width / 2, p.y - height / 2, p.size, p.size);
+  }
+  pop();
+  setDepthTest(true);
+}
+
+function drawBrainWireframe() {
+  withBrainTransform(() => {
+    noStroke();
+    ambientMaterial(12, 32, 30, 200);
+    specularMaterial(...TEAL, 60);
+    shininess(6);
+    model(brainModel);
+
+    noFill();
+    stroke(140, 120, 200, 55);
+    strokeWeight(0.55);
+    model(brainModel);
+    stroke(...TEAL, 120);
+    strokeWeight(0.35);
+    model(brainModel);
+  });
+}
+
+function drawOuterSphere() {
+  withBrainTransform(() => {
+    noFill();
+    stroke(...TEAL_DIM);
+    strokeWeight(0.28);
+    sphere(OUTER_SPHERE_RADIUS, 10, 8);
+  });
+}
+
+function drawElectrodeMarkers() {
+  withBrainTransform(() => {
+    noStroke();
+    for (const marker of LIGHT_MARKERS) {
+      const i = markerIntensity(marker);
+      if (i <= 0) continue;
+      const [cx, cy, cz] = markerContactPosition(marker);
+      const [r, g, b] = markerColorFromIntensity(i);
+      const rad = marker.radius * (0.7 + i * 0.95);
+      push();
+      translate(cx, cy, cz);
+      emissiveMaterial(r, g, b, 255);
+      sphere(rad, 10, 8);
+      pop();
+    }
+  });
+}
+
+function drawMarkerLabels() {
+  withBrainTransform(() => {
+    textFont("Courier New");
+    textSize(3.2);
+    for (const marker of LIGHT_MARKERS) {
+      const i = markerIntensity(marker);
+      if (i <= 0.05) continue;
+      const [cx, cy, cz] = markerContactPosition(marker);
+      const [lx, ly, lz] = markerLabelPosition(marker);
+
+      stroke(...TEAL, 150);
+      strokeWeight(0.25);
+      line(cx, cy, cz, lx, ly, lz);
+
+      push();
+      translate(lx, ly, lz);
+      const tw = marker.id.length * 1.55 + 2.2;
+      noStroke();
+      fill(0, 0, 0, 210);
+      rect(-tw / 2, -2.2, tw, 4.2, 0.4);
+      fill(...TEAL, 235);
+      text(marker.id, 0, 0.2);
+      pop();
+    }
+  });
+}
+
+function debugLampEnabled() {
+  if (typeof data?.debug_lamp === "boolean") return data.debug_lamp;
+  if (typeof data?.debug_lamp === "number") return data.debug_lamp !== 0;
+  const s = String(data?.debug_lamp ?? "").trim().toLowerCase();
+  if (["0", "false", "no", "off"].includes(s)) return false;
+  if (["1", "true", "yes", "on"].includes(s)) return true;
+  return DEBUG_LAMP;
+}
+
+function drawLampDebug() {
+  if (!debugLampEnabled()) return;
+  withBrainTransform(() => {
+    strokeWeight(0.4);
+    for (const marker of LIGHT_MARKERS) {
+      const [cx, cy, cz] = markerContactPosition(marker);
+      const [lx, ly, lz] = markerLabelPosition(marker);
+
+      stroke(255, 220, 80, 180);
+      push();
+      translate(cx, cy, cz);
+      noFill();
+      sphere(DEBUG_CONTACT_SPHERE_RADIUS, 8, 6);
+      pop();
+
+      stroke(...TEAL, 160);
+      line(cx, cy, cz, lx, ly, lz);
+    }
+  });
+}
+
+function drawMinimalXyzVector() {
+  if (!referentialUtilityEnabled()) return;
+  withBrainTransform(() => {
+    const length = AXIS_VECTOR_LENGTH;
+    const label = length + AXIS_LABEL_OFFSET;
+    const tickValues = [25, 50, 75, 100];
+    const axes = [
+      {
+        label: "X",
+        end: [length, 0, 0],
+        text: [label, 0, 0],
+        tickMark: (value) => [value, -2, 0, value, 2, 0],
+        tickText: (value) => [value, -6, 0],
+      },
+      {
+        label: "Y",
+        end: [0, length, 0],
+        text: [0, label, 0],
+        tickMark: (value) => [-2, value, 0, 2, value, 0],
+        tickText: (value) => [6, value, 0],
+      },
+      {
+        label: "Z",
+        end: [0, 0, length],
+        text: [0, 0, label],
+        tickMark: (value) => [-2, 0, value, 2, 0, value],
+        tickText: (value) => [6, 0, value],
+      },
+    ];
+
+    strokeWeight(0.45);
+    for (const axis of axes) {
+      const [x, y, z] = axis.end;
+      stroke(...TEAL, 170);
+      line(0, 0, 0, x, y, z);
+
+      for (const value of tickValues) {
+        stroke(...TEAL, 110);
+        line(...axis.tickMark(value));
+
+        push();
+        translate(...axis.tickText(value));
+        fill(...TEAL, 180);
+        noStroke();
+        textSize(3.2);
+        text(String(value), 0, 0);
+        pop();
+      }
+
+      push();
+      translate(...axis.text);
+      fill(...TEAL, 210);
+      noStroke();
+      textSize(4.2);
+      text(axis.label, 0, 0);
+      pop();
+    }
+  });
+}
+
+draw = () => {
+  background(...BG_COLOR);
+
+  orbitControl(1, 1, SCROLL_ZOOM_SENSITIVITY);
+  if (sceneRotationEnabled()) autoRotation += 0.004;
+
+  drawStarfield();
+
+  ambientLight(28, 42, 38);
+  directionalLight(72, 120, 100, 0.25, 0.45, -1);
+
+  drawOuterSphere();
+  drawBrainWireframe();
+  drawElectrodeMarkers();
+  drawMarkerLabels();
+  drawLampDebug();
+  drawMinimalXyzVector();
+};
