@@ -43,6 +43,10 @@
       "title": "Neon 〽️"
     },
     {
+      "file": "spider-plot-neon-concept.p5",
+      "title": "SPIDER GS"
+    },
+    {
       "file": "spider-plot-neon-cells.p5",
       "title": "Neon 🦠"
     },
@@ -146,6 +150,16 @@
         { "id": "referential_utility", "label": "Referential utility", "type": "bool", "default": true },
         { "id": "debug_lamp", "label": "Debug · lamp guides", "type": "bool", "default": true },
         { "id": "debug_point_lights", "label": "Debug · point lights", "type": "bool", "default": false }
+      ]
+    },
+    {
+      "file": "vuvu.p5",
+      "title": "📯 Vuvu",
+      "inputs": [
+        {
+          "id": "signal",
+          "label": "Trigger (0–1)"
+        }
       ]
     },
     {

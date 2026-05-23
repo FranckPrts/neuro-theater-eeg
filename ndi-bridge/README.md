@@ -18,14 +18,17 @@ cd ndi-bridge
 npm run install:all
 ```
 
-This installs dependencies without running native builds first, links the system NDI SDK into `@vygr-labs/ndi-node/deps/ndi`, then runs `npm rebuild`.
+This installs dependencies without running native builds first, links the system NDI SDK into `@vygr-labs/ndi-node/deps/ndi`, rebuilds the addon, and patches macOS runtime paths for `libndi.dylib`.
 
 If you already ran `npm install` and the native build failed:
 
 ```bash
 npm run setup-sdk
 npm rebuild @vygr-labs/ndi-node
+npm run fix-runtime
 ```
+
+If `npm start` fails with `Library not loaded: @rpath/libndi.dylib`, run `npm run fix-runtime` once.
 
 If build fails, ensure:
 

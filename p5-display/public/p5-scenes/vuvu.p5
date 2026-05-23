@@ -1,0 +1,273 @@
+/**
+ * Vuvu — loop vuvuzela when mapped input exceeds threshold; show live waveform.
+ * Plays for 3s, then auto-stops for 4s, repeating while input stays above threshold.
+ */
+const INPUT_KEY = "signal";
+const THRESHOLD = 0.5;
+const PLAY_MS = 3000;
+const COOLDOWN_MS = 4000;
+const AUDIO_URL = "p5-misc/vuvu/vuvuzelah.mp3";
+
+let audioCtx = null;
+let analyser = null;
+let audioBuffer = null;
+let sourceNode = null;
+let timeData = null;
+let audioReady = false;
+let audioLoadError = null;
+let isPlaying = false;
+let cycleState = "idle"; // idle | playing | cooldown
+let phaseStartMs = 0;
+
+windowResized = () => resizeCanvas(windowWidth, windowHeight);
+
+setup = () => {
+  createCanvas(windowWidth, windowHeight);
+  textFont("monospace");
+  initAudio();
+};
+
+mousePressed = () => {
+  ensureAudioRunning();
+};
+
+touchStarted = () => {
+  ensureAudioRunning();
+  return false;
+};
+
+async function initAudio() {
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.75;
+    analyser.connect(audioCtx.destination);
+    timeData = new Uint8Array(analyser.fftSize);
+
+    const res = await fetch(AUDIO_URL);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const arr = await res.arrayBuffer();
+    audioBuffer = await audioCtx.decodeAudioData(arr);
+    audioReady = true;
+  } catch (err) {
+    audioLoadError = err && err.message ? err.message : String(err);
+  }
+}
+
+async function ensureAudioRunning() {
+  if (!audioCtx) return;
+  if (audioCtx.state === "suspended") {
+    try {
+      await audioCtx.resume();
+    } catch (_) {
+      /* ignore */
+    }
+  }
+}
+
+function startSound() {
+  if (!audioReady || isPlaying || !audioCtx || !audioBuffer) return;
+  ensureAudioRunning();
+  sourceNode = audioCtx.createBufferSource();
+  sourceNode.buffer = audioBuffer;
+  sourceNode.loop = true;
+  sourceNode.connect(analyser);
+  sourceNode.start(0);
+  isPlaying = true;
+}
+
+function stopSound() {
+  if (!isPlaying || !sourceNode) return;
+  try {
+    sourceNode.stop();
+  } catch (_) {
+    /* already stopped */
+  }
+  sourceNode.disconnect();
+  sourceNode = null;
+  isPlaying = false;
+}
+
+function readInput() {
+  const raw = data?.[INPUT_KEY];
+  if (typeof raw !== "number" || !isFinite(raw)) return 0;
+  return constrain(raw, 0, 1);
+}
+
+function resetCycle() {
+  stopSound();
+  cycleState = "idle";
+  phaseStartMs = 0;
+}
+
+function updateCycle(active) {
+  if (!audioReady) return;
+
+  if (!active) {
+    resetCycle();
+    return;
+  }
+
+  const now = millis();
+
+  if (cycleState === "idle") {
+    cycleState = "playing";
+    phaseStartMs = now;
+    startSound();
+    return;
+  }
+
+  if (cycleState === "playing") {
+    if (now - phaseStartMs >= PLAY_MS) {
+      stopSound();
+      cycleState = "cooldown";
+      phaseStartMs = now;
+    }
+    return;
+  }
+
+  if (cycleState === "cooldown" && now - phaseStartMs >= COOLDOWN_MS) {
+    cycleState = "playing";
+    phaseStartMs = now;
+    startSound();
+  }
+}
+
+function phaseRemainingMs() {
+  if (cycleState === "idle") return 0;
+  const elapsed = millis() - phaseStartMs;
+  if (cycleState === "playing") return Math.max(0, PLAY_MS - elapsed);
+  if (cycleState === "cooldown") return Math.max(0, COOLDOWN_MS - elapsed);
+  return 0;
+}
+
+draw = () => {
+  background(13, 13, 15);
+
+  const value = readInput();
+  const active = value > THRESHOLD;
+
+  updateCycle(active);
+
+  drawWaveform(active, value);
+  drawHud(value, active);
+};
+
+function drawWaveform(active, value) {
+  const pad = Math.min(width, height) * 0.08;
+  const waveTop = height * 0.28;
+  const waveH = height * 0.44;
+  const waveW = width - pad * 2;
+  const midY = waveTop + waveH * 0.5;
+
+  noFill();
+  stroke(50, 55, 70);
+  strokeWeight(1);
+  rect(pad, waveTop, waveW, waveH, 8);
+
+  stroke(255, 210, 60, 90);
+  strokeWeight(1);
+  line(pad, midY, pad + waveW, midY);
+
+  if (!audioReady) {
+    noStroke();
+    fill(140, 150, 170);
+    textAlign(CENTER, CENTER);
+    textSize(14);
+    text(
+      audioLoadError ? "Audio failed: " + audioLoadError : "Loading vuvuzela…",
+      width * 0.5,
+      midY
+    );
+    return;
+  }
+
+  if (active && isPlaying && analyser && timeData) {
+    analyser.getByteTimeDomainData(timeData);
+    noFill();
+    stroke(255, 210, 60);
+    strokeWeight(2);
+    beginShape();
+    for (let i = 0; i < timeData.length; i++) {
+      const x = map(i, 0, timeData.length - 1, pad, pad + waveW);
+      const amp = (timeData[i] - 128) / 128;
+      const y = midY + amp * waveH * 0.42;
+      vertex(x, y);
+    }
+    endShape();
+
+    noStroke();
+    fill(255, 210, 60, 35);
+    beginShape();
+    vertex(pad, midY);
+    for (let i = 0; i < timeData.length; i++) {
+      const x = map(i, 0, timeData.length - 1, pad, pad + waveW);
+      const amp = (timeData[i] - 128) / 128;
+      const y = midY + amp * waveH * 0.42;
+      vertex(x, y);
+    }
+    vertex(pad + waveW, midY);
+    endShape(CLOSE);
+  } else {
+    noStroke();
+    fill(80, 90, 110);
+    textAlign(CENTER, CENTER);
+    textSize(13);
+    if (active && cycleState === "cooldown") {
+      text("Cooldown " + nf(phaseRemainingMs() / 1000, 1, 1) + "s", width * 0.5, midY);
+    } else {
+      text("Waiting for input > " + nf(THRESHOLD, 1, 2), width * 0.5, midY);
+    }
+  }
+
+  noStroke();
+  fill(255, 210, 60, isPlaying ? 220 : active ? 120 : 80);
+  circle(pad + waveW - 18, waveTop + 18, isPlaying ? 12 : 8);
+}
+
+function drawHud(value, active) {
+  textAlign(LEFT, TOP);
+  textSize(13);
+  fill(200, 205, 220);
+  text("VUVU", 16, 16);
+
+  textAlign(RIGHT, TOP);
+  let status = "SILENT";
+  let statusColor = color(120, 130, 150);
+  if (isPlaying) {
+    status = "BLASTING " + nf(phaseRemainingMs() / 1000, 1, 1) + "s";
+    statusColor = color(255, 210, 60);
+  } else if (active && cycleState === "cooldown") {
+    status = "COOLDOWN " + nf(phaseRemainingMs() / 1000, 1, 1) + "s";
+    statusColor = color(160, 170, 190);
+  } else if (active) {
+    status = "ARMED";
+    statusColor = color(200, 180, 90);
+  }
+  fill(statusColor);
+  text(status, width - 16, 16);
+
+  const barX = width * 0.5 - 120;
+  const barY = height * 0.82;
+  const barW = 240;
+  const barH = 10;
+
+  noStroke();
+  fill(35, 38, 48);
+  rect(barX, barY, barW, barH, 5);
+
+  fill(active ? color(255, 210, 60) : color(90, 100, 120));
+  rect(barX, barY, barW * value, barH, 5);
+
+  stroke(255, 210, 60, 180);
+  strokeWeight(2);
+  const threshX = barX + barW * THRESHOLD;
+  line(threshX, barY - 4, threshX, barY + barH + 4);
+
+  noStroke();
+  fill(130, 140, 160);
+  textAlign(CENTER, TOP);
+  textSize(11);
+  text("input " + nf(value, 1, 3) + "  ·  play 3s / rest 4s", width * 0.5, barY + 16);
+}
