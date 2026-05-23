@@ -109,6 +109,11 @@ function main() {
   if (!ok) {
     console.warn("[setup-sdk] libndi.dylib not linked — check", SYSTEM_LIB);
     process.exitCode = 1;
+    return;
+  }
+
+  if (fs.existsSync(path.join(ROOT, "node_modules", "@vygr-labs", "ndi-node", "build", "Release", "ndi_addon.node"))) {
+    require("./fix-runtime.js");
   }
 }
 

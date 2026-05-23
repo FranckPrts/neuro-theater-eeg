@@ -6,7 +6,8 @@
   "license": "GPL-3.0-or-later",
   "scripts": {
     "setup-sdk": "node scripts/setup-sdk.js",
-    "install:all": "npm install --ignore-scripts && node scripts/setup-sdk.js && npm rebuild @vygr-labs/ndi-node",
+    "fix-runtime": "node scripts/fix-runtime.js",
+    "install:all": "npm install --ignore-scripts && node scripts/setup-sdk.js && npm rebuild @vygr-labs/ndi-node && node scripts/fix-runtime.js",
     "postinstall": "node scripts/setup-sdk.js",
     "start": "node src/bridge.js",
     "test-pattern": "node examples/test-pattern.js"
