@@ -96,25 +96,22 @@ To publish a **clean full-bleed canvas** (no OSC mapping strip) as an **NDI sour
 
 **Prerequisites:** [NDI SDK](https://ndi.video/download-ndi-sdk/) and [NDI Runtime / NDI Tools](https://ndi.video/tools/) on the sender Mac and on each consumer machine. See [`ndi-bridge/README.md`](ndi-bridge/README.md) for SDK setup and `npm run install:all`.
 
-**Data flow:** `p5-display` serves OSC to the browser on `/ws`; the NDI output page captures the canvas and sends RGBA frames to `ndi-bridge` on `ws://127.0.0.1:8766`; the bridge publishes NDI at a fixed clock (default **30 fps**, **1920×1080**).
+**Data flow:** launch `ndi-bridge` on the CLI with fixed `--port` / `--width` / `--height`; register matching presets in the p5-display **NDI** tab; enable NDI to open a managed output window that resizes the canvas and sends RGBA to `ndi-bridge`. Config is stored in `GET/POST /api/ndi-config` and broadcast on WebSocket `/ws`.
 
 ```bash
 # Terminal 1 — OSC + HTTP
 cd p5-display && npm start
 
-# Terminal 2 — NDI sender (after ndi-bridge npm run install:all)
-cd ndi-bridge && npm start -- --name "NeuroTheater-$(hostname)"
+# Terminal 2+ — NDI sender(s) (after ndi-bridge npm run install:all)
+cd ndi-bridge && npm start -- --name NeuroTheater-1080p --port 8766 --width 1920 --height 1080 --fps 30
 
-# Operator UI (configure mappings first — shared localStorage)
+# Operator UI: NDI tab → register bridge → Enable NDI
 open http://127.0.0.1:8765/
-
-# NDI output page (2D scenes in Phase 1; WEBGL planned in Phase 2)
-open "http://127.0.0.1:8765/ndi-output.html?scene=spider-plot-neon-cells.p5&w=1920&h=1080"
 ```
 
 Verify NDI without p5: `cd ndi-bridge && npm run test-pattern` (color bars; check **NDI Studio Monitor** or TouchDesigner **NDI In TOP**).
 
-Query params on `ndi-output.html`: `scene` (required), `w`, `h`, `fps`, `bridge` (default `8766`), `bridgeHost` (default `127.0.0.1`).
+Details: [`p5-display/README.md`](p5-display/README.md) (NDI tab, API, WEBGL limitation).
 
 ---
 
@@ -441,12 +438,7 @@ To run the **p5** browser OSC bridge (listens on UDP **7999** by default, serves
 cd p5-display && npm start
 ```
 
-To stream **p5** visuals over **NDI** (optional GPL bridge; install once with `cd ndi-bridge && npm run install:all`):
-
-```bash
-cd ndi-bridge && npm start -- --name "NeuroTheater-$(hostname)"
-# then open ndi-output.html — see NDI section above
-```
+To stream **p5** visuals over **NDI**: launch `ndi-bridge`, then use the **NDI** tab in p5-display (see NDI section above).
 
 To verify NDI without the browser:
 

@@ -30,7 +30,7 @@ class NdiVideoSender {
   async sendRgbaFrame(rgba) {
     const { rgbaToBgra } = require("./rgba-to-bgra");
     const data = rgbaToBgra(rgba, this._bgraPool);
-    await this.sender.sendVideoPromise({
+    await this.sender.sendVideoAsync({
       xres: this.width,
       yres: this.height,
       fourCC: ndi.FourCC.BGRA,

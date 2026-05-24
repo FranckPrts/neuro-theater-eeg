@@ -79,6 +79,7 @@ async function main() {
   let framesReceived = 0;
   let framesSent = 0;
   let framesDropped = 0;
+  let framesRejected = 0;
   let wsClients = 0;
   let lastFrameAt = 0;
 
@@ -87,7 +88,10 @@ async function main() {
     wsClients++;
     ws.on("message", (data) => {
       const rgba = parseFrameMessage(data, opts.width, opts.height);
-      if (!rgba) return;
+      if (!rgba) {
+        framesRejected++;
+        return;
+      }
       latestFrame = Buffer.from(rgba);
       framesReceived++;
       lastFrameAt = Date.now();

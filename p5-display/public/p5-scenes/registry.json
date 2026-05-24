@@ -44,7 +44,8 @@
     },
     {
       "file": "spider-plot-neon-concept.p5",
-      "title": "SPIDER GS"
+      "title": "SPIDER GS",
+      "favorite": true
     },
     {
       "file": "spider-plot-neon-cells.p5",

@@ -32,8 +32,27 @@ let peekBtn;
 let bannerAside;
 let modeStreamsBtn;
 let modeSceneBtn;
+let modeNdiBtn;
 let streamsModePanel;
 let sceneModePanel;
+let ndiModePanel;
+let ndiPanelStatusEl;
+let ndiSyncSceneEl;
+let ndiEnableBtn;
+let ndiOpenOutputBtn;
+let ndiActiveBridgeEl;
+let ndiSceneSelectEl;
+let ndiSceneHintEl;
+let ndiBridgeListEl;
+let ndiAddBridgeBtn;
+let ndiSaveBridgesBtn;
+let ndiStreamStatusEl;
+/** @type {object|null} */
+let ndiConfig = null;
+/** @type {Window|null} */
+let ndiOutputWin = null;
+/** @type {ReturnType<typeof setInterval>|null} */
+let ndiStatusPollTimer = null;
 let sceneButtonsEl;
 let sceneStatusEl;
 let mappingRowsEl;
@@ -1900,18 +1919,372 @@ function selectScene(file) {
 
   buildMappingRows();
   suggestMappingCsvBasename();
+  syncNdiSceneIfNeeded();
   window.dispatchEvent(new Event("resize"));
+}
+
+const WEBGL_SCENE_FILES = new Set(["MUSE.p5", "ENOBIO.p5", "head-cube.p5"]);
+
+function isWebglSceneFile(file) {
+  return Boolean(file && WEBGL_SCENE_FILES.has(file));
+}
+
+async function fetchNdiConfig() {
+  const r = await fetch("/api/ndi-config");
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const j = await r.json();
+  ndiConfig = j.config || j;
+  return ndiConfig;
+}
+
+async function postNdiConfig(patch) {
+  const r = await fetch("/api/ndi-config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const j = await r.json();
+  ndiConfig = j.config || j;
+  return ndiConfig;
+}
+
+function ndiEffectiveSceneFile() {
+  if (!ndiConfig) return activeSceneFile || "";
+  if (ndiConfig.syncSceneWithDashboard) return activeSceneFile || ndiConfig.sceneFile || "";
+  return ndiConfig.sceneFile || activeSceneFile || "";
+}
+
+function setNdiPanelStatus(text) {
+  if (ndiPanelStatusEl) ndiPanelStatusEl.textContent = text;
+}
+
+function setNdiStreamStatus(text, kind) {
+  if (!ndiStreamStatusEl) return;
+  ndiStreamStatusEl.textContent = text;
+  ndiStreamStatusEl.classList.remove("is-warn", "is-ok");
+  if (kind) ndiStreamStatusEl.classList.add(kind === "ok" ? "is-ok" : "is-warn");
+}
+
+async function syncNdiSceneIfNeeded() {
+  if (!ndiConfig || !ndiConfig.enabled || !ndiConfig.syncSceneWithDashboard) return;
+  const scene = activeSceneFile || "";
+  if (scene === ndiConfig.sceneFile) return;
+  try {
+    await postNdiConfig({ sceneFile: scene });
+  } catch (e) {
+    setNdiStreamStatus(String(e && e.message ? e.message : e), "warn");
+  }
+}
+
+function openNdiOutputWindow() {
+  const features = "width=960,height=540,menubar=no,toolbar=no,location=no,status=no";
+  if (ndiOutputWin && !ndiOutputWin.closed) {
+    ndiOutputWin.focus();
+    return ndiOutputWin;
+  }
+  ndiOutputWin = window.open("/ndi-output.html", "nt-ndi-output", features);
+  if (!ndiOutputWin) {
+    setNdiPanelStatus("Popup blocked — allow popups for this site, then click Open output window");
+    return null;
+  }
+  return ndiOutputWin;
+}
+
+function readBridgeDraftFromDom() {
+  const cards = ndiBridgeListEl ? ndiBridgeListEl.querySelectorAll(".ndi-bridge-card") : [];
+  const bridges = [];
+  cards.forEach((card, index) => {
+    const get = (sel) => {
+      const el = card.querySelector(sel);
+      return el ? el.value : "";
+    };
+    bridges.push({
+      id: get('[data-field="id"]') || `bridge-${index + 1}`,
+      label: get('[data-field="label"]'),
+      host: get('[data-field="host"]'),
+      port: parseInt(get('[data-field="port"]'), 10),
+      width: parseInt(get('[data-field="width"]'), 10),
+      height: parseInt(get('[data-field="height"]'), 10),
+      fps: parseInt(get('[data-field="fps"]'), 10),
+      ndiName: get('[data-field="ndiName"]'),
+    });
+  });
+  return bridges;
+}
+
+function renderNdiBridgeCards() {
+  if (!ndiBridgeListEl || !ndiConfig) return;
+  ndiBridgeListEl.textContent = "";
+  for (const b of ndiConfig.bridges) {
+    const card = document.createElement("div");
+    card.className = "ndi-bridge-card";
+    card.dataset.bridgeId = b.id;
+    const title = document.createElement("div");
+    title.className = "ndi-bridge-card__title";
+    title.innerHTML = `<span>${b.label || b.id}</span>`;
+    const rm = document.createElement("button");
+    rm.type = "button";
+    rm.className = "ndi-panel__btn";
+    rm.textContent = "Remove";
+    rm.addEventListener("click", () => {
+      if (!ndiConfig || ndiConfig.bridges.length <= 1) return;
+      ndiConfig.bridges = ndiConfig.bridges.filter((x) => x.id !== b.id);
+      renderNdiBridgeCards();
+      renderNdiBridgeSelect();
+    });
+    title.appendChild(rm);
+    card.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.className = "ndi-bridge-card__grid";
+    const fields = [
+      ["id", "ID", b.id],
+      ["label", "Label", b.label],
+      ["host", "Host", b.host],
+      ["port", "Port", b.port],
+      ["width", "Width", b.width],
+      ["height", "Height", b.height],
+      ["fps", "FPS", b.fps],
+      ["ndiName", "NDI name (ref)", b.ndiName],
+    ];
+    for (const [key, lab, val] of fields) {
+      const wrap = document.createElement("div");
+      const lbl = document.createElement("label");
+      lbl.textContent = lab;
+      const inp = document.createElement("input");
+      inp.dataset.field = key;
+      inp.value = val == null ? "" : String(val);
+      if (key === "id") inp.readOnly = true;
+      wrap.appendChild(lbl);
+      wrap.appendChild(inp);
+      grid.appendChild(wrap);
+    }
+    card.appendChild(grid);
+    ndiBridgeListEl.appendChild(card);
+  }
+  if (ndiAddBridgeBtn) {
+    ndiAddBridgeBtn.disabled = ndiConfig.bridges.length >= 2;
+  }
+}
+
+function renderNdiBridgeSelect() {
+  if (!ndiActiveBridgeEl || !ndiConfig) return;
+  ndiActiveBridgeEl.textContent = "";
+  for (const b of ndiConfig.bridges) {
+    const opt = document.createElement("option");
+    opt.value = b.id;
+    opt.textContent = `${b.label} (${b.width}x${b.height} @ :${b.port})`;
+    if (b.id === ndiConfig.activeBridgeId) opt.selected = true;
+    ndiActiveBridgeEl.appendChild(opt);
+  }
+}
+
+function renderNdiSceneSelect() {
+  if (!ndiSceneSelectEl || !ndiConfig) return;
+  const sync = Boolean(ndiConfig.syncSceneWithDashboard);
+  ndiSceneSelectEl.disabled = sync;
+  ndiSceneSelectEl.textContent = "";
+  for (const sc of sceneList) {
+    const opt = document.createElement("option");
+    opt.value = sc.file;
+    opt.textContent = sc.title || sc.file;
+    ndiSceneSelectEl.appendChild(opt);
+  }
+  const eff = ndiEffectiveSceneFile();
+  if (eff) ndiSceneSelectEl.value = eff;
+  if (ndiSceneHintEl) {
+    if (sync) {
+      ndiSceneHintEl.textContent = "Scene follows dashboard Scene tab.";
+    } else {
+      ndiSceneHintEl.textContent = "Pick NDI scene independently of dashboard preview.";
+    }
+  }
+  if (eff && isWebglSceneFile(eff)) {
+    setNdiStreamStatus("Warning: WEBGL scenes are not supported for NDI capture yet.", "warn");
+  }
+}
+
+function applyNdiConfigToPanel() {
+  if (!ndiConfig) return;
+  if (ndiSyncSceneEl) ndiSyncSceneEl.checked = Boolean(ndiConfig.syncSceneWithDashboard);
+  if (ndiEnableBtn) {
+    ndiEnableBtn.textContent = ndiConfig.enabled ? "Disable NDI" : "Enable NDI";
+  }
+  renderNdiBridgeCards();
+  renderNdiBridgeSelect();
+  renderNdiSceneSelect();
+  const bridge = ndiConfig.bridges.find((b) => b.id === ndiConfig.activeBridgeId);
+  if (ndiConfig.enabled && bridge) {
+    setNdiPanelStatus(`NDI on → ${bridge.label} (${bridge.width}x${bridge.height})`);
+  } else if (ndiConfig.enabled) {
+    setNdiPanelStatus("NDI enabled — register a bridge");
+  } else {
+    setNdiPanelStatus("NDI off — launch ndi-bridge on CLI, register preset, then enable");
+  }
+}
+
+function onNdiConfigMessage(config) {
+  ndiConfig = config;
+  applyNdiConfigToPanel();
+}
+
+async function refreshNdiStreamStatus() {
+  if (!ndiConfig) return;
+  try {
+    const r = await fetch("/api/ndi-status");
+    if (!r.ok) return;
+    const j = await r.json();
+    const status = j.status || {};
+    const bridge = ndiConfig.bridges.find((b) => b.id === ndiConfig.activeBridgeId);
+    const st = bridge ? status[bridge.id] : null;
+    if (!ndiConfig.enabled) {
+      setNdiStreamStatus("");
+      return;
+    }
+    if (!st) {
+      setNdiStreamStatus("Output window not reporting — open output or enable NDI", "warn");
+      return;
+    }
+    if (st.error) {
+      setNdiStreamStatus(st.error, "warn");
+      return;
+    }
+    if (st.wsOpen && st.framesSent > 0) {
+      setNdiStreamStatus(`Streaming · ${st.framesSent} frames · ${st.sceneFile || "no scene"}`, "ok");
+    } else if (st.wsOpen) {
+      setNdiStreamStatus(
+        "WS connected — no frames yet (check bridge CLI width/height/port matches registry)",
+        "warn"
+      );
+    } else {
+      setNdiStreamStatus("Frame WS not connected — is ndi-bridge running?", "warn");
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function startNdiStatusPoll() {
+  if (ndiStatusPollTimer) clearInterval(ndiStatusPollTimer);
+  ndiStatusPollTimer = setInterval(refreshNdiStreamStatus, 2500);
+}
+
+function setupNdiPanel() {
+  if (!ndiEnableBtn) return;
+
+  ndiEnableBtn.addEventListener("click", async () => {
+    try {
+      if (!ndiConfig) await fetchNdiConfig();
+      const nextEnabled = !ndiConfig.enabled;
+      if (nextEnabled) {
+        const scene = ndiEffectiveSceneFile();
+        if (scene && isWebglSceneFile(scene)) {
+          setNdiPanelStatus("Cannot enable NDI for WEBGL scenes in Phase 1");
+          return;
+        }
+        if (!ndiConfig.bridges.length) {
+          setNdiPanelStatus("Add at least one bridge preset");
+          return;
+        }
+        openNdiOutputWindow();
+        if (ndiOutputWin && ndiOutputWin.closed) return;
+      }
+      const bridges = readBridgeDraftFromDom();
+      await postNdiConfig({
+        bridges: bridges.length ? bridges : ndiConfig.bridges,
+        activeBridgeId: ndiActiveBridgeEl ? ndiActiveBridgeEl.value : ndiConfig.activeBridgeId,
+        enabled: nextEnabled,
+        syncSceneWithDashboard: ndiSyncSceneEl ? ndiSyncSceneEl.checked : true,
+        sceneFile: ndiEffectiveSceneFile(),
+      });
+      applyNdiConfigToPanel();
+    } catch (e) {
+      setNdiPanelStatus(String(e && e.message ? e.message : e));
+    }
+  });
+
+  ndiOpenOutputBtn.addEventListener("click", () => {
+    openNdiOutputWindow();
+  });
+
+  ndiActiveBridgeEl.addEventListener("change", async () => {
+    try {
+      await postNdiConfig({ activeBridgeId: ndiActiveBridgeEl.value });
+      applyNdiConfigToPanel();
+    } catch (e) {
+      setNdiStreamStatus(String(e && e.message ? e.message : e), "warn");
+    }
+  });
+
+  ndiSyncSceneEl.addEventListener("change", async () => {
+    try {
+      const sync = ndiSyncSceneEl.checked;
+      await postNdiConfig({
+        syncSceneWithDashboard: sync,
+        sceneFile: sync ? activeSceneFile : ndiSceneSelectEl.value,
+      });
+      applyNdiConfigToPanel();
+    } catch (e) {
+      setNdiStreamStatus(String(e && e.message ? e.message : e), "warn");
+    }
+  });
+
+  ndiSceneSelectEl.addEventListener("change", async () => {
+    if (ndiSyncSceneEl && ndiSyncSceneEl.checked) return;
+    try {
+      await postNdiConfig({ sceneFile: ndiSceneSelectEl.value });
+      applyNdiConfigToPanel();
+    } catch (e) {
+      setNdiStreamStatus(String(e && e.message ? e.message : e), "warn");
+    }
+  });
+
+  ndiSaveBridgesBtn.addEventListener("click", async () => {
+    try {
+      const bridges = readBridgeDraftFromDom();
+      await postNdiConfig({
+        bridges,
+        activeBridgeId: ndiActiveBridgeEl ? ndiActiveBridgeEl.value : undefined,
+      });
+      applyNdiConfigToPanel();
+      setNdiStreamStatus("Bridge presets saved", "ok");
+    } catch (e) {
+      setNdiStreamStatus(String(e && e.message ? e.message : e), "warn");
+    }
+  });
+
+  ndiAddBridgeBtn.addEventListener("click", () => {
+    if (!ndiConfig || ndiConfig.bridges.length >= 2) return;
+    const n = ndiConfig.bridges.length + 1;
+    ndiConfig.bridges.push({
+      id: `bridge-${String.fromCharCode(96 + n)}`,
+      label: `NDI preset ${n}`,
+      host: "127.0.0.1",
+      port: 8766 + n - 1,
+      width: n === 2 ? 1280 : 1920,
+      height: n === 2 ? 720 : 1080,
+      fps: 30,
+      ndiName: "",
+    });
+    renderNdiBridgeCards();
+    renderNdiBridgeSelect();
+  });
 }
 
 function setPanelMode(mode) {
   const isStreams = mode === "streams";
-  if (modeStreamsBtn && modeSceneBtn) {
+  const isScene = mode === "scene";
+  const isNdi = mode === "ndi";
+  if (modeStreamsBtn && modeSceneBtn && modeNdiBtn) {
     modeStreamsBtn.classList.toggle("is-active", isStreams);
-    modeSceneBtn.classList.toggle("is-active", !isStreams);
+    modeSceneBtn.classList.toggle("is-active", isScene);
+    modeNdiBtn.classList.toggle("is-active", isNdi);
   }
-  if (streamsModePanel && sceneModePanel) {
+  if (streamsModePanel && sceneModePanel && ndiModePanel) {
     streamsModePanel.classList.toggle("is-hidden", !isStreams);
-    sceneModePanel.classList.toggle("is-hidden", isStreams);
+    sceneModePanel.classList.toggle("is-hidden", !isScene);
+    ndiModePanel.classList.toggle("is-hidden", !isNdi);
   }
   try {
     localStorage.setItem(LS_PANEL_MODE, mode);
@@ -1936,7 +2309,7 @@ function applySavedPanelMode() {
   let mode = "streams";
   try {
     const s = localStorage.getItem(LS_PANEL_MODE);
-    if (s === "scene" || s === "streams") mode = s;
+    if (s === "scene" || s === "streams" || s === "ndi") mode = s;
   } catch (_) {
     /* ignore */
   }
@@ -2011,6 +2384,10 @@ function connectWebSocket() {
     } catch (_) {
       return;
     }
+    if (msg.type === "ndi-config" && msg.config) {
+      onNdiConfigMessage(msg.config);
+      return;
+    }
     if (msg.type !== "osc" || !msg.address) return;
     applyOscMessage(msg);
   };
@@ -2077,8 +2454,21 @@ function setupDomControls() {
   bannerAside = document.getElementById("dataBanner");
   modeStreamsBtn = document.getElementById("modeStreams");
   modeSceneBtn = document.getElementById("modeScene");
+  modeNdiBtn = document.getElementById("modeNdi");
   streamsModePanel = document.getElementById("streamsModePanel");
   sceneModePanel = document.getElementById("sceneModePanel");
+  ndiModePanel = document.getElementById("ndiModePanel");
+  ndiPanelStatusEl = document.getElementById("ndiPanelStatus");
+  ndiSyncSceneEl = document.getElementById("ndiSyncScene");
+  ndiEnableBtn = document.getElementById("ndiEnableBtn");
+  ndiOpenOutputBtn = document.getElementById("ndiOpenOutputBtn");
+  ndiActiveBridgeEl = document.getElementById("ndiActiveBridge");
+  ndiSceneSelectEl = document.getElementById("ndiSceneSelect");
+  ndiSceneHintEl = document.getElementById("ndiSceneHint");
+  ndiBridgeListEl = document.getElementById("ndiBridgeList");
+  ndiAddBridgeBtn = document.getElementById("ndiAddBridgeBtn");
+  ndiSaveBridgesBtn = document.getElementById("ndiSaveBridgesBtn");
+  ndiStreamStatusEl = document.getElementById("ndiStreamStatus");
   sceneButtonsEl = document.getElementById("sceneButtons");
   sceneStatusEl = document.getElementById("sceneStatus");
   mappingRowsEl = document.getElementById("mappingRows");
@@ -2149,6 +2539,8 @@ function setupDomControls() {
 
   modeStreamsBtn.addEventListener("click", () => setPanelMode("streams"));
   modeSceneBtn.addEventListener("click", () => setPanelMode("scene"));
+  if (modeNdiBtn) modeNdiBtn.addEventListener("click", () => setPanelMode("ndi"));
+  setupNdiPanel();
 
   window.addEventListener("message", (e) => {
     if (e.origin !== window.location.origin) return;
@@ -2171,6 +2563,13 @@ async function init() {
   connectWebSocket();
   startRafDataPump();
   if (!activeSceneFile) startPlaceholderP5();
+  try {
+    await fetchNdiConfig();
+    applyNdiConfigToPanel();
+    startNdiStatusPoll();
+  } catch (e) {
+    setNdiPanelStatus("NDI config unavailable");
+  }
 }
 
 init();

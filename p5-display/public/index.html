@@ -25,6 +25,7 @@
               Stream
             </button>
             <button type="button" class="mode-tab" id="modeScene" data-mode="scene">Scene</button>
+            <button type="button" class="mode-tab" id="modeNdi" data-mode="ndi">NDI</button>
           </div>
           <div id="streamsModePanel" class="panel-block">
             <p class="banner__status banner__status--stream-panel" id="bannerStatus" aria-live="polite">
@@ -92,6 +93,35 @@
             <section class="dash-section dash-section--mapping" aria-label="Manual OSC mapping">
               <h2 class="dash-section__title">Manual mapping</h2>
               <div id="mappingRows" class="mapping-rows"></div>
+            </section>
+          </div>
+          <div id="ndiModePanel" class="panel-block is-hidden">
+            <section class="dash-section" aria-label="NDI bridges">
+              <h2 class="dash-section__title">NDI output</h2>
+              <p id="ndiPanelStatus" class="ndi-panel__status" aria-live="polite">Loading…</p>
+              <div class="ndi-panel__actions">
+                <label class="ndi-panel__check">
+                  <input type="checkbox" id="ndiSyncScene" checked />
+                  Sync scene with dashboard
+                </label>
+                <button type="button" id="ndiEnableBtn" class="ndi-panel__btn ndi-panel__btn--primary">
+                  Enable NDI
+                </button>
+                <button type="button" id="ndiOpenOutputBtn" class="ndi-panel__btn">Open output window</button>
+              </div>
+              <div class="ndi-panel__row">
+                <label class="ndi-panel__label" for="ndiActiveBridge">Active bridge</label>
+                <select id="ndiActiveBridge" class="ndi-panel__select"></select>
+              </div>
+              <div class="ndi-panel__row">
+                <label class="ndi-panel__label" for="ndiSceneSelect">NDI scene</label>
+                <select id="ndiSceneSelect" class="ndi-panel__select" disabled></select>
+              </div>
+              <p id="ndiSceneHint" class="ndi-panel__hint"></p>
+              <div id="ndiBridgeList" class="ndi-bridge-list"></div>
+              <button type="button" id="ndiAddBridgeBtn" class="ndi-panel__btn">Add bridge</button>
+              <button type="button" id="ndiSaveBridgesBtn" class="ndi-panel__btn">Save bridges</button>
+              <p id="ndiStreamStatus" class="ndi-panel__stream-status" aria-live="polite"></p>
             </section>
           </div>
         </div>

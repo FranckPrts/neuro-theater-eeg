@@ -126,31 +126,41 @@ To stream a **clean canvas** (no OSC strip) as an NDI source on the LAN, use the
 
 **Prerequisites:** NDI SDK + NDI Runtime on sender and consumer machines. See [`ndi-bridge/README.md`](../ndi-bridge/README.md).
 
-**Two-terminal workflow:**
+### Show workflow
+
+1. Launch one or two `ndi-bridge` processes with fixed resolution (must match registry):
 
 ```bash
-# Terminal 1 — OSC + HTTP (this package)
+cd ndi-bridge && npm start -- --name NeuroTheater-1080p --port 8766 --width 1920 --height 1080 --fps 30
+cd ndi-bridge && npm start -- --name NeuroTheater-720p  --port 8767 --width 1280 --height 720  --fps 30
+```
+
+2. Start p5-display and open the operator UI:
+
+```bash
 cd p5-display && npm start
-
-# Terminal 2 — NDI sender (GPL, after ndi-bridge npm install)
-cd ndi-bridge && npm start -- --name "NeuroTheater-$(hostname)"
+# http://127.0.0.1:8765/
 ```
 
-**Operator UI** (configure mappings first — shared `localStorage` on same origin):
+3. In the **NDI** tab: register bridge presets (host, port, width, height, fps), pick **active bridge**, configure scene (or enable **Sync scene with dashboard**), click **Enable NDI**. The dashboard opens a managed `ndi-output.html` window that resizes the canvas to the active bridge preset and sends frames to `ws://127.0.0.1:<port>`.
 
-`http://127.0.0.1:8765/`
+Mappings are shared via `localStorage` with the main UI (configure on **Scene** tab first).
 
-**NDI output page** (fixed canvas, sends RGBA to `ws://127.0.0.1:8766`):
+### API
 
-```
-http://127.0.0.1:8765/ndi-output.html?scene=spider-plot-neon-cells.p5&w=1920&h=1080
-```
+| Endpoint | Purpose |
+|----------|---------|
+| `GET/POST /api/ndi-config` | Bridge registry, active bridge, enabled flag, scene file |
+| `GET/POST /api/ndi-status` | Output page heartbeat (WS open, frames sent) |
+| WebSocket `/ws` | Broadcasts `{ type: "ndi-config", config }` on connect and on change |
 
-Query params: `scene` (required), `w`, `h`, `fps` (capture cap), `bridge` (default 8766), `bridgeHost` (default 127.0.0.1).
+Config is persisted to `ndi-config.json` in this directory (gitignored).
 
-Phase 1 supports **2D scenes** only; WEBGL scenes (`MUSE.p5`, `ENOBIO.p5`, `head-cube.p5`) require Phase 2 readback.
+Phase 1 supports **2D scenes** only; WEBGL scenes (`MUSE.p5`, `ENOBIO.p5`, `head-cube.p5`) are blocked in the NDI tab.
 
-Verify NDI without p5 first: `cd ndi-bridge && npm run test-pattern`.
+Manual output URL (dev): `http://127.0.0.1:8765/ndi-output.html` (reads server config; no query params required).
+
+Verify NDI without p5: `cd ndi-bridge && npm run test-pattern`.
 
 ## OSC UDP port (live rebind)
 

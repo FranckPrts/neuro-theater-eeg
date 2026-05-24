@@ -14,6 +14,121 @@ const { WebSocketServer } = require("ws");
 
 const ROOT = path.join(__dirname, "public");
 const MAP_ROOT = path.join(ROOT, "p5-mapping");
+const NDI_CONFIG_PATH = path.join(__dirname, "ndi-config.json");
+
+const MAX_NDI_BRIDGES = 2;
+
+function defaultNdiConfig() {
+  return {
+    bridges: [
+      {
+        id: "bridge-a",
+        label: "NDI 1080p",
+        host: "127.0.0.1",
+        port: 8766,
+        width: 1920,
+        height: 1080,
+        fps: 30,
+        ndiName: "",
+      },
+    ],
+    activeBridgeId: "bridge-a",
+    enabled: false,
+    sceneFile: "",
+    syncSceneWithDashboard: true,
+  };
+}
+
+/** @type {Record<string, object>} */
+let ndiStatusByBridge = {};
+
+function sanitizeBridgeId(id) {
+  const s = String(id || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-");
+  return s || "bridge";
+}
+
+function normalizeBridge(b, index) {
+  const id = sanitizeBridgeId(b.id || `bridge-${index + 1}`);
+  const port = typeof b.port === "number" ? b.port : parseInt(String(b.port), 10);
+  const width = typeof b.width === "number" ? b.width : parseInt(String(b.width), 10);
+  const height = typeof b.height === "number" ? b.height : parseInt(String(b.height), 10);
+  const fps = typeof b.fps === "number" ? b.fps : parseInt(String(b.fps), 10);
+  return {
+    id,
+    label: String(b.label || id).trim() || id,
+    host: String(b.host || "127.0.0.1").trim() || "127.0.0.1",
+    port: Number.isFinite(port) ? port : 8766,
+    width: Number.isFinite(width) ? Math.max(320, Math.min(3840, width)) : 1920,
+    height: Number.isFinite(height) ? Math.max(240, Math.min(2160, height)) : 1080,
+    fps: Number.isFinite(fps) ? Math.max(1, Math.min(60, fps)) : 30,
+    ndiName: String(b.ndiName || "").trim(),
+  };
+}
+
+function loadNdiConfigFromDisk() {
+  try {
+    const raw = fs.readFileSync(NDI_CONFIG_PATH, "utf8");
+    const parsed = JSON.parse(raw);
+    return mergeNdiConfig(defaultNdiConfig(), parsed);
+  } catch (_) {
+    return defaultNdiConfig();
+  }
+}
+
+function mergeNdiConfig(base, patch) {
+  const out = { ...base };
+  if (patch && typeof patch === "object") {
+    if (Array.isArray(patch.bridges)) {
+      out.bridges = patch.bridges.slice(0, MAX_NDI_BRIDGES).map((b, i) => normalizeBridge(b, i));
+    }
+    if (typeof patch.activeBridgeId === "string") out.activeBridgeId = sanitizeBridgeId(patch.activeBridgeId);
+    if (typeof patch.enabled === "boolean") out.enabled = patch.enabled;
+    if (typeof patch.sceneFile === "string") out.sceneFile = patch.sceneFile;
+    if (typeof patch.syncSceneWithDashboard === "boolean") {
+      out.syncSceneWithDashboard = patch.syncSceneWithDashboard;
+    }
+  }
+  if (!out.bridges.length) out.bridges = defaultNdiConfig().bridges;
+  if (!out.bridges.some((b) => b.id === out.activeBridgeId)) {
+    out.activeBridgeId = out.bridges[0].id;
+  }
+  const ports = new Set();
+  for (const b of out.bridges) {
+    if (!isValidUdpPort(b.port)) b.port = 8766;
+    if (ports.has(b.port)) {
+      b.port = 8766 + ports.size;
+    }
+    ports.add(b.port);
+  }
+  if (out.sceneFile && !/^[a-zA-Z0-9._-]+\.p5$/.test(out.sceneFile)) out.sceneFile = "";
+  return out;
+}
+
+function persistNdiConfig(config) {
+  try {
+    fs.writeFileSync(NDI_CONFIG_PATH, JSON.stringify(config, null, 2), "utf8");
+  } catch (e) {
+    console.warn("[NDI] could not persist config:", e && e.message ? e.message : e);
+  }
+}
+
+function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      try {
+        const raw = Buffer.concat(chunks).toString("utf8");
+        resolve(raw.trim() ? JSON.parse(raw) : {});
+      } catch (e) {
+        reject(new Error("Invalid JSON"));
+      }
+    });
+    req.on("error", reject);
+  });
+}
 
 function ensureMapDir() {
   try {
@@ -224,11 +339,23 @@ function main() {
   let udpPort = null;
   /** @type {null | ((port: number) => Promise<{ oscHost: string; oscPort: number }>)} */
   let rebindOscPort = null;
+  /** @type {ReturnType<typeof defaultNdiConfig>} */
+  let ndiConfig = loadNdiConfigFromDisk();
+  /** @type {((payload: object) => void) | null} */
+  let broadcastRef = null;
+
+  function broadcastNdiConfig() {
+    if (broadcastRef) {
+      broadcastRef({ type: "ndi-config", config: ndiConfig });
+    }
+  }
 
   const server = http.createServer((req, res) => {
     const u = url.parse(req.url || "/", true);
+    const jsonHeaders = { "Content-Type": "application/json; charset=utf-8" };
+
     if (u.pathname === "/health") {
-      res.writeHead(200, { "Content-Type": "application/json" });
+      res.writeHead(200, jsonHeaders);
       res.end(
         JSON.stringify({
           ok: true,
@@ -237,11 +364,64 @@ function main() {
           oscPort: opts.oscPort,
           ndi: {
             outputPage: "/ndi-output.html",
-            bridgeDefaultPort: 8766,
-            note: "Run ndi-bridge separately (GPL); browser sends frames to ws://127.0.0.1:8766",
+            enabled: ndiConfig.enabled,
+            activeBridgeId: ndiConfig.activeBridgeId,
+            bridgeCount: ndiConfig.bridges.length,
+            sceneFile: ndiConfig.sceneFile,
           },
         })
       );
+      return;
+    }
+
+    if (u.pathname === "/api/ndi-config" && req.method === "GET") {
+      res.writeHead(200, jsonHeaders);
+      res.end(JSON.stringify({ ok: true, config: ndiConfig }));
+      return;
+    }
+
+    if (u.pathname === "/api/ndi-config" && req.method === "POST") {
+      readJsonBody(req)
+        .then((body) => {
+          ndiConfig = mergeNdiConfig(ndiConfig, body);
+          persistNdiConfig(ndiConfig);
+          broadcastNdiConfig();
+          res.writeHead(200, jsonHeaders);
+          res.end(JSON.stringify({ ok: true, config: ndiConfig }));
+        })
+        .catch((e) => {
+          res.writeHead(400, jsonHeaders);
+          res.end(JSON.stringify({ ok: false, error: e.message || String(e) }));
+        });
+      return;
+    }
+
+    if (u.pathname === "/api/ndi-status" && req.method === "GET") {
+      res.writeHead(200, jsonHeaders);
+      res.end(JSON.stringify({ ok: true, status: ndiStatusByBridge }));
+      return;
+    }
+
+    if (u.pathname === "/api/ndi-status" && req.method === "POST") {
+      readJsonBody(req)
+        .then((body) => {
+          const bridgeId = sanitizeBridgeId(body.bridgeId || "unknown");
+          ndiStatusByBridge[bridgeId] = {
+            bridgeId,
+            wsOpen: Boolean(body.wsOpen),
+            framesSent: typeof body.framesSent === "number" ? body.framesSent : 0,
+            lastFrameAt: typeof body.lastFrameAt === "number" ? body.lastFrameAt : 0,
+            sceneFile: String(body.sceneFile || ""),
+            error: String(body.error || ""),
+            updatedAt: Date.now(),
+          };
+          res.writeHead(200, jsonHeaders);
+          res.end(JSON.stringify({ ok: true }));
+        })
+        .catch((e) => {
+          res.writeHead(400, jsonHeaders);
+          res.end(JSON.stringify({ ok: false, error: e.message || String(e) }));
+        });
       return;
     }
 
@@ -452,6 +632,11 @@ function main() {
 
   wss.on("connection", (ws) => {
     clients.add(ws);
+    try {
+      ws.send(JSON.stringify({ type: "ndi-config", config: ndiConfig }));
+    } catch (_) {
+      /* ignore */
+    }
     ws.on("close", () => clients.delete(ws));
     ws.on("error", () => clients.delete(ws));
   });
@@ -468,6 +653,8 @@ function main() {
       }
     }
   }
+
+  broadcastRef = broadcast;
 
   rebindOscPort = async function rebindOscPortFn(newPort) {
     if (newPort === opts.oscPort && udpPort) {
