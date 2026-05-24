@@ -14,7 +14,15 @@ const LS_OSC_PORT = "nt.p5osc.oscPort";
 
 const OSC_PORT_PRESETS = [8000, 7999, 8001, 8888];
 const LS_SPIDER_DATA_LINES = "nt.p5osc.spiderDataLines";
+const LS_SPIDER_RADAR = "nt.p5osc.spiderRadar";
 const LS_SIGNAL_VIEW = "nt.p5osc.signalView";
+
+const SPIDER_STREAM_GROUPED_FILES = new Set([
+  "spider-plot-neon-streams.p5",
+  "spider-plot-collective.p5",
+]);
+const SPIDER_COLLECTIVE_FILE = "spider-plot-collective.p5";
+const LEGACY_COLLECTIVE_FILE = "spider-plot-alpha-radar.p5";
 
 const SIGNAL_VIEW_HISTORY_PRESETS = [300, 500, 800, 1200, 1800, 2400];
 const SIGNAL_VIEW_SPEED_PRESETS = [1, 2, 3, 5, 8, 12];
@@ -459,7 +467,11 @@ function getSpiderBranchCount(scene) {
 }
 
 function isSpiderStreamGroupedScene(scene) {
-  return Boolean(scene && scene.file === "spider-plot-neon-streams.p5");
+  return Boolean(scene && SPIDER_STREAM_GROUPED_FILES.has(scene.file));
+}
+
+function isSpiderCollectiveScene(scene) {
+  return Boolean(scene && scene.file === SPIDER_COLLECTIVE_FILE);
 }
 
 function isSignalViewScene(scene) {
@@ -612,6 +624,59 @@ function writeSpiderDataLineDisplay(sceneFile, value) {
     }
     o[sceneFile] = normalizeSpiderDataLineDisplay(value);
     localStorage.setItem(LS_SPIDER_DATA_LINES, JSON.stringify(o));
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+/** Collective spider plot sweep + trail (per scene file). */
+function readSpiderRadar(sceneFile) {
+  const fallback = { sweepEnabled: true, trailDecayMs: 2000 };
+  try {
+    const raw = localStorage.getItem(LS_SPIDER_RADAR);
+    const o = raw ? JSON.parse(raw) : {};
+    if (typeof o !== "object" || o === null) return fallback;
+    const per = o[sceneFile];
+    if (!per || typeof per !== "object") return fallback;
+    const sweepEnabled = per.sweepEnabled !== false;
+    let trailDecayMs = per.trailDecayMs;
+    trailDecayMs =
+      typeof trailDecayMs === "number" && Number.isFinite(trailDecayMs)
+        ? trailDecayMs
+        : parseInt(String(trailDecayMs), 10);
+    trailDecayMs = Number.isFinite(trailDecayMs)
+      ? Math.max(0, Math.min(5000, Math.floor(trailDecayMs)))
+      : fallback.trailDecayMs;
+    return { sweepEnabled, trailDecayMs };
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function writeSpiderRadar(sceneFile, patch) {
+  try {
+    const cur = readSpiderRadar(sceneFile);
+    const next = { ...cur, ...patch };
+    next.sweepEnabled = next.sweepEnabled !== false;
+    next.trailDecayMs = Math.max(
+      0,
+      Math.min(
+        5000,
+        Math.floor(
+          typeof next.trailDecayMs === "number" && Number.isFinite(next.trailDecayMs)
+            ? next.trailDecayMs
+            : 2000
+        )
+      )
+    );
+    const raw = localStorage.getItem(LS_SPIDER_RADAR);
+    let o = {};
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === "object" && parsed !== null) o = parsed;
+    }
+    o[sceneFile] = next;
+    localStorage.setItem(LS_SPIDER_RADAR, JSON.stringify(o));
   } catch (_) {
     /* ignore */
   }
@@ -789,14 +854,19 @@ function applyStreamGroupPatchToUi(group, plotIndex, patch, branchN) {
     sel.value = patch[inputId] || "";
   }
   const freshMaps = readMappings()[activeSceneFile] || {};
+  const scene = sceneList.find((s) => s.file === activeSceneFile);
+  const collective = isSpiderCollectiveScene(scene);
   for (const row of group.querySelectorAll(".mapping-plot-group__bands .mapping-row")) {
     const sel = row.querySelector("select.mapping-osc");
     const lab = row.querySelector("label");
     if (!sel || !lab) continue;
-    const m = /^plot_(\d+)_axis_(\d+)$/.exec(sel.dataset.inputId || "");
+    const inputId = sel.dataset.inputId || "";
+    const m = /^plot_(\d+)_axis_(\d+)$/.exec(inputId);
     if (!m || parseInt(m[1], 10) !== plotIndex) continue;
     const a = parseInt(m[2], 10);
-    lab.textContent = branchLabelFromMaps(freshMaps, a, branchN);
+    lab.textContent = collective
+      ? branchLabelFromInputId(freshMaps, inputId)
+      : branchLabelFromMaps(freshMaps, a, branchN);
   }
   syncPlotSuffixButtons(group, plotIndex, branchN);
 }
@@ -807,6 +877,49 @@ function branchLabelFromMaps(maps, branchIndex, branchN) {
     if (parsed && parsed.prefix) return parsed.prefix;
   }
   return `Branch ${branchIndex + 1}`;
+}
+
+function branchLabelFromInputId(maps, inputId) {
+  const parsed = parseOscAddressParts(maps[inputId]);
+  if (parsed && parsed.prefix) return parsed.prefix;
+  const m = /^plot_\d+_axis_(\d+)$/.exec(inputId || "");
+  if (m) return `Branch ${parseInt(m[1], 10) + 1}`;
+  return "Branch";
+}
+
+function firstCompletePlotIndexForData(maps, branchN, drawN) {
+  for (let p = 0; p < drawN; p++) {
+    let ok = true;
+    for (let a = 0; a < branchN; a++) {
+      const id = `plot_${p}_axis_${a}`;
+      const addr = maps[id];
+      if (!addr) {
+        ok = false;
+        break;
+      }
+      const rec = latestByAddress[addr];
+      if (!rec || !Array.isArray(rec.args) || !rec.args.length) {
+        ok = false;
+        break;
+      }
+      if (coerceFirstNumeric(rec.args[0]) === null) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return p;
+  }
+  return -1;
+}
+
+function branchLabelsForCollectivePlot(maps, branchN, drawN) {
+  const labels = [];
+  const plotIdx = firstCompletePlotIndexForData(maps, branchN, drawN);
+  const labelPlot = plotIdx >= 0 ? plotIdx : 0;
+  for (let a = 0; a < branchN; a++) {
+    labels.push(branchLabelFromInputId(maps, `plot_${labelPlot}_axis_${a}`));
+  }
+  return labels;
 }
 
 function syncPlotPrefixButtons(groupEl, plotIndex, branchN = 5) {
@@ -875,9 +988,21 @@ function buildSceneData() {
       out.__dataLineDisplay = readSpiderDataLineDisplay(activeSceneFile);
     }
     if (isSpiderStreamGroupedScene(scene)) {
-      for (let a = 0; a < branchN; a++) {
-        out[`__branchLabel_${a}`] = branchLabelFromMaps(maps, a, branchN);
+      if (isSpiderCollectiveScene(scene)) {
+        const labels = branchLabelsForCollectivePlot(maps, branchN, drawN);
+        for (let a = 0; a < branchN; a++) {
+          out[`__branchLabel_${a}`] = labels[a];
+        }
+      } else {
+        for (let a = 0; a < branchN; a++) {
+          out[`__branchLabel_${a}`] = branchLabelFromMaps(maps, a, branchN);
+        }
       }
+    }
+    if (isSpiderCollectiveScene(scene)) {
+      const radar = readSpiderRadar(activeSceneFile);
+      out.__sweepEnabled = radar.sweepEnabled;
+      out.__trailDecayMs = radar.trailDecayMs;
     }
     for (let p = 0; p < railN; p++) {
       for (let a = 0; a < branchN; a++) {
@@ -1559,10 +1684,65 @@ function buildMappingRows() {
     }
     syncSpiderAbsoluteInputsDisabled();
 
+    if (isSpiderCollectiveScene(scene)) {
+      const radarCfg = readSpiderRadar(activeSceneFile);
+
+      const sweepRow = document.createElement("div");
+      sweepRow.className = "mapping-row mapping-row--control";
+      const sweepLab = document.createElement("label");
+      sweepLab.htmlFor = "spider-collective-sweep";
+      sweepLab.textContent = "Radar sweep";
+      const sweepBtn = document.createElement("button");
+      sweepBtn.type = "button";
+      sweepBtn.id = "spider-collective-sweep";
+      sweepBtn.className = "mapping-prefix-btn";
+      sweepBtn.setAttribute("aria-pressed", radarCfg.sweepEnabled ? "true" : "false");
+      sweepBtn.textContent = radarCfg.sweepEnabled ? "ON" : "OFF";
+      sweepBtn.addEventListener("click", () => {
+        const on = sweepBtn.getAttribute("aria-pressed") !== "true";
+        sweepBtn.setAttribute("aria-pressed", on ? "true" : "false");
+        sweepBtn.textContent = on ? "ON" : "OFF";
+        writeSpiderRadar(activeSceneFile, { sweepEnabled: on });
+      });
+      sweepRow.appendChild(sweepLab);
+      sweepRow.appendChild(sweepBtn);
+      mappingRowsEl.appendChild(sweepRow);
+
+      const trailRow = document.createElement("div");
+      trailRow.className = "mapping-row mapping-row--control";
+      const trailLab = document.createElement("label");
+      trailLab.htmlFor = "spider-collective-trail";
+      trailLab.textContent = "Trail decay";
+      const trailWrap = document.createElement("div");
+      trailWrap.className = "spider-collective-trail";
+      const trailInp = document.createElement("input");
+      trailInp.type = "range";
+      trailInp.id = "spider-collective-trail";
+      trailInp.min = "0";
+      trailInp.max = "5000";
+      trailInp.step = "50";
+      trailInp.value = String(radarCfg.trailDecayMs);
+      const trailVal = document.createElement("span");
+      trailVal.className = "spider-collective-trail__val";
+      trailVal.textContent = `${(radarCfg.trailDecayMs / 1000).toFixed(2)}s`;
+      trailInp.addEventListener("input", () => {
+        const ms = parseInt(trailInp.value, 10);
+        writeSpiderRadar(activeSceneFile, { trailDecayMs: ms });
+        trailVal.textContent = `${(ms / 1000).toFixed(2)}s`;
+      });
+      trailWrap.appendChild(trailInp);
+      trailWrap.appendChild(trailVal);
+      trailRow.appendChild(trailLab);
+      trailRow.appendChild(trailWrap);
+      mappingRowsEl.appendChild(trailRow);
+    }
+
     const hint = document.createElement("p");
     hint.className = "mapping-hint";
     hint.textContent = streamGrouped
-      ? `Up to ${spiderN} stream group(s), ${branchN} headset branch(es) each. Pick a stream (button or any branch dropdown) to map that stream from every device that publishes it.`
+      ? isSpiderCollectiveScene(scene)
+        ? `Up to ${spiderN} stream group(s), ${branchN} headset branch(es) each. Use suffix buttons for auto-fill, or map each branch manually (same headset allowed on multiple branches).`
+        : `Up to ${spiderN} stream group(s), ${branchN} headset branch(es) each. Pick a stream (button or any branch dropdown) to map that stream from every device that publishes it.`
       : `Up to ${spiderN} plot(s) can be mapped (from NUM_OVERLAY_PLOTS in the .p5 file). Use headset prefix buttons to remap all bands for a plot.`;
     mappingRowsEl.appendChild(hint);
 
@@ -1663,9 +1843,10 @@ function buildMappingRows() {
 
         const lab = document.createElement("label");
         lab.htmlFor = `map-${id}`;
-        const branchLabel = branchLabelFromMaps(maps, a, branchN);
         lab.textContent = streamGrouped
-          ? branchLabel
+          ? isSpiderCollectiveScene(scene)
+            ? branchLabelFromInputId(maps, id)
+            : branchLabelFromMaps(maps, a, branchN)
           : axisNames[a] || `axis ${a + 1}`;
 
         const sel = document.createElement("select");
@@ -1687,7 +1868,9 @@ function buildMappingRows() {
         }
 
         sel.addEventListener("change", () => {
-          if (streamGrouped && sel.value) {
+          const bulkStreamGrouped =
+            streamGrouped && sel.value && !isSpiderCollectiveScene(scene);
+          if (bulkStreamGrouped) {
             const patch = applyPlotStreamFromAddress(p, sel.value, branchN, addrs);
             if (Object.keys(patch).length) {
               applyStreamGroupPatchToUi(group, p, patch, branchN);
@@ -1703,7 +1886,9 @@ function buildMappingRows() {
           writeMappings(next);
           if (streamGrouped) {
             const freshMaps = readMappings()[activeSceneFile] || {};
-            lab.textContent = branchLabelFromMaps(freshMaps, a, branchN);
+            lab.textContent = isSpiderCollectiveScene(scene)
+              ? branchLabelFromInputId(freshMaps, id)
+              : branchLabelFromMaps(freshMaps, a, branchN);
             syncPlotSuffixButtons(group, p, branchN);
           } else {
             syncPlotPrefixButtons(group, p, branchN);
@@ -2316,7 +2501,34 @@ function applySavedPanelMode() {
   setPanelMode(mode);
 }
 
+function migrateCollectiveSceneStorage() {
+  try {
+    if (localStorage.getItem(LS_ACTIVE_SCENE) === LEGACY_COLLECTIVE_FILE) {
+      localStorage.setItem(LS_ACTIVE_SCENE, SPIDER_COLLECTIVE_FILE);
+    }
+    for (const key of [
+      LS_MAPPINGS,
+      LS_SPIDER_HEX,
+      LS_SPIDER_DRAW,
+      LS_SPIDER_RADIUS,
+      LS_SPIDER_RADAR,
+    ]) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const o = JSON.parse(raw);
+      if (typeof o !== "object" || o === null) continue;
+      if (o[LEGACY_COLLECTIVE_FILE] && !o[SPIDER_COLLECTIVE_FILE]) {
+        o[SPIDER_COLLECTIVE_FILE] = o[LEGACY_COLLECTIVE_FILE];
+        localStorage.setItem(key, JSON.stringify(o));
+      }
+    }
+  } catch (_) {
+    /* ignore */
+  }
+}
+
 function applySavedActiveScene() {
+  migrateCollectiveSceneStorage();
   try {
     const s = localStorage.getItem(LS_ACTIVE_SCENE);
     if (s && sceneList.some((x) => x.file === s)) {

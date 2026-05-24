@@ -8,7 +8,15 @@ const LS_SPIDER_HEX = "nt.p5osc.spiderHex";
 const LS_SPIDER_DRAW = "nt.p5osc.spiderDrawOverlays";
 const LS_SPIDER_RADIUS = "nt.p5osc.spiderRadius";
 const LS_SPIDER_DATA_LINES = "nt.p5osc.spiderDataLines";
+const LS_SPIDER_RADAR = "nt.p5osc.spiderRadar";
 const LS_SIGNAL_VIEW = "nt.p5osc.signalView";
+
+const SPIDER_STREAM_GROUPED_FILES = new Set([
+  "spider-plot-neon-streams.p5",
+  "spider-plot-collective.p5",
+]);
+const SPIDER_COLLECTIVE_FILE = "spider-plot-collective.p5";
+const LEGACY_COLLECTIVE_FILE = "spider-plot-alpha-radar.p5";
 
 const latestByAddress = {};
 /** @type {object[]} */
@@ -75,7 +83,11 @@ function getSpiderBranchCount(scene) {
 }
 
 function isSpiderStreamGroupedScene(scene) {
-  return Boolean(scene && scene.file === "spider-plot-neon-streams.p5");
+  return Boolean(scene && SPIDER_STREAM_GROUPED_FILES.has(scene.file));
+}
+
+function isSpiderCollectiveScene(scene) {
+  return Boolean(scene && scene.file === SPIDER_COLLECTIVE_FILE);
 }
 
 function isSignalViewScene(scene) {
@@ -163,12 +175,78 @@ function readSpiderDataLineDisplay(sceneFile) {
   }
 }
 
+function readSpiderRadar(sceneFile) {
+  const fallback = { sweepEnabled: true, trailDecayMs: 2000 };
+  try {
+    const raw = localStorage.getItem(LS_SPIDER_RADAR);
+    const o = raw ? JSON.parse(raw) : {};
+    if (typeof o !== "object" || o === null) return fallback;
+    const per = o[sceneFile];
+    if (!per || typeof per !== "object") return fallback;
+    const sweepEnabled = per.sweepEnabled !== false;
+    let trailDecayMs = per.trailDecayMs;
+    trailDecayMs =
+      typeof trailDecayMs === "number" && Number.isFinite(trailDecayMs)
+        ? trailDecayMs
+        : parseInt(String(trailDecayMs), 10);
+    trailDecayMs = Number.isFinite(trailDecayMs)
+      ? Math.max(0, Math.min(5000, Math.floor(trailDecayMs)))
+      : fallback.trailDecayMs;
+    return { sweepEnabled, trailDecayMs };
+  } catch (_) {
+    return fallback;
+  }
+}
+
 function branchLabelFromMaps(maps, branchIndex) {
   for (let p = 0; p < 12; p++) {
     const parsed = parseOscAddressParts(maps[`plot_${p}_axis_${branchIndex}`]);
     if (parsed && parsed.prefix) return parsed.prefix;
   }
   return `Branch ${branchIndex + 1}`;
+}
+
+function branchLabelFromInputId(maps, inputId) {
+  const parsed = parseOscAddressParts(maps[inputId]);
+  if (parsed && parsed.prefix) return parsed.prefix;
+  const m = /^plot_\d+_axis_(\d+)$/.exec(inputId || "");
+  if (m) return `Branch ${parseInt(m[1], 10) + 1}`;
+  return "Branch";
+}
+
+function firstCompletePlotIndexForData(maps, branchN, drawN) {
+  for (let p = 0; p < drawN; p++) {
+    let ok = true;
+    for (let a = 0; a < branchN; a++) {
+      const id = `plot_${p}_axis_${a}`;
+      const addr = maps[id];
+      if (!addr) {
+        ok = false;
+        break;
+      }
+      const rec = latestByAddress[addr];
+      if (!rec || !Array.isArray(rec.args) || !rec.args.length) {
+        ok = false;
+        break;
+      }
+      if (coerceFirstNumeric(rec.args[0]) === null) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return p;
+  }
+  return -1;
+}
+
+function branchLabelsForCollectivePlot(maps, branchN, drawN) {
+  const labels = [];
+  const plotIdx = firstCompletePlotIndexForData(maps, branchN, drawN);
+  const labelPlot = plotIdx >= 0 ? plotIdx : 0;
+  for (let a = 0; a < branchN; a++) {
+    labels.push(branchLabelFromInputId(maps, `plot_${labelPlot}_axis_${a}`));
+  }
+  return labels;
 }
 
 function inputValueType(input) {
@@ -228,9 +306,21 @@ function buildSceneData() {
       out.__dataLineDisplay = readSpiderDataLineDisplay(sceneFile);
     }
     if (isSpiderStreamGroupedScene(scene)) {
-      for (let a = 0; a < branchN; a++) {
-        out[`__branchLabel_${a}`] = branchLabelFromMaps(maps, a);
+      if (isSpiderCollectiveScene(scene)) {
+        const labels = branchLabelsForCollectivePlot(maps, branchN, drawN);
+        for (let a = 0; a < branchN; a++) {
+          out[`__branchLabel_${a}`] = labels[a];
+        }
+      } else {
+        for (let a = 0; a < branchN; a++) {
+          out[`__branchLabel_${a}`] = branchLabelFromMaps(maps, a);
+        }
       }
+    }
+    if (isSpiderCollectiveScene(scene)) {
+      const radar = readSpiderRadar(sceneFile);
+      out.__sweepEnabled = radar.sweepEnabled;
+      out.__trailDecayMs = radar.trailDecayMs;
     }
     for (let p = 0; p < railN; p++) {
       for (let a = 0; a < branchN; a++) {

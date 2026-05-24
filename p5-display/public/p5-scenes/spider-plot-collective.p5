@@ -1,0 +1,630 @@
+/**
+ * Collective spider plot — neon radar aesthetic (from eeg-alpha-radar.html).
+ *
+ * Each overlay (plot) = one stream suffix (e.g. alphaNorm).
+ * Each branch (axis) = one headset prefix (e.g. ENOB, 2262).
+ * Single polygon with fixed per-branch colors; first complete plot drives radii.
+ *
+ * Host flags: `__sweepEnabled`, `__trailDecayMs`, `__radiusMode`, branch labels.
+ *
+ * Max mappable stream groups (OSC rail size). Server reads this exact line for /api/p5-scenes:
+ *   const NUM_OVERLAY_PLOTS = 6;
+ * Branch count (headsets per group). Server reads:
+ *   const NUM_SPIDER_BRANCHES = 7;
+ */
+const NUM_OVERLAY_PLOTS = 6;
+const NUM_SPIDER_BRANCHES = 7;
+
+const BRANCH_HEADSETS = [
+  { name: "Cosmonaut", color: "#b46bff" },
+  { name: "Visitor 1", color: "#ff2d55" },
+  { name: "Visitor 2", color: "#ffa31a" },
+  { name: "Visitor 3", color: "#ff5fb0" },
+  { name: "Visitor 4", color: "#00d18f" },
+  { name: "Visitor 5", color: "#c6ff3a" },
+  { name: "Visitor 6", color: "#2bd4ff" },
+];
+
+const ROTATION = -Math.PI / 2;
+const CURVE_TENSION = 0.18;
+const SWEEP_PERIOD_FRAMES = 9 * 60;
+const TRAIL_STRIDE = 2;
+const TRAIL_COUNT = 25;
+const HISTORY_MAX = TRAIL_COUNT * TRAIL_STRIDE + 2;
+const TRAIL_FRAME_MS = 50;
+const HISTORY_EVERY_FRAMES = 3;
+
+let plotRadius = 205;
+let labelRadius = 263;
+let cornerSize = 22;
+let sweepAngle = 0;
+let tickCounter = 0;
+/** @type {{ x: number, y: number }[][]} */
+let vertHistory = [];
+let bgLayer = null;
+
+function spiderBranchCount() {
+  const fromHost = data?.__branchCount;
+  if (typeof fromHost === "number" && isFinite(fromHost) && fromHost >= 3) {
+    return Math.floor(Math.min(16, fromHost));
+  }
+  return NUM_SPIDER_BRANCHES;
+}
+
+function spiderAngleStep() {
+  return (2 * Math.PI) / spiderBranchCount();
+}
+
+function branchLabelForIndex(a) {
+  const key = `__branchLabel_${a}`;
+  const lab = data?.[key];
+  if (typeof lab === "string" && lab.trim()) return lab.trim().toUpperCase();
+  return `B${a + 1}`;
+}
+
+function branchMetaForIndex(a) {
+  return BRANCH_HEADSETS[a % BRANCH_HEADSETS.length];
+}
+
+function parseHexColor(h, fallback = [120, 160, 200]) {
+  if (typeof h !== "string") return fallback;
+  let s = h.trim();
+  if (s.startsWith("0x")) s = "#" + s.slice(2);
+  if (!s.startsWith("#")) s = "#" + s;
+  const hex = s.slice(1);
+  if (hex.length === 3) {
+    const r = parseInt(hex[0] + hex[0], 16);
+    const g = parseInt(hex[1] + hex[1], 16);
+    const b = parseInt(hex[2] + hex[2], 16);
+    if ([r, g, b].every((x) => !isNaN(x))) return [r, g, b];
+  }
+  if (hex.length === 6) {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    if ([r, g, b].every((x) => !isNaN(x))) return [r, g, b];
+  }
+  return fallback;
+}
+
+function branchColorRgb(a) {
+  return parseHexColor(branchMetaForIndex(a).color);
+}
+
+function axisValuesForPlot(p) {
+  const n = spiderBranchCount();
+  const out = [];
+  for (let a = 0; a < n; a++) {
+    const k = `plot_${p}_axis_${a}`;
+    const v = data?.[k];
+    const num = typeof v === "number" && isFinite(v) ? v : 0;
+    out.push(num);
+  }
+  return out;
+}
+
+function plotHasAllBranches(p) {
+  const n = spiderBranchCount();
+  for (let a = 0; a < n; a++) {
+    const v = data?.[`plot_${p}_axis_${a}`];
+    if (typeof v !== "number" || !isFinite(v)) return false;
+  }
+  return true;
+}
+
+function firstCompletePlotIndex(nDraw) {
+  for (let p = 0; p < nDraw; p++) {
+    if (plotHasAllBranches(p)) return p;
+  }
+  return -1;
+}
+
+function spiderRadiusMode() {
+  const m = data?.__radiusMode;
+  return String(m).toLowerCase() === "absolute" ? "absolute" : "relative";
+}
+
+function spiderAbsoluteMean() {
+  const v = data?.__absoluteMean;
+  if (typeof v === "number" && isFinite(v)) return v;
+  const n = parseFloat(String(v ?? ""));
+  return isFinite(n) ? n : 0;
+}
+
+function spiderAbsoluteMax() {
+  const v = data?.__absoluteMax;
+  let x = typeof v === "number" && isFinite(v) ? v : parseFloat(String(v ?? ""));
+  if (!isFinite(x) || x <= 1e-12) x = 1;
+  return x;
+}
+
+function radiiForSpiderRelative(vals) {
+  const abs = vals.map((v) => (typeof v === "number" && isFinite(v) ? Math.abs(v) : 0));
+  let sum = 0;
+  for (const x of abs) sum += x;
+  if (sum > 1e-9) return abs.map((x) => x / sum);
+  let mx = 0;
+  for (const x of abs) mx = Math.max(mx, x);
+  if (mx > 1e-9) return abs.map((x) => x / mx);
+  return abs.map(() => 0.22);
+}
+
+function radiiForSpiderAbsolute(vals) {
+  const mean = spiderAbsoluteMean();
+  const maxAbs = spiderAbsoluteMax();
+  if (maxAbs <= 1e-12) return radiiForSpiderRelative(vals);
+  return vals.map((v) => {
+    const n = typeof v === "number" && isFinite(v) ? v : 0;
+    const t = Math.abs(n - mean) / maxAbs;
+    return constrain(t, 0, 1);
+  });
+}
+
+function radiiForSpider(vals) {
+  if (spiderRadiusMode() === "absolute") return radiiForSpiderAbsolute(vals);
+  return radiiForSpiderRelative(vals);
+}
+
+function percentLabel(radii, i) {
+  if (spiderRadiusMode() === "absolute") {
+    return `${Math.round(constrain(radii[i], 0, 1) * 100)}%`;
+  }
+  const sum = radii.reduce((a, b) => a + b, 0);
+  if (sum <= 1e-9) return "0%";
+  return `${Math.round((radii[i] / sum) * 100)}%`;
+}
+
+function sweepEnabled() {
+  return data?.__sweepEnabled !== false;
+}
+
+function trailDecayMs() {
+  const v = data?.__trailDecayMs;
+  if (typeof v === "number" && isFinite(v)) return constrain(v, 0, 5000);
+  const n = parseFloat(String(v ?? ""));
+  return isFinite(n) ? constrain(n, 0, 5000) : 2000;
+}
+
+function layoutFromCanvas() {
+  const m = min(width, height);
+  plotRadius = m * 0.38;
+  labelRadius = plotRadius + m * 0.048;
+  cornerSize = max(16, m * 0.022);
+}
+
+function labelMetrics() {
+  const scale = max(0.62, min(width, height) / 1000);
+  return {
+    prefixSize: 14 * scale,
+    nameSize: 20 * scale,
+    pctSize: 14 * scale,
+    prefixY: -16 * scale,
+    nameY: 4 * scale,
+    pctY: 20 * scale,
+  };
+}
+
+function polarPoint(angle, radius) {
+  return { x: radius * cos(angle), y: radius * sin(angle) };
+}
+
+function verticesFromRadii(radii) {
+  const n = radii.length;
+  const verts = [];
+  for (let i = 0; i < n; i++) {
+    const a = ROTATION + i * spiderAngleStep();
+    const t = constrain(0.06 + radii[i] * 0.94, 0.06, 1);
+    const p = polarPoint(a, t * plotRadius);
+    verts.push({ x: p.x, y: p.y });
+  }
+  return verts;
+}
+
+function catmullSegment(pts, i) {
+  const n = pts.length;
+  const p0 = pts[(i - 1 + n) % n];
+  const p1 = pts[i];
+  const p2 = pts[(i + 1) % n];
+  const p3 = pts[(i + 2) % n];
+  return {
+    p1,
+    p2,
+    c1: {
+      x: p1.x + (p2.x - p0.x) * CURVE_TENSION,
+      y: p1.y + (p2.y - p0.y) * CURVE_TENSION,
+    },
+    c2: {
+      x: p2.x - (p3.x - p1.x) * CURVE_TENSION,
+      y: p2.y - (p3.y - p1.y) * CURVE_TENSION,
+    },
+  };
+}
+
+function cubicPoint(seg, t) {
+  const u = 1 - t;
+  const tt = t * t;
+  const uu = u * u;
+  const uuu = uu * u;
+  const ttt = tt * t;
+  return {
+    x:
+      uuu * seg.p1.x +
+      3 * uu * t * seg.c1.x +
+      3 * u * tt * seg.c2.x +
+      ttt * seg.p2.x,
+    y:
+      uuu * seg.p1.y +
+      3 * uu * t * seg.c1.y +
+      3 * u * tt * seg.c2.y +
+      ttt * seg.p2.y,
+  };
+}
+
+function setGlowRgb(rgb, blur, alpha) {
+  drawingContext.shadowBlur = blur;
+  drawingContext.shadowColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+}
+
+function clearGlow() {
+  drawingContext.shadowBlur = 0;
+  drawingContext.shadowColor = "rgba(0, 0, 0, 0)";
+}
+
+function lerpRgb(a, b, t) {
+  return [
+    Math.round(lerp(a[0], b[0], t)),
+    Math.round(lerp(a[1], b[1], t)),
+    Math.round(lerp(a[2], b[2], t)),
+  ];
+}
+
+function rebuildBackgroundLayer() {
+  if (!width || !height) return;
+  bgLayer = createGraphics(width, height);
+  const ctx = bgLayer.drawingContext;
+  bgLayer.background(0);
+
+  const cx = width / 2;
+  const cy = height / 2;
+  const g1 = ctx.createRadialGradient(cx, cy, 0, cx, cy, width * 0.45);
+  g1.addColorStop(0, "rgba(35, 55, 90, 0.18)");
+  g1.addColorStop(0.7, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = g1;
+  ctx.fillRect(0, 0, width, height);
+
+  const g2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, width * 0.22);
+  g2.addColorStop(0, "rgba(60, 80, 140, 0.08)");
+  g2.addColorStop(0.7, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = g2;
+  ctx.fillRect(0, 0, width, height);
+
+  bgLayer.noStroke();
+  const step = 28;
+  for (let y = step / 2; y < height; y += step) {
+    for (let x = step / 2; x < width; x += step) {
+      const dx = (x - cx) / (width * 0.35);
+      const dy = (y - cy) / (height * 0.3);
+      const mask = 1 - constrain(dx * dx + dy * dy, 0, 1);
+      if (mask <= 0) continue;
+      bgLayer.fill(120, 160, 200, 26 * mask);
+      bgLayer.circle(x, y, 2);
+    }
+  }
+
+  bgLayer.stroke(255, 255, 255, 3);
+  for (let y = 0; y < height; y += 3) {
+    bgLayer.line(0, y, width, y);
+  }
+}
+
+function drawBackground() {
+  if (!bgLayer || bgLayer.width !== width || bgLayer.height !== height) {
+    rebuildBackgroundLayer();
+  }
+  if (bgLayer) image(bgLayer, 0, 0);
+}
+
+function drawCornerBrackets() {
+  const pad = plotRadius + cornerSize + 8;
+  stroke(106, 117, 133, 150);
+  strokeWeight(1);
+  noFill();
+  const corners = [
+    [-pad, -pad, 1, 1],
+    [pad, -pad, -1, 1],
+    [-pad, pad, 1, -1],
+    [pad, pad, -1, -1],
+  ];
+  for (const [x, y, sx, sy] of corners) {
+    line(x, y, x + sx * cornerSize, y);
+    line(x, y, x, y + sy * cornerSize);
+  }
+}
+
+function drawCenterGlow() {
+  noStroke();
+  const ctx = drawingContext;
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, plotRadius * 1.1);
+  g.addColorStop(0, "rgba(80, 140, 220, 0.18)");
+  g.addColorStop(0.6, "rgba(20, 40, 80, 0.06)");
+  g.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = g;
+  circle(0, 0, plotRadius * 2.2);
+}
+
+function drawRadarGrid() {
+  const n = spiderBranchCount();
+  const step = spiderAngleStep();
+  const ringCount = 5;
+  noFill();
+
+  for (let k = 1; k <= ringCount; k++) {
+    const r = plotRadius * (k / ringCount);
+    const outer = k === ringCount;
+    stroke(outer ? 160 : 140, outer ? 200 : 180, outer ? 255 : 220, outer ? 82 : 31);
+    strokeWeight(outer ? 1.2 : 1);
+    if (!outer) drawingContext.setLineDash([2, 4]);
+    else drawingContext.setLineDash([]);
+    circle(0, 0, r * 2);
+  }
+  drawingContext.setLineDash([]);
+
+  stroke(140, 180, 220, 56);
+  strokeWeight(1);
+  for (let i = 0; i < n; i++) {
+    const a = ROTATION + i * step;
+    const p = polarPoint(a, plotRadius);
+    line(0, 0, p.x, p.y);
+    for (let k = 1; k <= ringCount; k++) {
+      const r = plotRadius * (k / ringCount);
+      const tx = r * cos(a);
+      const ty = r * sin(a);
+      const px = -sin(a);
+      const py = cos(a);
+      stroke(160, 200, 255, 90);
+      line(tx - px * 4, ty - py * 4, tx + px * 4, ty + py * 4);
+    }
+  }
+}
+
+function drawCenterHub() {
+  noFill();
+  stroke(160, 200, 255, 102);
+  strokeWeight(1);
+  circle(0, 0, 44);
+  stroke(160, 200, 255, 64);
+  circle(0, 0, 28);
+  noStroke();
+  setGlowRgb([43, 212, 255], 8, 0.85);
+  fill(43, 212, 255);
+  circle(0, 0, 6);
+  clearGlow();
+}
+
+function drawBezierSegmentGradient(seg, colorA, colorB, weight, glowAlpha, glowBlur) {
+  const steps = 28;
+  for (let s = 0; s < steps; s++) {
+    const t0 = s / steps;
+    const t1 = (s + 1) / steps;
+    const p0 = cubicPoint(seg, t0);
+    const p1 = cubicPoint(seg, t1);
+    const rgb = lerpRgb(colorA, colorB, (t0 + t1) * 0.5);
+    setGlowRgb(rgb, glowBlur, glowAlpha);
+    stroke(rgb[0], rgb[1], rgb[2], 255);
+    strokeWeight(weight);
+    line(p0.x, p0.y, p1.x, p1.y);
+  }
+  clearGlow();
+}
+
+function drawClosedFill(verts) {
+  const n = verts.length;
+  fill(80, 180, 255, 13);
+  noStroke();
+  beginShape();
+  for (let i = 0; i < n; i++) {
+    const seg = catmullSegment(verts, i);
+    vertex(seg.p1.x, seg.p1.y);
+    bezierVertex(seg.c1.x, seg.c1.y, seg.c2.x, seg.c2.y, seg.p2.x, seg.p2.y);
+  }
+  endShape(CLOSE);
+}
+
+function drawPolygonSegments(verts, glowWeight, glowAlpha, coreWeight) {
+  const n = verts.length;
+  for (let i = 0; i < n; i++) {
+    const seg = catmullSegment(verts, i);
+    const ca = branchColorRgb(i);
+    const cb = branchColorRgb((i + 1) % n);
+    drawBezierSegmentGradient(seg, ca, cb, glowWeight, glowAlpha, 4);
+    drawBezierSegmentGradient(seg, ca, cb, coreWeight, 0.55, 2);
+  }
+}
+
+function drawVertexDots(verts) {
+  const n = verts.length;
+  for (let i = 0; i < n; i++) {
+    const p = verts[i];
+    const rgb = branchColorRgb(i);
+    noFill();
+    stroke(rgb[0], rgb[1], rgb[2], 90);
+    strokeWeight(1);
+    circle(p.x, p.y, 28);
+
+    const phase = (tickCounter + i * 13) % 90;
+    if (phase < 60) {
+      const t = phase / 60;
+      stroke(rgb[0], rgb[1], rgb[2], (1 - t) * 140);
+      strokeWeight(1.5);
+      circle(p.x, p.y, 12 + t * 36);
+    }
+
+    noStroke();
+    setGlowRgb(rgb, 6, 0.5);
+    fill(rgb[0], rgb[1], rgb[2]);
+    circle(p.x, p.y, 10);
+    clearGlow();
+    fill(255);
+    circle(p.x, p.y, 4.4);
+  }
+}
+
+function drawTrailLayers() {
+  const ms = trailDecayMs();
+  const activeLayers = Math.max(0, Math.round(ms / (TRAIL_STRIDE * TRAIL_FRAME_MS)));
+  if (activeLayers <= 0 || vertHistory.length < 2) return;
+
+  const n = spiderBranchCount();
+  for (let t = 0; t < TRAIL_COUNT; t++) {
+    if (t >= activeLayers) continue;
+    const idx = vertHistory.length - 1 - (t + 1) * TRAIL_STRIDE;
+    if (idx < 0) continue;
+    const snap = vertHistory[idx];
+    const age = activeLayers <= 1 ? 0 : t / (activeLayers - 1);
+    const k = 1 - age;
+    const op = k * k * k * 0.55;
+
+    fill(120, 200, 255, op * 28);
+    noStroke();
+    beginShape();
+    for (let i = 0; i < n; i++) {
+      const seg = catmullSegment(snap, i);
+      vertex(seg.p1.x, seg.p1.y);
+      bezierVertex(seg.c1.x, seg.c1.y, seg.c2.x, seg.c2.y, seg.p2.x, seg.p2.y);
+    }
+    endShape(CLOSE);
+
+    for (let i = 0; i < n; i++) {
+      const seg = catmullSegment(snap, i);
+      const rgb = branchColorRgb(i);
+      stroke(rgb[0], rgb[1], rgb[2], op * 255);
+      strokeWeight(1.4);
+      noFill();
+      beginShape();
+      vertex(seg.p1.x, seg.p1.y);
+      bezierVertex(seg.c1.x, seg.c1.y, seg.c2.x, seg.c2.y, seg.p2.x, seg.p2.y);
+      endShape();
+    }
+  }
+}
+
+function drawSweep() {
+  if (!sweepEnabled()) return;
+  sweepAngle += TWO_PI / SWEEP_PERIOD_FRAMES;
+  push();
+  rotate(sweepAngle);
+  const r = plotRadius * 1.1;
+  noStroke();
+  const ctx = drawingContext;
+  const g = ctx.createLinearGradient(0, 0, r, 0);
+  g.addColorStop(0, "rgba(43, 212, 255, 0)");
+  g.addColorStop(1, "rgba(43, 212, 255, 0.45)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(r, 0);
+  ctx.arc(0, 0, r, 0, -PI / 3, true);
+  ctx.closePath();
+  ctx.fill();
+  stroke(43, 212, 255, 140);
+  strokeWeight(1.2);
+  line(0, 0, r, 0);
+  pop();
+}
+
+function textAnchorForAngle(a) {
+  if (cos(a) > 0.25) return LEFT;
+  if (cos(a) < -0.25) return RIGHT;
+  return CENTER;
+}
+
+function drawBranchLabels(radii) {
+  const n = spiderBranchCount();
+  const step = spiderAngleStep();
+  const m = labelMetrics();
+  noStroke();
+
+  for (let i = 0; i < n; i++) {
+    const a = ROTATION + i * step;
+    const p = polarPoint(a, labelRadius);
+    const rgb = branchColorRgb(i);
+    const align = textAnchorForAngle(a);
+    textAlign(align, CENTER);
+
+    textFont("JetBrains Mono");
+    textSize(m.prefixSize);
+    setGlowRgb(rgb, 6, 0.4);
+    fill(rgb[0], rgb[1], rgb[2]);
+    text(branchLabelForIndex(i), p.x, p.y + m.prefixY);
+    clearGlow();
+
+    textFont("Space Grotesk");
+    textStyle(BOLD);
+    textSize(m.nameSize);
+    setGlowRgb(rgb, 8, 0.5);
+    fill(rgb[0], rgb[1], rgb[2]);
+    text(branchMetaForIndex(i).name.toUpperCase(), p.x, p.y + m.nameY);
+    clearGlow();
+    textStyle(NORMAL);
+
+    textFont("JetBrains Mono");
+    textSize(m.pctSize);
+    setGlowRgb(rgb, 6, 0.4);
+    fill(rgb[0], rgb[1], rgb[2]);
+    text(percentLabel(radii, i), p.x, p.y + m.pctY);
+    clearGlow();
+  }
+}
+
+windowResized = () => {
+  resizeCanvas(windowWidth, windowHeight);
+  layoutFromCanvas();
+  rebuildBackgroundLayer();
+};
+
+setup = () => {
+  createCanvas(windowWidth, windowHeight);
+  layoutFromCanvas();
+  rebuildBackgroundLayer();
+  textFont("Space Grotesk");
+};
+
+draw = () => {
+  tickCounter++;
+  layoutFromCanvas();
+  drawBackground();
+
+  let nDraw = NUM_OVERLAY_PLOTS;
+  if (typeof data?.__plotCount === "number" && isFinite(data.__plotCount)) {
+    nDraw = Math.max(1, Math.min(12, Math.floor(data.__plotCount), NUM_OVERLAY_PLOTS));
+  }
+
+  const plotIdx = firstCompletePlotIndex(nDraw);
+  let radii = [];
+  if (plotIdx >= 0) {
+    radii = radiiForSpider(axisValuesForPlot(plotIdx));
+  } else {
+    radii = new Array(spiderBranchCount()).fill(0.22);
+  }
+
+  const verts = verticesFromRadii(radii);
+  if (plotIdx >= 0 && frameCount % HISTORY_EVERY_FRAMES === 0) {
+    vertHistory.push(verts.map((p) => ({ x: p.x, y: p.y })));
+    if (vertHistory.length > HISTORY_MAX) vertHistory.shift();
+  }
+
+  push();
+  translate(width / 2, height / 2);
+
+  drawCornerBrackets();
+  drawCenterGlow();
+  drawRadarGrid();
+  drawSweep();
+  drawTrailLayers();
+  drawClosedFill(verts);
+  drawPolygonSegments(verts, 6, 0.35, 2);
+  drawVertexDots(verts);
+  drawCenterHub();
+  drawBranchLabels(radii);
+  pop();
+};
