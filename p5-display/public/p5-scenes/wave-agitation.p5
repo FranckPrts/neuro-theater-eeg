@@ -1,0 +1,471 @@
+/**
+ * Wave agitation — brainwave band table with frequency-accurate in-place oscillation.
+ * Amplitude tracks live band power; optional scrolling amplitude-envelope mode.
+ *
+ * Host flags: `__waveMotionMode` (`inPlace` | `envelopeScroll`),
+ * `__historyLength`, `__scrollSpeed`, `__radiusMode`, `__absoluteMean`, `__absoluteMax`.
+ *
+ * Max mappable stream groups. Server reads this exact line for /api/p5-scenes:
+ *   const NUM_OVERLAY_PLOTS = 1;
+ */
+const NUM_OVERLAY_PLOTS = 1;
+
+// ── Tunable display / motion ───────────────────────────────────────────────────
+const MIN_AMP = 0.06;
+const MAX_AMP_FRAC = 0.42;
+const AMP_SMOOTH = 0.12;
+const WAVE_SPATIAL_CYCLES = 2.4;
+const GRAIN_PASSES = 3;
+const GRAIN_JITTER = 1.8;
+const FREQ_HZ_SCALE = 0.55;
+const ENVELOPE_OVERLAY_ALPHA = 0.37;
+const WAVE_GLOW_BLUR_MAX = 22;
+const WAVE_GLOW_ALPHA_MAX = 0.58;
+
+const BG = [10, 10, 12];
+const MUTED_GREEN = [48, 118, 88];
+const FREQ_GREEN = [56, 132, 98];
+const FREQ_COL_GAP = 14;
+
+// Reorder this array to change row order (high β → Δ)
+const BAND_ROWS = [
+  { axis: 4, symbol: "B", name: "HIGH-BETA", freq: "20-30 hz", hz: 25, hzScale: 0.22, color: "#db5a91" },
+  { axis: 3, symbol: "B", name: "LOW-BETA", freq: "13-20 hz", hz: 16.5, hzScale: 0.28, color: "#d78e41" },
+  { axis: 2, symbol: "A", name: "ALPHA", freq: "8-13 hz", hz: 10.5, hzScale: 0.32, color: "#d7be59" },
+  { axis: 1, symbol: "θ", name: "THETA", freq: "4-8 hz", hz: 6, hzScale: 0.65, color: "#49bcb4" },
+  { axis: 0, symbol: "Δ", name: "DELTA", freq: "0.5-4 hz", hz: 2.25, hzScale: 1.0, color: "#598cd7" },
+];
+
+const DEFAULT_HISTORY = 500;
+const DEFAULT_SCROLL = 4;
+
+/** @type {number[]} */
+let smoothedPower = BAND_ROWS.map(() => 0);
+/** @type {number[][]} */
+const envelopeBuffers = BAND_ROWS.map(() => []);
+
+function parseHexColor(h, fallback = [120, 160, 200]) {
+  if (typeof h !== "string") return fallback;
+  let s = h.trim();
+  if (s.startsWith("0x")) s = "#" + s.slice(2);
+  if (!s.startsWith("#")) s = "#" + s;
+  const hex = s.slice(1);
+  if (hex.length === 3) {
+    const r = parseInt(hex[0] + hex[0], 16);
+    const g = parseInt(hex[1] + hex[1], 16);
+    const b = parseInt(hex[2] + hex[2], 16);
+    if ([r, g, b].every((x) => !isNaN(x))) return [r, g, b];
+  }
+  if (hex.length === 6) {
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    if ([r, g, b].every((x) => !isNaN(x))) return [r, g, b];
+  }
+  return fallback;
+}
+
+function waveMotionMode() {
+  const m = String(data?.__waveMotionMode || "inPlace").toLowerCase();
+  return m === "envelopescroll" ? "envelopeScroll" : "inPlace";
+}
+
+function historyLength() {
+  const n = data?.__historyLength;
+  return typeof n === "number" && isFinite(n) ? Math.max(100, Math.floor(n)) : DEFAULT_HISTORY;
+}
+
+function scrollSpeed() {
+  const n = data?.__scrollSpeed;
+  return typeof n === "number" && isFinite(n) ? Math.max(1, Math.min(20, Math.floor(n))) : DEFAULT_SCROLL;
+}
+
+function spiderRadiusMode() {
+  const m = data?.__radiusMode;
+  return String(m).toLowerCase() === "absolute" ? "absolute" : "relative";
+}
+
+function spiderAbsoluteMean() {
+  const v = data?.__absoluteMean;
+  if (typeof v === "number" && isFinite(v)) return v;
+  const n = parseFloat(String(v ?? ""));
+  return isFinite(n) ? n : 0;
+}
+
+function spiderAbsoluteMax() {
+  const v = data?.__absoluteMax;
+  let x = typeof v === "number" && isFinite(v) ? v : parseFloat(String(v ?? ""));
+  if (!isFinite(x) || x <= 1e-12) x = 1;
+  return x;
+}
+
+function radiiForSpiderRelative(vals) {
+  const abs = vals.map((v) => (typeof v === "number" && isFinite(v) ? Math.abs(v) : 0));
+  let sum = 0;
+  for (const x of abs) sum += x;
+  if (sum > 1e-9) return abs.map((x) => x / sum);
+  let mx = 0;
+  for (const x of abs) mx = Math.max(mx, x);
+  if (mx > 1e-9) return abs.map((x) => x / mx);
+  return abs.map(() => 0.08);
+}
+
+function radiiForSpiderAbsolute(vals) {
+  const mean = spiderAbsoluteMean();
+  const maxAbs = spiderAbsoluteMax();
+  if (maxAbs <= 1e-12) return radiiForSpiderRelative(vals);
+  return vals.map((v) => {
+    const n = typeof v === "number" && isFinite(v) ? v : 0;
+    const t = Math.abs(n - mean) / maxAbs;
+    return constrain(t, 0, 1);
+  });
+}
+
+function radiiForSpider(vals) {
+  if (spiderRadiusMode() === "absolute") return radiiForSpiderAbsolute(vals);
+  return radiiForSpiderRelative(vals);
+}
+
+function axisValuesForPlot(p) {
+  const out = [];
+  for (let a = 0; a < 5; a++) {
+    const k = `plot_${p}_axis_${a}`;
+    const v = data?.[k];
+    const n = typeof v === "number" && isFinite(v) ? v : 0;
+    out.push(n);
+  }
+  return out;
+}
+
+function plotHasAllBands(p) {
+  for (let a = 0; a < 5; a++) {
+    const v = data?.[`plot_${p}_axis_${a}`];
+    if (typeof v !== "number" || !isFinite(v)) return false;
+  }
+  return true;
+}
+
+function firstCompletePlotIndex(nDraw) {
+  for (let p = 0; p < nDraw; p++) {
+    if (plotHasAllBands(p)) return p;
+  }
+  return -1;
+}
+
+function setGlowRgb(rgb, blur, alpha) {
+  drawingContext.shadowBlur = blur;
+  drawingContext.shadowColor = `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
+}
+
+function clearGlow() {
+  drawingContext.shadowBlur = 0;
+  drawingContext.shadowColor = "transparent";
+}
+
+function effectiveHz(row) {
+  const scale = typeof row.hzScale === "number" && isFinite(row.hzScale) ? row.hzScale : 1;
+  return row.hz * FREQ_HZ_SCALE * scale;
+}
+
+/** Brighter stroke color for neon wave lines (labels stay muted). */
+function neonLineRgb(rgb) {
+  return [
+    constrain(rgb[0] + (255 - rgb[0]) * 0.42, 0, 255),
+    constrain(rgb[1] + (255 - rgb[1]) * 0.42, 0, 255),
+    constrain(rgb[2] + (255 - rgb[2]) * 0.42, 0, 255),
+  ];
+}
+
+function layoutMetrics() {
+  const m = min(width, height);
+  const padX = max(24, width * 0.04);
+  const padTop = max(28, height * 0.05);
+  const headerH = max(35, m * 0.04);
+  const tableTop = padTop + headerH;
+  const tableH = height - tableTop - max(20, height * 0.04);
+  const rowH = tableH / BAND_ROWS.length;
+  const labelW = max(160, width * 0.22);
+  const powerColW = max(52, width * 0.07);
+  const waveLeft = padX + labelW + 12;
+  const waveRight = width - padX - powerColW - 8;
+  const waveW = max(80, waveRight - waveLeft);
+  return {
+    padX,
+    padTop,
+    headerH,
+    tableTop,
+    rowH,
+    labelW,
+    powerColW,
+    waveLeft,
+    waveW,
+    waveRight: waveLeft + waveW,
+  };
+}
+
+function updateBandPowers(plotIdx) {
+  const vals = plotIdx >= 0 ? axisValuesForPlot(plotIdx) : [0, 0, 0, 0, 0];
+  const radii = radiiForSpider(vals);
+  const span = historyLength();
+  const speed = scrollSpeed();
+  const envelopeMode = waveMotionMode() === "envelopeScroll";
+
+  for (let i = 0; i < BAND_ROWS.length; i++) {
+    const axis = BAND_ROWS[i].axis;
+    const target = constrain(radii[axis] ?? 0, 0, 1);
+    smoothedPower[i] += (target - smoothedPower[i]) * AMP_SMOOTH;
+    if (envelopeMode) {
+      for (let s = 0; s < speed; s++) {
+        envelopeBuffers[i].push(smoothedPower[i]);
+      }
+      while (envelopeBuffers[i].length > span) {
+        envelopeBuffers[i].shift();
+      }
+    }
+  }
+}
+
+function drawRowDivider(y, L) {
+  stroke(...MUTED_GREEN);
+  strokeWeight(1);
+  line(L.padX, y, width - L.padX, y);
+}
+
+function drawHeader(L) {
+  const y = L.padTop + L.headerH * 0.55;
+  textFont("Space Grotesk");
+  textStyle(NORMAL);
+  textSize(max(11, L.headerH * 0.42));
+  fill(...MUTED_GREEN);
+  noStroke();
+  textAlign(LEFT, CENTER);
+  text("BRAINWAVE", L.padX, y);
+  text("POWER", L.waveLeft, y);
+
+  const lineY = L.padTop + L.headerH;
+  drawRowDivider(lineY, L);
+}
+
+function drawBandLabel(row, rowY, rowH, L, rgb, active) {
+  const baseX = L.padX;
+  const freqRightX = L.waveLeft - FREQ_COL_GAP;
+  const midY = rowY + rowH * 0.5;
+  const symSize = max(28, rowH * 0.38);
+  const nameSize = max(16, rowH * 0.21);
+  const freqSize = max(13, rowH * 0.16);
+  const alpha = active ? 255 : 90;
+
+  textAlign(LEFT, CENTER);
+  noStroke();
+  textFont("JetBrains Mono");
+  textStyle(ITALIC);
+  textSize(symSize);
+  setGlowRgb(rgb, 10, active ? 0.45 : 0.15);
+  fill(rgb[0], rgb[1], rgb[2], alpha);
+  text(row.symbol, baseX, midY);
+  clearGlow();
+  textStyle(NORMAL);
+
+  const symW = textWidth(row.symbol);
+  textFont("Space Grotesk");
+  textStyle(BOLD);
+  textSize(nameSize);
+  setGlowRgb(rgb, 8, active ? 0.4 : 0.12);
+  fill(rgb[0], rgb[1], rgb[2], alpha);
+  const nameX = baseX + symW + max(6, symSize * 0.12);
+  text(row.name, nameX, midY);
+  clearGlow();
+  textStyle(NORMAL);
+
+  textFont("JetBrains Mono");
+  textSize(freqSize);
+  textAlign(RIGHT, CENTER);
+  fill(FREQ_GREEN[0], FREQ_GREEN[1], FREQ_GREEN[2], active ? 255 : 120);
+  text(row.freq, freqRightX, midY);
+}
+
+function drawInPlaceWave(row, rowY, rowH, L, rgb, power, active) {
+  const cy = rowY + rowH * 0.5;
+  const ampPx = rowH * lerp(MIN_AMP, MAX_AMP_FRAC, power);
+  const hz = effectiveHz(row);
+  const phase = (millis() / 1000) * hz * TWO_PI;
+  const spatialK = (TWO_PI * WAVE_SPATIAL_CYCLES) / L.waveW;
+  const steps = max(48, Math.floor(L.waveW / 4));
+  const neon = neonLineRgb(rgb);
+
+  push();
+  drawingContext.save();
+  drawingContext.beginPath();
+  drawingContext.rect(L.waveLeft, rowY + 2, L.waveW, rowH - 4);
+  drawingContext.clip();
+
+  for (let pass = 0; pass < GRAIN_PASSES; pass++) {
+    const t = pass / (GRAIN_PASSES - 1);
+    const passAlpha = active ? lerp(70, 255, 1 - t * 0.6) : 40;
+    const passWeight = lerp(5.5, 1.6, t);
+    const jitter = GRAIN_JITTER * (1 - t);
+    noFill();
+    setGlowRgb(
+      neon,
+      lerp(WAVE_GLOW_BLUR_MAX, 6, t),
+      active ? lerp(WAVE_GLOW_ALPHA_MAX, 0.18, t) : 0.1
+    );
+    stroke(neon[0], neon[1], neon[2], passAlpha);
+    strokeWeight(passWeight);
+    beginShape();
+    for (let s = 0; s <= steps; s++) {
+      const x = L.waveLeft + (s / steps) * L.waveW;
+      const noiseY = pass > 0 ? random(-jitter, jitter) : 0;
+      const y = cy + ampPx * sin(phase - x * spatialK) + noiseY;
+      vertex(x, y);
+    }
+    endShape();
+  }
+
+  if (active) {
+    noFill();
+    setGlowRgb(neon, 10, 0.72);
+    stroke(255, 255, 255, 95);
+    strokeWeight(1.1);
+    beginShape();
+    for (let s = 0; s <= steps; s++) {
+      const x = L.waveLeft + (s / steps) * L.waveW;
+      vertex(x, cy + ampPx * sin(phase - x * spatialK));
+    }
+    endShape();
+  }
+  clearGlow();
+  drawingContext.restore();
+  pop();
+}
+
+function drawEnvelopeScroll(row, rowIdx, rowY, rowH, L, rgb, power, active) {
+  const cy = rowY + rowH * 0.5;
+  const buf = envelopeBuffers[rowIdx];
+  const span = historyLength();
+  const count = min(buf.length, span);
+
+  push();
+  drawingContext.save();
+  drawingContext.beginPath();
+  drawingContext.rect(L.waveLeft, rowY + 2, L.waveW, rowH - 4);
+  drawingContext.clip();
+
+  if (count >= 2) {
+    noFill();
+    setGlowRgb(rgb, 12, active ? 0.4 : 0.12);
+    stroke(rgb[0], rgb[1], rgb[2], active ? 200 : 70);
+    strokeWeight(2.2);
+    beginShape();
+    for (let j = 0; j < count; j++) {
+      const v = buf[buf.length - count + j];
+      const x = L.waveLeft + (j / (count - 1)) * L.waveW;
+      vertex(x, map(v, 0, 1, cy + rowH * MIN_AMP, cy - rowH * MAX_AMP_FRAC));
+    }
+    endShape();
+    clearGlow();
+
+    noStroke();
+    fill(rgb[0], rgb[1], rgb[2], active ? 28 : 12);
+    beginShape();
+    vertex(L.waveLeft, cy);
+    for (let j = 0; j < count; j++) {
+      const v = buf[buf.length - count + j];
+      const x = L.waveLeft + (j / (count - 1)) * L.waveW;
+      vertex(x, map(v, 0, 1, cy + rowH * MIN_AMP, cy - rowH * MAX_AMP_FRAC));
+    }
+    vertex(L.waveLeft + L.waveW, cy);
+    endShape(CLOSE);
+  }
+
+  const ampPx = rowH * lerp(MIN_AMP, MAX_AMP_FRAC, power);
+  const hz = effectiveHz(row);
+  const phase = (millis() / 1000) * hz * TWO_PI;
+  const spatialK = (TWO_PI * WAVE_SPATIAL_CYCLES) / L.waveW;
+  const steps = max(40, Math.floor(L.waveW / 5));
+  const neon = neonLineRgb(rgb);
+  noFill();
+  setGlowRgb(neon, 8, active ? 0.38 : 0.1);
+  stroke(neon[0], neon[1], neon[2], active ? 255 * ENVELOPE_OVERLAY_ALPHA : 40);
+  strokeWeight(1.35);
+  beginShape();
+  for (let s = 0; s <= steps; s++) {
+    const x = L.waveLeft + (s / steps) * L.waveW;
+    vertex(x, cy + ampPx * sin(phase - x * spatialK));
+  }
+  endShape();
+  clearGlow();
+
+  drawingContext.restore();
+  pop();
+}
+
+function drawPowerValue(rowY, rowH, L, rgb, power, active) {
+  const x = width - L.padX;
+  const midY = rowY + rowH * 0.5;
+  textFont("JetBrains Mono");
+  textSize(max(14, rowH * 0.22));
+  textAlign(RIGHT, CENTER);
+  noStroke();
+  setGlowRgb(rgb, 6, active ? 0.35 : 0.1);
+  fill(rgb[0], rgb[1], rgb[2], active ? 255 : 90);
+  text(nf(power, 1, 2), x, midY);
+  clearGlow();
+}
+
+function drawBandRow(row, rowIdx, rowY, rowH, L, active) {
+  const rgb = parseHexColor(row.color);
+  const power = smoothedPower[rowIdx];
+
+  if (rowIdx > 0) {
+    drawRowDivider(rowY, L);
+  }
+
+  drawBandLabel(row, rowY, rowH, L, rgb, active);
+
+  if (waveMotionMode() === "envelopeScroll") {
+    drawEnvelopeScroll(row, rowIdx, rowY, rowH, L, rgb, power, active);
+  } else {
+    drawInPlaceWave(row, rowY, rowH, L, rgb, power, active);
+  }
+
+  drawPowerValue(rowY, rowH, L, rgb, power, active);
+}
+
+windowResized = () => {
+  resizeCanvas(windowWidth, windowHeight);
+};
+
+setup = () => {
+  createCanvas(windowWidth, windowHeight);
+  textFont("Space Grotesk");
+};
+
+draw = () => {
+  background(...BG);
+  const L = layoutMetrics();
+  drawHeader(L);
+
+  let nDraw = NUM_OVERLAY_PLOTS;
+  if (typeof data?.__plotCount === "number" && isFinite(data.__plotCount)) {
+    nDraw = Math.max(1, Math.min(12, Math.floor(data.__plotCount), NUM_OVERLAY_PLOTS));
+  }
+  const plotIdx = firstCompletePlotIndex(nDraw);
+  const active = plotIdx >= 0;
+  updateBandPowers(plotIdx);
+
+  if (!active) {
+    fill(...MUTED_GREEN);
+    noStroke();
+    textAlign(CENTER, CENTER);
+    textFont("JetBrains Mono");
+    textSize(13);
+    text("MAP PLOT 1 · Δ θ α LOW β HIGH β", width / 2, height * 0.52);
+    return;
+  }
+
+  for (let i = 0; i < BAND_ROWS.length; i++) {
+    const rowY = L.tableTop + i * L.rowH;
+    drawBandRow(BAND_ROWS[i], i, rowY, L.rowH, L, active);
+  }
+};

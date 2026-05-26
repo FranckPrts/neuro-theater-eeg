@@ -62,6 +62,11 @@
       "favorite": true
     },
     {
+      "file": "wave-agitation.p5",
+      "title": "Wave agitation",
+      "favorite": true
+    },
+    {
       "file": "head-cube.p5",
       "title": "Head Cube",
       "inputs": [

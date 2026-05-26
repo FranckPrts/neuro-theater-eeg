@@ -16,6 +16,9 @@ const OSC_PORT_PRESETS = [8000, 7999, 8001, 8888];
 const LS_SPIDER_DATA_LINES = "nt.p5osc.spiderDataLines";
 const LS_SPIDER_RADAR = "nt.p5osc.spiderRadar";
 const LS_SIGNAL_VIEW = "nt.p5osc.signalView";
+const LS_WAVE_AGITATION = "nt.p5osc.waveAgitation";
+
+const WAVE_AGITATION_FILE = "wave-agitation.p5";
 
 const SPIDER_STREAM_GROUPED_FILES = new Set([
   "spider-plot-neon-streams.p5",
@@ -476,6 +479,164 @@ function isSpiderCollectiveScene(scene) {
 
 function isSignalViewScene(scene) {
   return Boolean(scene && /^signal-view/i.test(String(scene.file || "")));
+}
+
+function isWaveAgitationScene(scene) {
+  return Boolean(scene && scene.file === WAVE_AGITATION_FILE);
+}
+
+function normalizeWaveMotionMode(value) {
+  const v = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+  return v === "envelopescroll" ? "envelopeScroll" : "inPlace";
+}
+
+function readWaveAgitationSettings(sceneFile) {
+  const fallback = { motionMode: "inPlace", historyLength: 500, scrollSpeed: 4 };
+  try {
+    const raw = localStorage.getItem(LS_WAVE_AGITATION);
+    const o = raw ? JSON.parse(raw) : {};
+    if (typeof o !== "object" || o === null) return fallback;
+    const per = o[sceneFile];
+    if (!per || typeof per !== "object") return fallback;
+    let historyLength = per.historyLength;
+    historyLength =
+      typeof historyLength === "number" && Number.isFinite(historyLength)
+        ? historyLength
+        : parseInt(String(historyLength), 10);
+    historyLength = Number.isFinite(historyLength)
+      ? Math.max(100, Math.min(4000, Math.floor(historyLength)))
+      : fallback.historyLength;
+    let scrollSpeed = per.scrollSpeed;
+    scrollSpeed =
+      typeof scrollSpeed === "number" && Number.isFinite(scrollSpeed)
+        ? scrollSpeed
+        : parseInt(String(scrollSpeed), 10);
+    scrollSpeed = Number.isFinite(scrollSpeed)
+      ? Math.max(1, Math.min(20, Math.floor(scrollSpeed)))
+      : fallback.scrollSpeed;
+    return {
+      motionMode: normalizeWaveMotionMode(per.motionMode),
+      historyLength,
+      scrollSpeed,
+    };
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function writeWaveAgitationSettings(sceneFile, patch) {
+  try {
+    const cur = readWaveAgitationSettings(sceneFile);
+    const next = { ...cur, ...patch };
+    next.motionMode = normalizeWaveMotionMode(next.motionMode);
+    next.historyLength = Math.max(100, Math.min(4000, Math.floor(next.historyLength)));
+    next.scrollSpeed = Math.max(1, Math.min(20, Math.floor(next.scrollSpeed)));
+    const raw = localStorage.getItem(LS_WAVE_AGITATION);
+    let o = {};
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === "object" && parsed !== null) o = parsed;
+    }
+    o[sceneFile] = next;
+    localStorage.setItem(LS_WAVE_AGITATION, JSON.stringify(o));
+  } catch (_) {
+    /* ignore */
+  }
+}
+
+function appendWaveAgitationMappingControls(parentEl, sceneFile) {
+  const wa = readWaveAgitationSettings(sceneFile);
+
+  const motionRow = document.createElement("div");
+  motionRow.className = "mapping-row mapping-row--control";
+  const motionLab = document.createElement("label");
+  motionLab.htmlFor = "wave-agitation-motion";
+  motionLab.textContent = "Wave motion";
+  const motionSel = document.createElement("select");
+  motionSel.id = "wave-agitation-motion";
+  motionSel.className = "mapping-osc mapping-osc--control";
+  for (const [val, lab] of [
+    ["inPlace", "In-place oscillation"],
+    ["envelopeScroll", "Amplitude envelope scroll"],
+  ]) {
+    const opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = lab;
+    if (val === wa.motionMode) opt.selected = true;
+    motionSel.appendChild(opt);
+  }
+  motionSel.addEventListener("change", () => {
+    writeWaveAgitationSettings(sceneFile, { motionMode: motionSel.value });
+  });
+  motionRow.appendChild(motionLab);
+  motionRow.appendChild(motionSel);
+  parentEl.appendChild(motionRow);
+
+  const histRow = document.createElement("div");
+  histRow.className = "mapping-row mapping-row--control";
+  const histLab = document.createElement("label");
+  histLab.htmlFor = "wave-agitation-history";
+  histLab.textContent = "Envelope · history (samples)";
+  const histSel = document.createElement("select");
+  histSel.id = "wave-agitation-history";
+  histSel.className = "mapping-osc mapping-osc--control";
+  for (const n of SIGNAL_VIEW_HISTORY_PRESETS) {
+    const opt = document.createElement("option");
+    opt.value = String(n);
+    opt.textContent = String(n);
+    if (n === wa.historyLength) opt.selected = true;
+    histSel.appendChild(opt);
+  }
+  if (!SIGNAL_VIEW_HISTORY_PRESETS.includes(wa.historyLength)) {
+    const opt = document.createElement("option");
+    opt.value = String(wa.historyLength);
+    opt.textContent = String(wa.historyLength);
+    opt.selected = true;
+    histSel.appendChild(opt);
+  }
+  histSel.addEventListener("change", () => {
+    const n = parseInt(histSel.value, 10);
+    writeWaveAgitationSettings(sceneFile, {
+      historyLength: Number.isFinite(n) ? n : 500,
+    });
+  });
+  histRow.appendChild(histLab);
+  histRow.appendChild(histSel);
+  parentEl.appendChild(histRow);
+
+  const speedRow = document.createElement("div");
+  speedRow.className = "mapping-row mapping-row--control";
+  const speedLab = document.createElement("label");
+  speedLab.htmlFor = "wave-agitation-speed";
+  speedLab.textContent = "Envelope · scroll speed";
+  const speedSel = document.createElement("select");
+  speedSel.id = "wave-agitation-speed";
+  speedSel.className = "mapping-osc mapping-osc--control";
+  for (const n of SIGNAL_VIEW_SPEED_PRESETS) {
+    const opt = document.createElement("option");
+    opt.value = String(n);
+    opt.textContent = String(n);
+    if (n === wa.scrollSpeed) opt.selected = true;
+    speedSel.appendChild(opt);
+  }
+  if (!SIGNAL_VIEW_SPEED_PRESETS.includes(wa.scrollSpeed)) {
+    const opt = document.createElement("option");
+    opt.value = String(wa.scrollSpeed);
+    opt.textContent = String(wa.scrollSpeed);
+    opt.selected = true;
+    speedSel.appendChild(opt);
+  }
+  speedSel.addEventListener("change", () => {
+    const n = parseInt(speedSel.value, 10);
+    writeWaveAgitationSettings(sceneFile, {
+      scrollSpeed: Number.isFinite(n) ? n : 4,
+    });
+  });
+  speedRow.appendChild(speedLab);
+  speedRow.appendChild(speedSel);
+  parentEl.appendChild(speedRow);
 }
 
 function readSignalViewSettings(sceneFile) {
@@ -977,14 +1138,23 @@ function buildSceneData() {
     const branchN = getSpiderBranchCount(scene);
     const out = {};
     const railN = spiderN;
-    const drawN = Math.max(1, Math.min(railN, readSpiderDrawCount(activeSceneFile, railN)));
+    const waveAgitation = isWaveAgitationScene(scene);
+    const drawN = waveAgitation
+      ? 1
+      : Math.max(1, Math.min(railN, readSpiderDrawCount(activeSceneFile, railN)));
     out.__plotCount = drawN;
     out.__branchCount = branchN;
-    const rad = readSpiderRadiusAll(activeSceneFile);
-    out.__radiusMode = rad.mode;
-    out.__absoluteMean = rad.mean;
-    out.__absoluteMax = rad.max;
-    if (!isSpiderStreamGroupedScene(scene)) {
+    if (waveAgitation) {
+      out.__radiusMode = "relative";
+      out.__absoluteMean = 0;
+      out.__absoluteMax = 1;
+    } else {
+      const rad = readSpiderRadiusAll(activeSceneFile);
+      out.__radiusMode = rad.mode;
+      out.__absoluteMean = rad.mean;
+      out.__absoluteMax = rad.max;
+    }
+    if (!isSpiderStreamGroupedScene(scene) && !waveAgitation) {
       out.__dataLineDisplay = readSpiderDataLineDisplay(activeSceneFile);
     }
     if (isSpiderStreamGroupedScene(scene)) {
@@ -1003,6 +1173,12 @@ function buildSceneData() {
       const radar = readSpiderRadar(activeSceneFile);
       out.__sweepEnabled = radar.sweepEnabled;
       out.__trailDecayMs = radar.trailDecayMs;
+    }
+    if (isWaveAgitationScene(scene)) {
+      const wa = readWaveAgitationSettings(activeSceneFile);
+      out.__waveMotionMode = wa.motionMode;
+      out.__historyLength = wa.historyLength;
+      out.__scrollSpeed = wa.scrollSpeed;
     }
     for (let p = 0; p < railN; p++) {
       for (let a = 0; a < branchN; a++) {
@@ -1177,13 +1353,23 @@ function getExpectedMappingFields(scene, sceneFile) {
   const out = [];
   if (spiderN > 0) {
     const axisNames = ["Δ", "θ", "α", "low β", "high β"];
-    out.push({ inputId: "__plotCount", label: "Overlays to visualize", valueType: "control" });
-    if (!streamGrouped) {
+    const waveAgitation = isWaveAgitationScene(scene);
+    if (!waveAgitation) {
+      out.push({ inputId: "__plotCount", label: "Overlays to visualize", valueType: "control" });
+    }
+    if (!streamGrouped && !waveAgitation) {
       out.push({ inputId: "__dataLineDisplay", label: "Data line display", valueType: "control" });
     }
-    out.push({ inputId: "__radiusMode", label: "Radius mode", valueType: "control" });
-    out.push({ inputId: "__absoluteMean", label: "Absolute · mean (center)", valueType: "control" });
-    out.push({ inputId: "__absoluteMax", label: "Absolute · max deviation (outer)", valueType: "control" });
+    if (waveAgitation) {
+      out.push({ inputId: "__waveMotionMode", label: "Wave motion", valueType: "control" });
+      out.push({ inputId: "__historyLength", label: "Envelope · history (samples)", valueType: "control" });
+      out.push({ inputId: "__scrollSpeed", label: "Envelope · scroll speed", valueType: "control" });
+    }
+    if (!waveAgitation) {
+      out.push({ inputId: "__radiusMode", label: "Radius mode", valueType: "control" });
+      out.push({ inputId: "__absoluteMean", label: "Absolute · mean (center)", valueType: "control" });
+      out.push({ inputId: "__absoluteMax", label: "Absolute · max deviation (outer)", valueType: "control" });
+    }
     for (let p = 0; p < spiderN; p++) {
       for (let a = 0; a < branchN; a++) {
         const id = `plot_${p}_axis_${a}`;
@@ -1548,37 +1734,40 @@ function buildMappingRows() {
   if (spiderN > 0) {
     const branchN = getSpiderBranchCount(scene);
     const streamGrouped = isSpiderStreamGroupedScene(scene);
+    const waveAgitation = isWaveAgitationScene(scene);
     const axisNames = ["Δ", "θ", "α", "low β", "high β"];
     const hexStore = readSpiderHex()[activeSceneFile] || {};
     const drawSelVal = readSpiderDrawCount(activeSceneFile, spiderN);
 
-    const ctrl = document.createElement("div");
-    ctrl.className = "mapping-row mapping-row--control";
+    if (!waveAgitation) {
+      const ctrl = document.createElement("div");
+      ctrl.className = "mapping-row mapping-row--control";
 
-    const ctrlLab = document.createElement("label");
-    ctrlLab.htmlFor = "spider-overlay-draw-count";
-    ctrlLab.textContent = "Overlays to visualize";
+      const ctrlLab = document.createElement("label");
+      ctrlLab.htmlFor = "spider-overlay-draw-count";
+      ctrlLab.textContent = "Overlays to visualize";
 
-    const ctrlSel = document.createElement("select");
-    ctrlSel.id = "spider-overlay-draw-count";
-    ctrlSel.className = "mapping-osc mapping-osc--control";
-    for (let k = 1; k <= spiderN; k++) {
-      const opt = document.createElement("option");
-      opt.value = String(k);
-      opt.textContent = String(k);
-      if (k === drawSelVal) opt.selected = true;
-      ctrlSel.appendChild(opt);
+      const ctrlSel = document.createElement("select");
+      ctrlSel.id = "spider-overlay-draw-count";
+      ctrlSel.className = "mapping-osc mapping-osc--control";
+      for (let k = 1; k <= spiderN; k++) {
+        const opt = document.createElement("option");
+        opt.value = String(k);
+        opt.textContent = String(k);
+        if (k === drawSelVal) opt.selected = true;
+        ctrlSel.appendChild(opt);
+      }
+      ctrlSel.addEventListener("change", () => {
+        const v = parseInt(ctrlSel.value, 10);
+        writeSpiderDrawCount(activeSceneFile, Number.isFinite(v) ? v : spiderN);
+      });
+
+      ctrl.appendChild(ctrlLab);
+      ctrl.appendChild(ctrlSel);
+      mappingRowsEl.appendChild(ctrl);
     }
-    ctrlSel.addEventListener("change", () => {
-      const v = parseInt(ctrlSel.value, 10);
-      writeSpiderDrawCount(activeSceneFile, Number.isFinite(v) ? v : spiderN);
-    });
 
-    ctrl.appendChild(ctrlLab);
-    ctrl.appendChild(ctrlSel);
-    mappingRowsEl.appendChild(ctrl);
-
-    if (!streamGrouped) {
+    if (!streamGrouped && !waveAgitation) {
       const dataLineRow = document.createElement("div");
       dataLineRow.className = "mapping-row mapping-row--control";
       const dataLineLab = document.createElement("label");
@@ -1606,9 +1795,10 @@ function buildMappingRows() {
       mappingRowsEl.appendChild(dataLineRow);
     }
 
-    const radCfg = readSpiderRadiusAll(activeSceneFile);
+    if (!waveAgitation) {
+      const radCfg = readSpiderRadiusAll(activeSceneFile);
 
-    const modeRow = document.createElement("div");
+      const modeRow = document.createElement("div");
     modeRow.className = "mapping-row mapping-row--control";
     const modeLab = document.createElement("label");
     modeLab.htmlFor = "spider-radius-mode";
@@ -1683,6 +1873,11 @@ function buildMappingRows() {
       maxInp.disabled = !abs;
     }
     syncSpiderAbsoluteInputsDisabled();
+    }
+
+    if (waveAgitation) {
+      appendWaveAgitationMappingControls(mappingRowsEl, activeSceneFile);
+    }
 
     if (isSpiderCollectiveScene(scene)) {
       const radarCfg = readSpiderRadar(activeSceneFile);
@@ -1739,7 +1934,9 @@ function buildMappingRows() {
 
     const hint = document.createElement("p");
     hint.className = "mapping-hint";
-    hint.textContent = streamGrouped
+    hint.textContent = waveAgitation
+      ? "Map Plot 1 · Δ θ α low β high β to band-power OSC streams."
+      : streamGrouped
       ? isSpiderCollectiveScene(scene)
         ? `Up to ${spiderN} stream group(s), ${branchN} headset branch(es) each. Use suffix buttons for auto-fill, or map each branch manually (same headset allowed on multiple branches).`
         : `Up to ${spiderN} stream group(s), ${branchN} headset branch(es) each. Pick a stream (button or any branch dropdown) to map that stream from every device that publishes it.`

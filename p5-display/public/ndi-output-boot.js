@@ -10,6 +10,9 @@ const LS_SPIDER_RADIUS = "nt.p5osc.spiderRadius";
 const LS_SPIDER_DATA_LINES = "nt.p5osc.spiderDataLines";
 const LS_SPIDER_RADAR = "nt.p5osc.spiderRadar";
 const LS_SIGNAL_VIEW = "nt.p5osc.signalView";
+const LS_WAVE_AGITATION = "nt.p5osc.waveAgitation";
+
+const WAVE_AGITATION_FILE = "wave-agitation.p5";
 
 const SPIDER_STREAM_GROUPED_FILES = new Set([
   "spider-plot-neon-streams.p5",
@@ -92,6 +95,51 @@ function isSpiderCollectiveScene(scene) {
 
 function isSignalViewScene(scene) {
   return Boolean(scene && /^signal-view/i.test(String(scene.file || "")));
+}
+
+function isWaveAgitationScene(scene) {
+  return Boolean(scene && scene.file === WAVE_AGITATION_FILE);
+}
+
+function normalizeWaveMotionMode(value) {
+  const v = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+  return v === "envelopescroll" ? "envelopeScroll" : "inPlace";
+}
+
+function readWaveAgitationSettings(sceneFile) {
+  const fallback = { motionMode: "inPlace", historyLength: 500, scrollSpeed: 4 };
+  try {
+    const raw = localStorage.getItem(LS_WAVE_AGITATION);
+    const o = raw ? JSON.parse(raw) : {};
+    if (typeof o !== "object" || o === null) return fallback;
+    const per = o[sceneFile];
+    if (!per || typeof per !== "object") return fallback;
+    let historyLength = per.historyLength;
+    historyLength =
+      typeof historyLength === "number" && Number.isFinite(historyLength)
+        ? historyLength
+        : parseInt(String(historyLength), 10);
+    historyLength = Number.isFinite(historyLength)
+      ? Math.max(100, Math.min(4000, Math.floor(historyLength)))
+      : fallback.historyLength;
+    let scrollSpeed = per.scrollSpeed;
+    scrollSpeed =
+      typeof scrollSpeed === "number" && Number.isFinite(scrollSpeed)
+        ? scrollSpeed
+        : parseInt(String(scrollSpeed), 10);
+    scrollSpeed = Number.isFinite(scrollSpeed)
+      ? Math.max(1, Math.min(20, Math.floor(scrollSpeed)))
+      : fallback.scrollSpeed;
+    return {
+      motionMode: normalizeWaveMotionMode(per.motionMode),
+      historyLength,
+      scrollSpeed,
+    };
+  } catch (_) {
+    return fallback;
+  }
 }
 
 function readSignalViewSettings(sceneFile) {
@@ -302,7 +350,7 @@ function buildSceneData() {
     out.__radiusMode = rad.mode;
     out.__absoluteMean = rad.mean;
     out.__absoluteMax = rad.max;
-    if (!isSpiderStreamGroupedScene(scene)) {
+    if (!isSpiderStreamGroupedScene(scene) && !isWaveAgitationScene(scene)) {
       out.__dataLineDisplay = readSpiderDataLineDisplay(sceneFile);
     }
     if (isSpiderStreamGroupedScene(scene)) {
@@ -321,6 +369,12 @@ function buildSceneData() {
       const radar = readSpiderRadar(sceneFile);
       out.__sweepEnabled = radar.sweepEnabled;
       out.__trailDecayMs = radar.trailDecayMs;
+    }
+    if (isWaveAgitationScene(scene)) {
+      const wa = readWaveAgitationSettings(sceneFile);
+      out.__waveMotionMode = wa.motionMode;
+      out.__historyLength = wa.historyLength;
+      out.__scrollSpeed = wa.scrollSpeed;
     }
     for (let p = 0; p < railN; p++) {
       for (let a = 0; a < branchN; a++) {
