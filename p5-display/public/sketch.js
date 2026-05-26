@@ -1138,23 +1138,14 @@ function buildSceneData() {
     const branchN = getSpiderBranchCount(scene);
     const out = {};
     const railN = spiderN;
-    const waveAgitation = isWaveAgitationScene(scene);
-    const drawN = waveAgitation
-      ? 1
-      : Math.max(1, Math.min(railN, readSpiderDrawCount(activeSceneFile, railN)));
+    const drawN = Math.max(1, Math.min(railN, readSpiderDrawCount(activeSceneFile, railN)));
     out.__plotCount = drawN;
     out.__branchCount = branchN;
-    if (waveAgitation) {
-      out.__radiusMode = "relative";
-      out.__absoluteMean = 0;
-      out.__absoluteMax = 1;
-    } else {
-      const rad = readSpiderRadiusAll(activeSceneFile);
-      out.__radiusMode = rad.mode;
-      out.__absoluteMean = rad.mean;
-      out.__absoluteMax = rad.max;
-    }
-    if (!isSpiderStreamGroupedScene(scene) && !waveAgitation) {
+    const rad = readSpiderRadiusAll(activeSceneFile);
+    out.__radiusMode = rad.mode;
+    out.__absoluteMean = rad.mean;
+    out.__absoluteMax = rad.max;
+    if (!isSpiderStreamGroupedScene(scene) && !isWaveAgitationScene(scene)) {
       out.__dataLineDisplay = readSpiderDataLineDisplay(activeSceneFile);
     }
     if (isSpiderStreamGroupedScene(scene)) {
@@ -1353,23 +1344,18 @@ function getExpectedMappingFields(scene, sceneFile) {
   const out = [];
   if (spiderN > 0) {
     const axisNames = ["Δ", "θ", "α", "low β", "high β"];
-    const waveAgitation = isWaveAgitationScene(scene);
-    if (!waveAgitation) {
-      out.push({ inputId: "__plotCount", label: "Overlays to visualize", valueType: "control" });
-    }
-    if (!streamGrouped && !waveAgitation) {
+    out.push({ inputId: "__plotCount", label: "Overlays to visualize", valueType: "control" });
+    if (!streamGrouped && !isWaveAgitationScene(scene)) {
       out.push({ inputId: "__dataLineDisplay", label: "Data line display", valueType: "control" });
     }
-    if (waveAgitation) {
+    if (isWaveAgitationScene(scene)) {
       out.push({ inputId: "__waveMotionMode", label: "Wave motion", valueType: "control" });
       out.push({ inputId: "__historyLength", label: "Envelope · history (samples)", valueType: "control" });
       out.push({ inputId: "__scrollSpeed", label: "Envelope · scroll speed", valueType: "control" });
     }
-    if (!waveAgitation) {
-      out.push({ inputId: "__radiusMode", label: "Radius mode", valueType: "control" });
-      out.push({ inputId: "__absoluteMean", label: "Absolute · mean (center)", valueType: "control" });
-      out.push({ inputId: "__absoluteMax", label: "Absolute · max deviation (outer)", valueType: "control" });
-    }
+    out.push({ inputId: "__radiusMode", label: "Radius mode", valueType: "control" });
+    out.push({ inputId: "__absoluteMean", label: "Absolute · mean (center)", valueType: "control" });
+    out.push({ inputId: "__absoluteMax", label: "Absolute · max deviation (outer)", valueType: "control" });
     for (let p = 0; p < spiderN; p++) {
       for (let a = 0; a < branchN; a++) {
         const id = `plot_${p}_axis_${a}`;
@@ -1734,40 +1720,37 @@ function buildMappingRows() {
   if (spiderN > 0) {
     const branchN = getSpiderBranchCount(scene);
     const streamGrouped = isSpiderStreamGroupedScene(scene);
-    const waveAgitation = isWaveAgitationScene(scene);
     const axisNames = ["Δ", "θ", "α", "low β", "high β"];
     const hexStore = readSpiderHex()[activeSceneFile] || {};
     const drawSelVal = readSpiderDrawCount(activeSceneFile, spiderN);
 
-    if (!waveAgitation) {
-      const ctrl = document.createElement("div");
-      ctrl.className = "mapping-row mapping-row--control";
+    const ctrl = document.createElement("div");
+    ctrl.className = "mapping-row mapping-row--control";
 
-      const ctrlLab = document.createElement("label");
-      ctrlLab.htmlFor = "spider-overlay-draw-count";
-      ctrlLab.textContent = "Overlays to visualize";
+    const ctrlLab = document.createElement("label");
+    ctrlLab.htmlFor = "spider-overlay-draw-count";
+    ctrlLab.textContent = "Overlays to visualize";
 
-      const ctrlSel = document.createElement("select");
-      ctrlSel.id = "spider-overlay-draw-count";
-      ctrlSel.className = "mapping-osc mapping-osc--control";
-      for (let k = 1; k <= spiderN; k++) {
-        const opt = document.createElement("option");
-        opt.value = String(k);
-        opt.textContent = String(k);
-        if (k === drawSelVal) opt.selected = true;
-        ctrlSel.appendChild(opt);
-      }
-      ctrlSel.addEventListener("change", () => {
-        const v = parseInt(ctrlSel.value, 10);
-        writeSpiderDrawCount(activeSceneFile, Number.isFinite(v) ? v : spiderN);
-      });
-
-      ctrl.appendChild(ctrlLab);
-      ctrl.appendChild(ctrlSel);
-      mappingRowsEl.appendChild(ctrl);
+    const ctrlSel = document.createElement("select");
+    ctrlSel.id = "spider-overlay-draw-count";
+    ctrlSel.className = "mapping-osc mapping-osc--control";
+    for (let k = 1; k <= spiderN; k++) {
+      const opt = document.createElement("option");
+      opt.value = String(k);
+      opt.textContent = String(k);
+      if (k === drawSelVal) opt.selected = true;
+      ctrlSel.appendChild(opt);
     }
+    ctrlSel.addEventListener("change", () => {
+      const v = parseInt(ctrlSel.value, 10);
+      writeSpiderDrawCount(activeSceneFile, Number.isFinite(v) ? v : spiderN);
+    });
 
-    if (!streamGrouped && !waveAgitation) {
+    ctrl.appendChild(ctrlLab);
+    ctrl.appendChild(ctrlSel);
+    mappingRowsEl.appendChild(ctrl);
+
+    if (!streamGrouped && !isWaveAgitationScene(scene)) {
       const dataLineRow = document.createElement("div");
       dataLineRow.className = "mapping-row mapping-row--control";
       const dataLineLab = document.createElement("label");
@@ -1795,10 +1778,9 @@ function buildMappingRows() {
       mappingRowsEl.appendChild(dataLineRow);
     }
 
-    if (!waveAgitation) {
-      const radCfg = readSpiderRadiusAll(activeSceneFile);
+    const radCfg = readSpiderRadiusAll(activeSceneFile);
 
-      const modeRow = document.createElement("div");
+    const modeRow = document.createElement("div");
     modeRow.className = "mapping-row mapping-row--control";
     const modeLab = document.createElement("label");
     modeLab.htmlFor = "spider-radius-mode";
@@ -1873,9 +1855,8 @@ function buildMappingRows() {
       maxInp.disabled = !abs;
     }
     syncSpiderAbsoluteInputsDisabled();
-    }
 
-    if (waveAgitation) {
+    if (isWaveAgitationScene(scene)) {
       appendWaveAgitationMappingControls(mappingRowsEl, activeSceneFile);
     }
 
@@ -1934,9 +1915,7 @@ function buildMappingRows() {
 
     const hint = document.createElement("p");
     hint.className = "mapping-hint";
-    hint.textContent = waveAgitation
-      ? "Map Plot 1 · Δ θ α low β high β to band-power OSC streams."
-      : streamGrouped
+    hint.textContent = streamGrouped
       ? isSpiderCollectiveScene(scene)
         ? `Up to ${spiderN} stream group(s), ${branchN} headset branch(es) each. Use suffix buttons for auto-fill, or map each branch manually (same headset allowed on multiple branches).`
         : `Up to ${spiderN} stream group(s), ${branchN} headset branch(es) each. Pick a stream (button or any branch dropdown) to map that stream from every device that publishes it.`

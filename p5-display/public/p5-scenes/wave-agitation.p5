@@ -23,8 +23,8 @@ const WAVE_GLOW_BLUR_MAX = 22;
 const WAVE_GLOW_ALPHA_MAX = 0.58;
 
 const BG = [10, 10, 12];
-const MUTED_GREEN = [48, 118, 88];
-const FREQ_GREEN = [56, 132, 98];
+const MUTED_GREEN = [6, 137, 59];
+const FREQ_GREEN = [6, 137, 59];
 const FREQ_COL_GAP = 14;
 
 // Reorder this array to change row order (high β → Δ)
@@ -184,11 +184,12 @@ function layoutMetrics() {
   const tableTop = padTop + headerH;
   const tableH = height - tableTop - max(20, height * 0.04);
   const rowH = tableH / BAND_ROWS.length;
-  const labelW = max(160, width * 0.22);
-  const powerColW = max(52, width * 0.07);
-  const waveLeft = padX + labelW + 12;
-  const waveRight = width - padX - powerColW - 8;
-  const waveW = max(80, waveRight - waveLeft);
+  const contentW = width - padX * 2;
+  const labelW = contentW / 3;
+  const graphW = (contentW * 2) / 3;
+  const powerColW = max(48, graphW * 0.1);
+  const waveLeft = padX + labelW;
+  const waveW = max(80, graphW - powerColW);
   return {
     padX,
     padTop,
@@ -196,6 +197,7 @@ function layoutMetrics() {
     tableTop,
     rowH,
     labelW,
+    graphW,
     powerColW,
     waveLeft,
     waveW,

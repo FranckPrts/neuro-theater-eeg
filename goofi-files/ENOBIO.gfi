@@ -117,8 +117,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 669
-      - 102
+      - 678
+      - 69
       viewers:
         out:
           viewer_idx: 0
@@ -246,7 +246,7 @@ nodes:
     gui_kwargs:
       pos:
       - 1584
-      - 313
+      - 312
       viewers:
         out:
           viewer_idx: 0
@@ -429,8 +429,8 @@ nodes:
       viewers:
         out:
           viewer_idx: 0
-          width: 175
-          height: 100
+          width: 525
+          height: 450
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -1066,8 +1066,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1660
-      - -212
+      - 1652
+      - -137
       viewers:
         table:
           viewer_idx: 0
@@ -1081,7 +1081,7 @@ nodes:
     category: signal
     params:
       normalization:
-        method: z-score
+        method: minmax
         buffer_size: 1024
         reset: false
         axis: -1
@@ -1102,7 +1102,7 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2451
+      - 2452
       - 60
       viewers:
         normalized:

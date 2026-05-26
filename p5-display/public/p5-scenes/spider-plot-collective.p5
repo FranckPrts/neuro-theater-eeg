@@ -28,9 +28,11 @@ const BRANCH_HEADSETS = [
 const ROTATION = -Math.PI / 2;
 const CURVE_TENSION = 0.18;
 const SWEEP_PERIOD_FRAMES = 4 * 60;
-const TRAIL_COUNT = 50;
-const HISTORY_MAX = TRAIL_COUNT + 2;
-const HISTORY_EVERY_FRAMES = 2;
+const TRAIL_STRIDE = 2;
+const TRAIL_COUNT = 25;
+const HISTORY_MAX = TRAIL_COUNT * TRAIL_STRIDE + 2;
+const TRAIL_FRAME_MS = 50;
+const HISTORY_EVERY_FRAMES = 3;
 
 let plotRadius = 205;
 let labelRadius = 263;
@@ -399,7 +401,7 @@ function drawCenterHub() {
   clearGlow();
 }
 
-function drawBezierSegmentGradient(seg, colorA, colorB, weight, glowAlpha, glowBlur, strokeAlpha = 255) {
+function drawBezierSegmentGradient(seg, colorA, colorB, weight, glowAlpha, glowBlur) {
   const steps = 28;
   for (let s = 0; s < steps; s++) {
     const t0 = s / steps;
@@ -408,7 +410,7 @@ function drawBezierSegmentGradient(seg, colorA, colorB, weight, glowAlpha, glowB
     const p1 = cubicPoint(seg, t1);
     const rgb = lerpRgb(colorA, colorB, (t0 + t1) * 0.5);
     setGlowRgb(rgb, glowBlur, glowAlpha);
-    stroke(rgb[0], rgb[1], rgb[2], strokeAlpha);
+    stroke(rgb[0], rgb[1], rgb[2], 255);
     strokeWeight(weight);
     line(p0.x, p0.y, p1.x, p1.y);
   }
@@ -469,27 +471,29 @@ function drawVertexDots(verts) {
 
 function drawTrailLayers() {
   const ms = trailDecayMs();
-  const sampleMs = (HISTORY_EVERY_FRAMES / 60) * 1000;
-  const activeLayers = Math.max(0, Math.min(TRAIL_COUNT, Math.round(ms / sampleMs)));
+  const activeLayers = Math.max(0, Math.round(ms / (TRAIL_STRIDE * TRAIL_FRAME_MS)));
   if (activeLayers <= 0 || vertHistory.length < 2) return;
 
   const n = spiderBranchCount();
-  noFill();
-  for (let t = 0; t < activeLayers; t++) {
-    const idx = vertHistory.length - 1 - (t + 1);
+  for (let t = 0; t < TRAIL_COUNT; t++) {
+    if (t >= activeLayers) continue;
+    const idx = vertHistory.length - 1 - (t + 1) * TRAIL_STRIDE;
     if (idx < 0) continue;
     const snap = vertHistory[idx];
     const age = activeLayers <= 1 ? 0 : t / (activeLayers - 1);
     const k = 1 - age;
     const op = k * k * k * 0.55;
-    const strokeA = op * 255;
 
     for (let i = 0; i < n; i++) {
       const seg = catmullSegment(snap, i);
-      const ca = branchColorRgb(i);
-      const cb = branchColorRgb((i + 1) % n);
-      drawBezierSegmentGradient(seg, ca, cb, 1.6, op * 0.35, 4, strokeA);
-      drawBezierSegmentGradient(seg, ca, cb, 0.9, op * 0.5, 2, strokeA);
+      const rgb = branchColorRgb(i);
+      stroke(rgb[0], rgb[1], rgb[2], op * 255);
+      strokeWeight(1.4);
+      noFill();
+      beginShape();
+      vertex(seg.p1.x, seg.p1.y);
+      bezierVertex(seg.c1.x, seg.c1.y, seg.c2.x, seg.c2.y, seg.p2.x, seg.p2.y);
+      endShape();
     }
   }
 }
