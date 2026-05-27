@@ -82,6 +82,22 @@
       "title": "ENOBIO GS",
       "favorite": true,
       "inputs": [
+        {
+          "id": "visitor",
+          "label": "Visitor",
+          "type": "select",
+          "default": "KANTOR",
+          "options": [
+            { "value": "KANTOR", "label": "KANTOR · ENOBIO · 32 channels" },
+            { "value": "1", "label": "Visitor 1 · MUSE · 4 channels" },
+            { "value": "2", "label": "Visitor 2 · MUSE · 4 channels" },
+            { "value": "3", "label": "Visitor 3 · MUSE · 4 channels" },
+            { "value": "4", "label": "Visitor 4 · MUSE · 4 channels" },
+            { "value": "5", "label": "Visitor 5 · MUSE · 4 channels" },
+            { "value": "6", "label": "Visitor 6 · MUSE · 4 channels" }
+          ]
+        },
+        { "id": "show_geodesic_sphere", "label": "Geodesic wireframe", "type": "bool", "default": true },
         { "id": "rotation", "label": "Rotation", "type": "bool", "default": true },
         { "id": "Fp1", "label": "Fp1 intensity (0-1)" },
         { "id": "Fp2", "label": "Fp2 intensity (0-1)" },
@@ -115,9 +131,10 @@
         { "id": "O1", "label": "O1 intensity (0-1)" },
         { "id": "O2", "label": "O2 intensity (0-1)" },
         { "id": "Oz", "label": "Oz intensity (0-1)" },
-        { "id": "referential_utility", "label": "Referential utility", "type": "bool", "default": true },
-        { "id": "debug_lamp", "label": "Debug · lamp guides", "type": "bool", "default": true },
-        { "id": "debug_point_lights", "label": "Debug · point lights", "type": "bool", "default": false }
+        { "id": "AF7", "label": "AF7 intensity (0-1)" },
+        { "id": "AF8", "label": "AF8 intensity (0-1)" },
+        { "id": "TP9", "label": "TP9 intensity (0-1)" },
+        { "id": "TP10", "label": "TP10 intensity (0-1)" }
       ]
     },
     {

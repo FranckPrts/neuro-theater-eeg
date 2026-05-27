@@ -207,6 +207,8 @@ function mimeType(filePath) {
     ".svg": "image/svg+xml",
     ".png": "image/png",
     ".woff2": "font/woff2",
+    ".ttf": "font/ttf",
+    ".otf": "font/otf",
   };
   return map[ext] || "application/octet-stream";
 }

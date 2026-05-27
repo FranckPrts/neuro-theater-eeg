@@ -1,78 +1,135 @@
-/* global WEBGL, CENTER, RGB, loadModel, createCanvas, resizeCanvas, windowWidth, windowHeight */
+/* global WEBGL, CENTER, RGB, loadModel, loadFont, createCanvas, resizeCanvas, windowWidth, windowHeight */
 /* global background, ambientLight, directionalLight, orbitControl, push, pop, rotateX, rotateY */
 /* global scale, model, text, textAlign, textSize, noStroke, fill, noFill, constrain, millis, sin, TWO_PI, PI */
-/* global translate, stroke, strokeWeight, line, sphere, rect, emissiveMaterial, colorMode, drawingContext */
-/* global ambientMaterial, specularMaterial, shininess, random, lerp, rotateZ, textFont */
+/* global translate, stroke, strokeWeight, line, sphere, rect, emissiveMaterial, colorMode */
+/* global ambientMaterial, specularMaterial, shininess, lerp, rotateZ, textFont, textStyle, BOLD */
+/* global camera, noLights, LEFT, RIGHT, CENTER, max, min, textWidth, textLeading */
 
 // Brain 3D model credit: https://sketchfab.com/3d-models/brain-7a2c96d2bc5c4068b3f715fd5ed95b67
 const BRAIN_MODEL_PATH = "p5-misc/glass-brain/brain2.obj";
+const HUD_FONT_PATH = "fonts/ShareTechMono-Regular.ttf";
 const BRAIN_SCALE = 0.004;
 const SCROLL_ZOOM_SENSITIVITY = 0.85;
+const BRAIN_ROTATION_X = -0.18;
 
-const BG_COLOR = [5, 10, 10];
-const TEAL = [72, 201, 176];
-const TEAL_DIM = [72, 201, 176, 70];
-const STARFIELD_COUNT = 96;
-const OUTER_SPHERE_RADIUS = 142;
+// ── VISUAL · palette ────────────────────────────────────────────────────────
+const BG_COLOR = [0, 2, 8];
+const HUD_BAR_BG = [0, 3, 8];
+const CYAN = [0, 255, 153];
 
+const CYAN_ALPHA = {
+  barBorder: 46,
+  visitorBorder: 255,
+  labelText: 255,
+  activeFill: 26,
+  stripe: 10,
+  wireframeOuter: 55,
+  wireframeInner: 120,
+  labelLine: 150,
+  labelBox: 210,
+  labelText: 235,
+};
+
+// ── VISUAL · header bar ───────────────────────────────────────────────────────
+const HUD_ENABLED = true;
+const HUD_BAR_HEIGHT = 52;
+const HUD_BAR_SCALE_REF = 900;
+const HUD_CONTENT_MAX_W = 520;
+const HUD_PAD_X = 12;
+const HUD_PAD_Y = 10;
+const HUD_STRIPE_W_FRAC = 0.24;
+const HUD_STRIPE_SPACING = 7;
+const HUD_VISITOR_ROW_H = 32;
+const HUD_FONT = "Share Tech Mono";
+const HUD_FONT_VISITOR_LG = 13;
+const HUD_FONT_VISITOR_SM = 8;
+const HUD_DEFAULT_VISITOR = "KANTOR";
+
+const VISITOR_PRESETS = {
+  KANTOR: { name: "KANTOR", montage: "enobio", device: "ENOBIO", channels: "32 CHANNELS", color: [184, 85, 255] },
+  "1": { name: "Visitor 1", montage: "muse", device: "MUSE", channels: "4 CHANNELS", color: [255, 61, 74] },
+  "2": { name: "Visitor 2", montage: "muse", device: "MUSE", channels: "4 CHANNELS", color: [255, 155, 61] },
+  "3": { name: "Visitor 3", montage: "muse", device: "MUSE", channels: "4 CHANNELS", color: [255, 61, 155] },
+  "4": { name: "Visitor 4", montage: "muse", device: "MUSE", channels: "4 CHANNELS", color: [61, 240, 160] },
+  "5": { name: "Visitor 5", montage: "muse", device: "MUSE", channels: "4 CHANNELS", color: [230, 242, 74] },
+  "6": { name: "Visitor 6", montage: "muse", device: "MUSE", channels: "4 CHANNELS", color: [61, 217, 240] },
+};
+
+// ── VISUAL · geodesic wireframe ─────────────────────────────────────────────
+const GEODESIC_RADIUS = 142;
+const GEODESIC_SUBDIVISIONS = 2;
+const GEODESIC_STROKE_WEIGHT = 0.28;
+const GEODESIC_STROKE_ALPHA = 70;
+
+// ── VISUAL · brain mesh ───────────────────────────────────────────────────────
+const BRAIN_FILL = [12, 32, 30, 200];
+const BRAIN_SPECULAR = [0, 255, 153, 60];
+const BRAIN_SHININESS = 6;
+
+// ── VISUAL · electrode markers ────────────────────────────────────────────────
+const MARKER_INTENSITY_WARM = [248, 238, 195];
+const MARKER_INTENSITY_HOT = [255, 95, 48];
+
+// ── VISUAL · scene lighting ───────────────────────────────────────────────────
+const SCENE_AMBIENT = [28, 42, 38];
+const SCENE_KEY = [72, 120, 100];
+const SCENE_KEY_DIR = [0.25, 0.45, -1];
+
+// ── DATA · marker animation ───────────────────────────────────────────────────
 const DATA_INTENSITY_MIN = 0.2;
 const DATA_INTENSITY_MAX = 1;
 const DATA_STALE_MS = 2000;
 const LIGHT_PULSE_PERIOD_MS = 2000;
 
 const markerDataState = {};
-
-const AXIS_VECTOR_LENGTH = 108;
-const AXIS_LABEL_OFFSET = 3.5;
-const AXIS_DOT_RADIUS = 0.7;
-
-const DEBUG_LAMP = true;
-const DEBUG_CONTACT_SPHERE_RADIUS = 2.5;
-const DEBUG_LAMP_WIREFRAME_RADIUS = 1.8;
-const DEBUG_AIM_LINE_LENGTH = 45;
-
-const BRAIN_ROTATION_X = -0.18;
-
-const LIGHT_MARKERS = [
-  { id: "Fp1", position: [-30, -74, 34], radius: 1.35 },
-  { id: "Fp2", position: [30, -74, 34], radius: 1.35 },
-  { id: "AF3", position: [-34, -62, 48], radius: 1.35 },
-  { id: "AF4", position: [34, -62, 48], radius: 1.35 },
-  { id: "F7", position: [-70, -44, 24], radius: 1.35 },
-  { id: "F8", position: [70, -44, 24], radius: 1.35 },
-  { id: "F3", position: [-38, -40, 56], radius: 1.35 },
-  { id: "F4", position: [38, -40, 56], radius: 1.35 },
-  { id: "Fz", position: [0, -44, 64], radius: 1.35 },
-  { id: "FC5", position: [-66, -20, 38], radius: 1.35 },
-  { id: "FC6", position: [66, -20, 38], radius: 1.35 },
-  { id: "FC1", position: [-20, -22, 68], radius: 1.35 },
-  { id: "FC2", position: [20, -22, 68], radius: 1.35 },
-  { id: "T7", position: [-84, 0, 10], radius: 1.35 },
-  { id: "T8", position: [84, 0, 10], radius: 1.35 },
-  { id: "C3", position: [-44, 0, 64], radius: 1.35 },
-  { id: "C4", position: [44, 0, 64], radius: 1.35 },
-  { id: "Cz", position: [0, 0, 78], radius: 1.35 },
-  { id: "CP5", position: [-70, 30, 36], radius: 1.35 },
-  { id: "CP6", position: [70, 30, 36], radius: 1.35 },
-  { id: "CP1", position: [-22, 28, 66], radius: 1.35 },
-  { id: "CP2", position: [22, 28, 66], radius: 1.35 },
-  { id: "P7", position: [-76, 58, 18], radius: 1.35 },
-  { id: "P8", position: [76, 58, 18], radius: 1.35 },
-  { id: "P3", position: [-38, 58, 44], radius: 1.35 },
-  { id: "P4", position: [38, 58, 44], radius: 1.35 },
-  { id: "Pz", position: [0, 62, 52], radius: 1.35 },
-  { id: "PO3", position: [-34, 80, 24], radius: 1.35 },
-  { id: "PO4", position: [34, 80, 24], radius: 1.35 },
-  { id: "O1", position: [-30, 94, 6], radius: 1.35 },
-  { id: "O2", position: [30, 94, 6], radius: 1.35 },
-  { id: "Oz", position: [0, 98, 8], radius: 1.35 },
-];
-
 const MONTAGE_BACK_TILT_RADIANS = Math.PI / 6;
 
+const ENOBIO_MARKERS = [
+  { id: "Fp1", position: [-30, -74, 34], radius: 2.0 },
+  { id: "Fp2", position: [30, -74, 34], radius: 2.0 },
+  { id: "AF3", position: [-34, -62, 48], radius: 2.0 },
+  { id: "AF4", position: [34, -62, 48], radius: 2.0 },
+  { id: "F7", position: [-70, -44, 24], radius: 2.0 },
+  { id: "F8", position: [70, -44, 24], radius: 2.0 },
+  { id: "F3", position: [-38, -40, 56], radius: 2.0 },
+  { id: "F4", position: [38, -40, 56], radius: 2.0 },
+  { id: "Fz", position: [0, -44, 64], radius: 2.0 },
+  { id: "FC5", position: [-66, -20, 38], radius: 2.0 },
+  { id: "FC6", position: [66, -20, 38], radius: 2.0 },
+  { id: "FC1", position: [-20, -22, 68], radius: 2.0 },
+  { id: "FC2", position: [20, -22, 68], radius: 2.0 },
+  { id: "T7", position: [-84, 0, 10], radius: 2.0 },
+  { id: "T8", position: [84, 0, 10], radius: 2.0 },
+  { id: "C3", position: [-44, 0, 64], radius: 2.0 },
+  { id: "C4", position: [44, 0, 64], radius: 2.0 },
+  { id: "Cz", position: [0, 0, 78], radius: 2.0 },
+  { id: "CP5", position: [-70, 30, 36], radius: 2.0 },
+  { id: "CP6", position: [70, 30, 36], radius: 2.0 },
+  { id: "CP1", position: [-22, 28, 66], radius: 2.0 },
+  { id: "CP2", position: [22, 28, 66], radius: 2.0 },
+  { id: "P7", position: [-76, 58, 18], radius: 2.0 },
+  { id: "P8", position: [76, 58, 18], radius: 2.0 },
+  { id: "P3", position: [-38, 58, 44], radius: 2.0 },
+  { id: "P4", position: [38, 58, 44], radius: 2.0 },
+  { id: "Pz", position: [0, 62, 52], radius: 2.0 },
+  { id: "PO3", position: [-34, 80, 24], radius: 2.0 },
+  { id: "PO4", position: [34, 80, 24], radius: 2.0 },
+  { id: "O1", position: [-30, 94, 6], radius: 2.0 },
+  { id: "O2", position: [30, 94, 6], radius: 2.0 },
+  { id: "Oz", position: [0, 98, 8], radius: 2.0 },
+];
+
+const MUSE_MARKERS = [
+  { id: "TP9", position: [-68, -12, 32], radius: 2.0 },
+  { id: "TP10", position: [68, -12, 32], radius: 2.0 },
+  { id: "AF7", position: [-46, 60, 4], radius: 2.0 },
+  { id: "AF8", position: [46, 70, 4], radius: 2.0 },
+];
+
 let brainModel;
+let hudFont;
 let autoRotation = 0;
-let starfieldParticles = [];
+let geodesicEdges = [];
 
 function sceneRotationEnabled() {
   const raw = data?.rotation;
@@ -86,41 +143,238 @@ function sceneRotationEnabled() {
   return true;
 }
 
-function referentialUtilityEnabled() {
-  if (typeof data?.referential_utility === "boolean") return data.referential_utility;
-  if (typeof data?.referential_utility === "number") return data.referential_utility !== 0;
-  const s = String(data?.referential_utility ?? "").trim().toLowerCase();
+function hudScale() {
+  return min(1.35, max(0.72, width / HUD_BAR_SCALE_REF));
+}
+
+function hudFontSize(basePx) {
+  return max(7, basePx * hudScale());
+}
+
+function setHudFont() {
+  if (hudFont) textFont(hudFont);
+  else textFont(HUD_FONT);
+}
+
+function currentVisitorId() {
+  const raw = data?.visitor ?? HUD_DEFAULT_VISITOR;
+  const id = String(raw).trim() || HUD_DEFAULT_VISITOR;
+  return VISITOR_PRESETS[id] ? id : HUD_DEFAULT_VISITOR;
+}
+
+function currentVisitorPreset() {
+  return VISITOR_PRESETS[currentVisitorId()];
+}
+
+function currentMarkers() {
+  return currentVisitorPreset().montage === "muse" ? MUSE_MARKERS : ENOBIO_MARKERS;
+}
+
+function currentBrainTint() {
+  return currentVisitorPreset().color;
+}
+
+function geodesicEdgeKey(a, b) {
+  return a < b ? `${a},${b}` : `${b},${a}`;
+}
+
+function normalizeVec3(v) {
+  const len = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) || 1;
+  return [v[0] / len, v[1] / len, v[2] / len];
+}
+
+function buildGeodesicSphere(radius, subdivisions) {
+  const t = (1 + Math.sqrt(5)) / 2;
+  const verts = [
+    [-1, t, 0],
+    [1, t, 0],
+    [-1, -t, 0],
+    [1, -t, 0],
+    [0, -1, t],
+    [0, 1, t],
+    [0, -1, -t],
+    [0, 1, -t],
+    [t, 0, -1],
+    [t, 0, 1],
+    [-t, 0, -1],
+    [-t, 0, 1],
+  ].map(normalizeVec3);
+
+  let faces = [
+    [0, 11, 5],
+    [0, 5, 1],
+    [0, 1, 7],
+    [0, 7, 10],
+    [0, 10, 11],
+    [1, 5, 9],
+    [5, 11, 4],
+    [11, 10, 2],
+    [10, 7, 6],
+    [7, 1, 8],
+    [3, 9, 4],
+    [3, 4, 2],
+    [3, 2, 6],
+    [3, 6, 8],
+    [3, 8, 9],
+    [4, 9, 5],
+    [2, 4, 11],
+    [6, 2, 10],
+    [8, 6, 7],
+    [9, 8, 1],
+  ];
+
+  for (let s = 0; s < subdivisions; s++) {
+    const midpointCache = new Map();
+    const nextFaces = [];
+
+    function midpoint(i, j) {
+      const key = geodesicEdgeKey(i, j);
+      if (midpointCache.has(key)) return midpointCache.get(key);
+      const m = normalizeVec3([
+        (verts[i][0] + verts[j][0]) / 2,
+        (verts[i][1] + verts[j][1]) / 2,
+        (verts[i][2] + verts[j][2]) / 2,
+      ]);
+      const idx = verts.length;
+      verts.push(m);
+      midpointCache.set(key, idx);
+      return idx;
+    }
+
+    for (const [a, b, c] of faces) {
+      const ab = midpoint(a, b);
+      const bc = midpoint(b, c);
+      const ca = midpoint(c, a);
+      nextFaces.push([a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]);
+    }
+    faces = nextFaces;
+  }
+
+  const edgeSet = new Set();
+  for (const [a, b, c] of faces) {
+    edgeSet.add(geodesicEdgeKey(a, b));
+    edgeSet.add(geodesicEdgeKey(b, c));
+    edgeSet.add(geodesicEdgeKey(c, a));
+  }
+
+  geodesicEdges = [];
+  for (const key of edgeSet) {
+    const [i, j] = key.split(",").map(Number);
+    geodesicEdges.push([
+      [verts[i][0] * radius, verts[i][1] * radius, verts[i][2] * radius],
+      [verts[j][0] * radius, verts[j][1] * radius, verts[j][2] * radius],
+    ]);
+  }
+}
+
+function geodesicSphereEnabled() {
+  if (typeof data?.show_geodesic_sphere === "boolean") return data.show_geodesic_sphere;
+  if (typeof data?.show_geodesic_sphere === "number") return data.show_geodesic_sphere !== 0;
+  const s = String(data?.show_geodesic_sphere ?? "").trim().toLowerCase();
   if (["0", "false", "no", "off"].includes(s)) return false;
   if (["1", "true", "yes", "on"].includes(s)) return true;
   return true;
 }
 
+function withScreenOverlay(drawFn) {
+  push();
+  camera();
+  noLights();
+  translate(-width / 2, -height / 2, 0);
+  drawFn();
+  pop();
+}
+
+function drawDiagonalStripes(x, y, w, h) {
+  const spacing = HUD_STRIPE_SPACING * hudScale();
+  stroke(...CYAN, CYAN_ALPHA.stripe);
+  strokeWeight(1);
+  const span = w + h;
+  for (let d = -span; d < span; d += spacing) {
+    line(x + d, y + h, x + d + h, y);
+  }
+}
+
+function drawBorderRect(x, y, w, h, borderAlpha, fillAlpha) {
+  if (fillAlpha > 0) {
+    noStroke();
+    fill(...CYAN, fillAlpha);
+    rect(x, y, w, h);
+  }
+  noFill();
+  stroke(...CYAN, borderAlpha);
+  strokeWeight(1);
+  rect(x, y, w, h);
+}
+
+function drawVisitorRow(contentX, contentW, y) {
+  const preset = currentVisitorPreset();
+  const rowH = HUD_VISITOR_ROW_H * hudScale();
+  const lgSize = hudFontSize(HUD_FONT_VISITOR_LG);
+  const smSize = hudFontSize(HUD_FONT_VISITOR_SM);
+  const lgY = y + rowH * 0.38;
+  const smY = y + rowH * 0.72;
+  const [cr, cg, cb] = preset.color;
+
+  drawBorderRect(contentX, y, contentW, rowH, CYAN_ALPHA.visitorBorder, CYAN_ALPHA.activeFill);
+
+  setHudFont();
+  noStroke();
+  textAlign(CENTER, CENTER);
+  textStyle(BOLD);
+  textSize(lgSize);
+  fill(cr, cg, cb, 255);
+  text(preset.name, contentX + contentW / 2, lgY);
+
+  textStyle(NORMAL);
+  textSize(smSize);
+  fill(...CYAN, 217);
+  text(`${preset.device} · ${preset.channels}`, contentX + contentW / 2, smY);
+  textStyle(NORMAL);
+}
+
+function drawToggleBarHeader() {
+  if (!HUD_ENABLED) return;
+
+  const s = hudScale();
+  const barH = HUD_BAR_HEIGHT * s;
+  const padX = HUD_PAD_X * s;
+  const padY = HUD_PAD_Y * s;
+  const contentW = min(HUD_CONTENT_MAX_W * s, width - padX * 2);
+  const contentX = (width - contentW) / 2;
+  const stripeW = width * HUD_STRIPE_W_FRAC;
+
+  withScreenOverlay(() => {
+    noStroke();
+    fill(...HUD_BAR_BG);
+    rect(0, 0, width, barH);
+
+    drawDiagonalStripes(0, 0, stripeW, barH);
+    drawDiagonalStripes(width - stripeW, 0, stripeW, barH);
+
+    stroke(...CYAN, CYAN_ALPHA.barBorder);
+    strokeWeight(1);
+    line(0, 0, width, 0);
+    line(0, barH, width, barH);
+
+    drawVisitorRow(contentX, contentW, padY);
+  });
+}
+
 preload = () => {
   brainModel = loadModel(BRAIN_MODEL_PATH, true);
+  hudFont = loadFont(HUD_FONT_PATH);
 };
 
 windowResized = () => {
   resizeCanvas(windowWidth, windowHeight);
-  initStarfield();
 };
-
-function initStarfield() {
-  starfieldParticles = [];
-  for (let i = 0; i < STARFIELD_COUNT; i++) {
-    starfieldParticles.push({
-      x: random(width),
-      y: random(height),
-      size: random(1, 2.5),
-      phase: random(TWO_PI),
-    });
-  }
-}
 
 setup = () => {
   createCanvas(windowWidth, windowHeight, WEBGL);
   textAlign(CENTER, CENTER);
   colorMode(RGB, 255);
-  initStarfield();
+  buildGeodesicSphere(GEODESIC_RADIUS, GEODESIC_SUBDIVISIONS);
 };
 
 function withBrainTransform(drawFn) {
@@ -134,18 +388,6 @@ function withBrainTransform(drawFn) {
 
 function brainWorldScale() {
   return Math.min(width, height) * BRAIN_SCALE;
-}
-
-function rotateZPoint([x, y, z], angle) {
-  const c = Math.cos(angle);
-  const s = Math.sin(angle);
-  return [x * c - y * s, x * s + y * c, z];
-}
-
-function rotateXPoint([x, y, z], angle) {
-  const c = Math.cos(angle);
-  const s = Math.sin(angle);
-  return [x, y * c - z * s, y * s + z * c];
 }
 
 function oscillatingLightFactor() {
@@ -208,63 +450,48 @@ function markerLabelPosition(marker) {
 function markerColorFromIntensity(i) {
   const t = constrain(i, 0, 1);
   return [
-    Math.round(lerp(248, 255, t)),
-    Math.round(lerp(238, 95, t)),
-    Math.round(lerp(195, 48, t)),
+    Math.round(lerp(MARKER_INTENSITY_WARM[0], MARKER_INTENSITY_HOT[0], t)),
+    Math.round(lerp(MARKER_INTENSITY_WARM[1], MARKER_INTENSITY_HOT[1], t)),
+    Math.round(lerp(MARKER_INTENSITY_WARM[2], MARKER_INTENSITY_HOT[2], t)),
   ];
 }
 
-function setDepthTest(enabled) {
-  const gl = drawingContext;
-  if (enabled) gl.enable(gl.DEPTH_TEST);
-  else gl.disable(gl.DEPTH_TEST);
-}
-
-function drawStarfield() {
-  setDepthTest(false);
-  push();
-  translate(0, 0, -600);
-  noStroke();
-  for (const p of starfieldParticles) {
-    const flicker = 0.35 + 0.65 * (0.5 + 0.5 * sin(millis() * 0.0012 + p.phase));
-    fill(TEAL[0], TEAL[1], TEAL[2], 35 + flicker * 70);
-    rect(p.x - width / 2, p.y - height / 2, p.size, p.size);
-  }
-  pop();
-  setDepthTest(true);
-}
-
 function drawBrainWireframe() {
+  const [tr, tg, tb] = currentBrainTint();
   withBrainTransform(() => {
     noStroke();
-    ambientMaterial(12, 32, 30, 200);
-    specularMaterial(...TEAL, 60);
-    shininess(6);
+    ambientMaterial(...BRAIN_FILL);
+    specularMaterial(...BRAIN_SPECULAR);
+    shininess(BRAIN_SHININESS);
     model(brainModel);
 
     noFill();
-    stroke(140, 120, 200, 55);
+    stroke(tr, tg, tb, CYAN_ALPHA.wireframeOuter);
     strokeWeight(0.55);
     model(brainModel);
-    stroke(...TEAL, 120);
+    stroke(tr, tg, tb, CYAN_ALPHA.wireframeInner);
     strokeWeight(0.35);
     model(brainModel);
   });
 }
 
-function drawOuterSphere() {
+function drawGeodesicWireframe() {
+  if (!geodesicSphereEnabled() || !geodesicEdges.length) return;
+  const [tr, tg, tb] = currentBrainTint();
   withBrainTransform(() => {
     noFill();
-    stroke(...TEAL_DIM);
-    strokeWeight(0.28);
-    sphere(OUTER_SPHERE_RADIUS, 10, 8);
+    stroke(tr, tg, tb, GEODESIC_STROKE_ALPHA);
+    strokeWeight(GEODESIC_STROKE_WEIGHT);
+    for (const [[x1, y1, z1], [x2, y2, z2]] of geodesicEdges) {
+      line(x1, y1, z1, x2, y2, z2);
+    }
   });
 }
 
 function drawElectrodeMarkers() {
   withBrainTransform(() => {
     noStroke();
-    for (const marker of LIGHT_MARKERS) {
+    for (const marker of currentMarkers()) {
       const i = markerIntensity(marker);
       if (i <= 0) continue;
       const [cx, cy, cz] = markerContactPosition(marker);
@@ -281,116 +508,32 @@ function drawElectrodeMarkers() {
 
 function drawMarkerLabels() {
   withBrainTransform(() => {
-    textFont("Courier New");
-    textSize(3.2);
-    for (const marker of LIGHT_MARKERS) {
+    noLights();
+    textAlign(CENTER, CENTER);
+    textSize(4.2);
+    rectMode(CORNER);
+
+    for (const marker of currentMarkers()) {
       const i = markerIntensity(marker);
       if (i <= 0.05) continue;
       const [cx, cy, cz] = markerContactPosition(marker);
       const [lx, ly, lz] = markerLabelPosition(marker);
 
-      stroke(...TEAL, 150);
+      stroke(...CYAN, CYAN_ALPHA.labelLine);
       strokeWeight(0.25);
       line(cx, cy, cz, lx, ly, lz);
 
       push();
       translate(lx, ly, lz);
-      const tw = marker.id.length * 1.55 + 2.2;
+
+      const alpha = constrain(i, 0.05, 1);
+      const tw = marker.id.length * 2.0 + 3.0;
+
       noStroke();
-      fill(0, 0, 0, 210);
-      rect(-tw / 2, -2.2, tw, 4.2, 0.4);
-      fill(...TEAL, 235);
-      text(marker.id, 0, 0.2);
-      pop();
-    }
-  });
-}
-
-function debugLampEnabled() {
-  if (typeof data?.debug_lamp === "boolean") return data.debug_lamp;
-  if (typeof data?.debug_lamp === "number") return data.debug_lamp !== 0;
-  const s = String(data?.debug_lamp ?? "").trim().toLowerCase();
-  if (["0", "false", "no", "off"].includes(s)) return false;
-  if (["1", "true", "yes", "on"].includes(s)) return true;
-  return DEBUG_LAMP;
-}
-
-function drawLampDebug() {
-  if (!debugLampEnabled()) return;
-  withBrainTransform(() => {
-    strokeWeight(0.4);
-    for (const marker of LIGHT_MARKERS) {
-      const [cx, cy, cz] = markerContactPosition(marker);
-      const [lx, ly, lz] = markerLabelPosition(marker);
-
-      stroke(255, 220, 80, 180);
-      push();
-      translate(cx, cy, cz);
-      noFill();
-      sphere(DEBUG_CONTACT_SPHERE_RADIUS, 8, 6);
-      pop();
-
-      stroke(...TEAL, 160);
-      line(cx, cy, cz, lx, ly, lz);
-    }
-  });
-}
-
-function drawMinimalXyzVector() {
-  if (!referentialUtilityEnabled()) return;
-  withBrainTransform(() => {
-    const length = AXIS_VECTOR_LENGTH;
-    const label = length + AXIS_LABEL_OFFSET;
-    const tickValues = [25, 50, 75, 100];
-    const axes = [
-      {
-        label: "X",
-        end: [length, 0, 0],
-        text: [label, 0, 0],
-        tickMark: (value) => [value, -2, 0, value, 2, 0],
-        tickText: (value) => [value, -6, 0],
-      },
-      {
-        label: "Y",
-        end: [0, length, 0],
-        text: [0, label, 0],
-        tickMark: (value) => [-2, value, 0, 2, value, 0],
-        tickText: (value) => [6, value, 0],
-      },
-      {
-        label: "Z",
-        end: [0, 0, length],
-        text: [0, 0, label],
-        tickMark: (value) => [-2, 0, value, 2, 0, value],
-        tickText: (value) => [6, 0, value],
-      },
-    ];
-
-    strokeWeight(0.45);
-    for (const axis of axes) {
-      const [x, y, z] = axis.end;
-      stroke(...TEAL, 170);
-      line(0, 0, 0, x, y, z);
-
-      for (const value of tickValues) {
-        stroke(...TEAL, 110);
-        line(...axis.tickMark(value));
-
-        push();
-        translate(...axis.tickText(value));
-        fill(...TEAL, 180);
-        noStroke();
-        textSize(3.2);
-        text(String(value), 0, 0);
-        pop();
-      }
-
-      push();
-      translate(...axis.text);
-      fill(...TEAL, 210);
-      noStroke();
-      textSize(4.2);
-      text(axis.label, 0, 0);
+      fill(0, 0, 0, CYAN_ALPHA.labelBox * alpha);
+      rect(-tw / 2, -3.0, tw, 6.0, 0.45);
+      fill(...CYAN, CYAN_ALPHA.labelText * alpha);
+      text(marker.id, 0, 0.15);
       pop();
     }
   });
@@ -402,15 +545,12 @@ draw = () => {
   orbitControl(1, 1, SCROLL_ZOOM_SENSITIVITY);
   if (sceneRotationEnabled()) autoRotation += 0.004;
 
-  drawStarfield();
+  ambientLight(...SCENE_AMBIENT);
+  directionalLight(...SCENE_KEY, ...SCENE_KEY_DIR);
 
-  ambientLight(28, 42, 38);
-  directionalLight(72, 120, 100, 0.25, 0.45, -1);
-
-  drawOuterSphere();
+  drawGeodesicWireframe();
   drawBrainWireframe();
   drawElectrodeMarkers();
   drawMarkerLabels();
-  drawLampDebug();
-  drawMinimalXyzVector();
+  drawToggleBarHeader();
 };

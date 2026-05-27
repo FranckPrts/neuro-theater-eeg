@@ -92,7 +92,40 @@ const rowCacheMain = new Map();
 
 function inputValueType(input) {
   const t = String(input?.type || input?.valueType || "").trim().toLowerCase();
-  return t === "bool" || t === "boolean" ? "bool" : "osc";
+  if (t === "bool" || t === "boolean") return "bool";
+  if (t === "select" || t === "preset") return "select";
+  return "osc";
+}
+
+function selectInputOptions(input) {
+  const raw = input?.options || input?.presets || [];
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((o) => {
+      if (typeof o === "string") return { value: o, label: o };
+      return {
+        value: String(o?.value ?? o?.label ?? ""),
+        label: String(o?.label ?? o?.value ?? ""),
+      };
+    })
+    .filter((o) => o.value !== "");
+}
+
+function defaultSelectValue(input) {
+  const opts = selectInputOptions(input);
+  const def = input?.default != null ? String(input.default) : "";
+  if (def && opts.some((o) => o.value === def)) return def;
+  return opts.length ? opts[0].value : def;
+}
+
+function seedEnobioConceptGuiDefaults(sceneMap, scene) {
+  if (activeSceneFile !== "ENOBIO-concept.p5" || !scene) return sceneMap;
+  const next = { ...sceneMap };
+  const visitorInp = (scene.inputs || []).find((inp) => inp.id === "visitor");
+  if (visitorInp && (next.visitor == null || next.visitor === "")) {
+    next.visitor = defaultSelectValue(visitorInp);
+  }
+  return next;
 }
 
 function parseBoolValue(value, fallback) {
@@ -1204,6 +1237,11 @@ function buildSceneData() {
       out[inp.id] = parseBoolValue(maps[inp.id], defaultBoolValue(inp));
       continue;
     }
+    if (inputValueType(inp) === "select") {
+      const v = maps[inp.id];
+      out[inp.id] = v != null && v !== "" ? String(v) : defaultSelectValue(inp);
+      continue;
+    }
 
     const addr = maps[inp.id];
     if (!addr) continue;
@@ -1381,7 +1419,12 @@ function getExpectedMappingFields(scene, sceneFile) {
       inputId: inp.id,
       label: inp.label || inp.id,
       valueType: inputValueType(inp),
-      defaultValue: inputValueType(inp) === "bool" ? defaultBoolValue(inp) : undefined,
+      defaultValue:
+        inputValueType(inp) === "bool"
+          ? defaultBoolValue(inp)
+          : inputValueType(inp) === "select"
+            ? defaultSelectValue(inp)
+            : undefined,
     });
   }
   return out;
@@ -1432,6 +1475,10 @@ function buildMappingCsvString() {
       addr = maps[f.inputId] || "";
     } else if (f.valueType === "bool") {
       addr = String(parseBoolValue(maps[f.inputId], Boolean(f.defaultValue)));
+    } else if (f.valueType === "select") {
+      const inp = (scene?.inputs || []).find((i) => i.id === f.inputId);
+      const v = maps[f.inputId];
+      addr = v != null && v !== "" ? String(v) : defaultSelectValue(inp || {});
     } else if (f.valueType === "hex") {
       const m = /^plot_(\d+)_color$/.exec(f.inputId);
       addr = m && hexAll[String(m[1])] != null ? String(hexAll[String(m[1])]) : "";
@@ -1485,6 +1532,7 @@ function applyMappingCsvText(csvText) {
     if (!row) {
       if (vType === "osc") delete sceneMap[exp.inputId];
       else if (vType === "bool") delete sceneMap[exp.inputId];
+      else if (vType === "select") delete sceneMap[exp.inputId];
       else if (vType === "hex") {
         const m = /^plot_(\d+)_color$/.exec(exp.inputId);
         if (m) writeSpiderHexForScene(activeSceneFile, parseInt(m[1], 10), "");
@@ -1515,6 +1563,11 @@ function applyMappingCsvText(csvText) {
       }
     } else if (vType === "bool") {
       sceneMap[exp.inputId] = parseBoolValue(addr, Boolean(exp.defaultValue));
+    } else if (vType === "select") {
+      const inp = (scene?.inputs || []).find((i) => i.id === exp.inputId);
+      const opts = selectInputOptions(inp || {});
+      if (addr && opts.some((o) => o.value === addr)) sceneMap[exp.inputId] = addr;
+      else sceneMap[exp.inputId] = defaultSelectValue(inp || {});
     } else if (vType === "hex") {
       const m = /^plot_(\d+)_color$/.exec(exp.inputId);
       if (m) writeSpiderHexForScene(activeSceneFile, parseInt(m[1], 10), addr);
@@ -1619,6 +1672,7 @@ function writeSceneMappingValue(inputId, value) {
   const sceneMap = { ...(next[activeSceneFile] || {}) };
   if (value === undefined || value === null || value === "") delete sceneMap[inputId];
   else sceneMap[inputId] = value;
+
   next[activeSceneFile] = sceneMap;
   writeMappings(next);
 }
@@ -1659,6 +1713,40 @@ function createOscMappingRow(input, addrs, maps) {
   return row;
 }
 
+function createSelectMappingRow(input, maps) {
+  const id = input.id;
+  const options = selectInputOptions(input);
+  const row = document.createElement("div");
+  row.className = "mapping-row mapping-row--select";
+
+  const lab = document.createElement("label");
+  lab.htmlFor = `map-${id}`;
+  lab.textContent = input.label || id;
+
+  const sel = document.createElement("select");
+  sel.id = `map-${id}`;
+  sel.className = "mapping-osc mapping-osc--control";
+  sel.dataset.inputId = id;
+
+  const cur = maps[id] != null && maps[id] !== "" ? String(maps[id]) : defaultSelectValue(input);
+
+  for (const opt of options) {
+    const o = document.createElement("option");
+    o.value = opt.value;
+    o.textContent = opt.label;
+    if (opt.value === cur) o.selected = true;
+    sel.appendChild(o);
+  }
+
+  sel.addEventListener("change", () => {
+    writeSceneMappingValue(id, sel.value);
+  });
+
+  row.appendChild(lab);
+  row.appendChild(sel);
+  return row;
+}
+
 function createBoolMappingRow(input, maps) {
   const id = input.id;
   const row = document.createElement("div");
@@ -1692,7 +1780,9 @@ function createBoolMappingRow(input, maps) {
 }
 
 function createSceneInputMappingRow(input, addrs, maps) {
-  if (inputValueType(input) === "bool") return createBoolMappingRow(input, maps);
+  const t = inputValueType(input);
+  if (t === "bool") return createBoolMappingRow(input, maps);
+  if (t === "select") return createSelectMappingRow(input, maps);
   return createOscMappingRow(input, addrs, maps);
 }
 
@@ -1714,7 +1804,16 @@ function buildMappingRows() {
   }
 
   const allMaps = readMappings();
-  const maps = { ...allMaps[activeSceneFile] };
+  const storedMaps = { ...(allMaps[activeSceneFile] || {}) };
+  const maps = seedEnobioConceptGuiDefaults(storedMaps, scene);
+  if (activeSceneFile === "ENOBIO-concept.p5") {
+    const changed = Object.keys(maps).some((k) => maps[k] !== storedMaps[k])
+      || Object.keys(storedMaps).some((k) => maps[k] !== storedMaps[k]);
+    if (changed) {
+      allMaps[activeSceneFile] = maps;
+      writeMappings(allMaps);
+    }
+  }
   const addrs = sortedStreamAddresses();
 
   if (spiderN > 0) {
