@@ -20,7 +20,7 @@ async function main() {
     width: WIDTH,
     height: HEIGHT,
     fps: FPS,
-    groups: "NeuroTheater",
+    groups: "Public",
   });
 
   console.log(`[test-pattern] NDI source "${name}" at ${WIDTH}x${HEIGHT} ${FPS}fps`);

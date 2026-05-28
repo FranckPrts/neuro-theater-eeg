@@ -81,6 +81,8 @@ node src/bridge.js \
   --width 1920 \
   --height 1080 \
   --fps 30
+
+Sources are sent on the **Public** NDI group by default (visible in NDI Video Monitor / Discovery without extra Access Manager setup). Override with `--groups Public,NeuroTheater` if you use custom receive groups.
 ```
 
 ## Wire format

@@ -18,7 +18,7 @@ class NdiVideoSender {
 
     this.sender = new ndi.Sender({
       name: opts.name,
-      groups: opts.groups || "",
+      groups: opts.groups != null && String(opts.groups).length ? opts.groups : "Public",
       clockVideo: true,
       clockAudio: false,
     });

@@ -23,7 +23,7 @@ function parseArgs(argv) {
     width: 1920,
     height: 1080,
     fps: 30,
-    groups: "NeuroTheater",
+    groups: "Public",
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -44,7 +44,7 @@ Usage: node src/bridge.js [options]
   --width 1920               Expected frame width
   --height 1080              Expected frame height
   --fps 30                   NDI output frame rate
-  --groups NeuroTheater      NDI groups string
+  --groups Public            NDI send groups (default Public; use Public,NeuroTheater for both)
 `);
       process.exit(0);
     }
