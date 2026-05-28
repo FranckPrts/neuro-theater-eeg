@@ -30,19 +30,31 @@ Defaults:
 
 | Role        | Default              |
 | ----------- | -------------------- |
-| OSC UDP bind | `0.0.0.0:8000` (receives LAN broadcast to `192.168.10.255:8000`) |
+| OSC UDP     | **Deferred** until Stream tab **Apply** (default target port **8000** on `0.0.0.0`) |
 | HTTP + WS   | `http://0.0.0.0:8765/` (reachable from any machine on the LAN) |
 | WebSocket path | `/ws` (same host/port as the page) |
 
-Open **http://\<this-machine-LAN-IP\>:8765/** in a browser (e.g. `http://192.168.10.42:8765/`). On the same machine you can use `http://127.0.0.1:8765/`.
+Open **http://\<this-machine-LAN-IP\>:8765/** in a browser (e.g. `http://192.168.10.42:8765/`). On the same machine you can use `http://127.0.0.1:8765/`. In the **Stream** tab, click **Apply** (or rely on auto-bind if you have a saved port under `nt.p5osc.oscPort`).
 
 ### CLI overrides
 
 ```bash
 node server.js --osc-host 0.0.0.0 --osc-port 8000 --http-host 0.0.0.0 --http-port 8765
+node server.js --osc-bind-on-start   # bind UDP at process start (legacy behavior)
 ```
 
 `node server.js --help` prints options.
+
+### Multiple instances (dual NDI / dual UI)
+
+Run two servers on different HTTP ports so both can boot without fighting for UDP **8000**:
+
+```bash
+node server.js --http-port 8765
+node server.js --http-port 8768
+```
+
+Only **one** process can listen on a given OSC UDP port at a time. Open each UI (`:8765` and `:8768`); the first auto-bind or **Apply** to **8000** wins; the other shows an error in the Stream strip until you choose a free port (e.g. **8001**) or stop the other instance. Each browser has its own `localStorage`, so saved ports are per origin.
 
 ## Wire with the OSC proxy
 
@@ -56,9 +68,10 @@ python osc_proxy_failover.py --out-host 192.168.10.255 --out-port 8000
 ```bash
 cd p5-display
 npm start
+# open the UI → Stream tab → Apply on port 8000 (or auto-bind if saved)
 ```
 
-The proxy **sends** to `192.168.10.255:8000` (subnet broadcast). The bridge **binds** UDP to `0.0.0.0:8000` — you do not bind to the broadcast address. Any machine on the LAN running `p5-display` with default settings will receive the same OSC stream.
+The proxy **sends** to `192.168.10.255:8000` (subnet broadcast). After **Apply**, the bridge **binds** UDP to `0.0.0.0:8000` — you do not bind to the broadcast address.
 
 **Local dev only:** send to loopback if the proxy and browser bridge run on one machine without relying on broadcast:
 
@@ -118,7 +131,7 @@ Each OSC packet is one JSON object:
 
 ## Health check
 
-`GET /health` → `{"ok":true,"wsClients":n,"oscHost":"…","oscPort":8000,"ndi":{…}}` (used by the page to show the UDP bind in the live strip).
+`GET /health` → `{"ok":true,"wsClients":n,"oscHost":"…","oscPort":8000,"oscListening":false,"ndi":{…}}` (`oscListening` is true only after a successful **Apply** or `--osc-bind-on-start`).
 
 ## NDI output (optional, separate GPL bridge)
 
@@ -126,25 +139,41 @@ To stream a **clean canvas** (no OSC strip) as an NDI source on the LAN, use the
 
 **Prerequisites:** NDI SDK + NDI Runtime on sender and consumer machines. See [`ndi-bridge/README.md`](../ndi-bridge/README.md).
 
-### Show workflow
+### Dual NDI + dual p5-display (quick start)
 
-1. Launch one or two `ndi-bridge` processes with fixed resolution (must match registry):
+Assume OSC is already being served on UDP **7999** and **8000**.
 
-```bash
-cd ndi-bridge && npm start -- --name NeuroTheater-1080p --port 8766 --width 1920 --height 1080 --fps 30
-cd ndi-bridge && npm start -- --name NeuroTheater-720p  --port 8767 --width 1280 --height 720  --fps 30
-```
-
-2. Start p5-display and open the operator UI:
+**Terminal 1 — NDI bridge A**
 
 ```bash
-cd p5-display && npm start
-# http://127.0.0.1:8765/
+cd ndi-bridge && npm start -- --name "graph-1" --groups Public --port 8766 --width 1920 --height 1080 --fps 30
 ```
 
-3. In the **NDI** tab: register bridge presets (host, port, width, height, fps), pick **active bridge**, configure scene (or enable **Sync scene with dashboard**), click **Enable NDI**. The dashboard opens a managed `ndi-output.html` window that resizes the canvas to the active bridge preset and sends frames to `ws://127.0.0.1:<port>`.
+**Terminal 2 — NDI bridge B**
 
-Mappings are shared via `localStorage` with the main UI (configure on **Scene** tab first).
+```bash
+cd ndi-bridge && npm start -- --name "graph-2" --groups Public --port 8767 --width 1920 --height 1080 --fps 30
+```
+
+**Terminal 3 — p5-display A**
+
+```bash
+cd p5-display && npm start -- --http-port 8765
+```
+
+**Terminal 4 — p5-display B**
+
+```bash
+cd p5-display && npm start -- --http-port 8768
+```
+
+**Browser A** — open **http://127.0.0.1:8765/** → **Stream** → **Apply** UDP **8000** → **Scene** (map) → **NDI** (bridge `127.0.0.1:8766`, 1920×1080) → **Enable NDI**
+
+**Browser B** — open **http://127.0.0.1:8768/** → **Stream** → **Apply** UDP **7999** → **Scene** (other sketch) → **NDI** (bridge `127.0.0.1:8767`, 1920×1080) → **Enable NDI**
+
+**NDI Video Monitor** — select sources **graph-1** and **graph-2**
+
+**Check** — bridge terminals show `ws=1` and rising `recv`/`sent`; p5 NDI tab shows streaming status
 
 ### API
 
@@ -164,7 +193,7 @@ Verify NDI without p5: `cd ndi-bridge && npm run test-pattern`.
 
 ## OSC UDP port (live rebind)
 
-**`POST /api/osc-port`** with JSON body `{ "port": <number> }` (1–65535) closes the current UDP listener and opens a new one on the same **`--osc-host`**. Success: `{ "ok": true, "oscHost": "…", "oscPort": <n> }`. Errors: `400` for invalid JSON/port, `500` with `{ "ok": false, "error": "…" }` if the new bind fails (the server attempts to restore the previous port).
+**`POST /api/osc-port`** with JSON body `{ "port": <number> }` (1–65535) opens or moves the UDP listener on **`--osc-host`**. This is the only bind path unless **`--osc-bind-on-start`** is set. Success: `{ "ok": true, "oscHost": "…", "oscPort": <n>, "oscListening": true }`. Errors: `400` for invalid JSON/port, `500` with `{ "ok": false, "error": "…" }` if the bind fails (if a previous bind existed, the server attempts to restore that port).
 
 The right strip includes preset buttons **8000**, **7999**, **8001**, **8888**, an optional **Custom** field, and **Apply**. After a successful apply, the chosen port is stored under **`nt.p5osc.oscPort`**. Point your OSC source (e.g. `osc_proxy_failover.py` `--out-port 8000` to `192.168.10.255`) at the same UDP port the bridge is listening on.
 

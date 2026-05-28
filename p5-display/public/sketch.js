@@ -353,12 +353,18 @@ async function refreshOscBindLine() {
     const r = await fetch("/health");
     if (!r.ok) throw new Error(String(r.status));
     const d = await r.json();
-    if (d.oscHost != null && d.oscPort != null) {
-      oscBindEl.textContent = `Listening UDP ${d.oscHost}:${d.oscPort}`;
+    if (d.oscListening) {
+      if (d.oscHost != null && d.oscPort != null) {
+        oscBindEl.textContent = `Listening UDP ${d.oscHost}:${d.oscPort}`;
+      } else if (d.oscPort != null) {
+        oscBindEl.textContent = `Listening UDP port ${d.oscPort}`;
+      } else {
+        oscBindEl.textContent = "Listening";
+      }
     } else if (d.oscPort != null) {
-      oscBindEl.textContent = `Listening UDP port ${d.oscPort}`;
+      oscBindEl.textContent = `Not listening (default UDP :${d.oscPort}) — Apply in Stream tab`;
     } else {
-      oscBindEl.textContent = "Listening port: —";
+      oscBindEl.textContent = "Not listening — Apply in Stream tab";
     }
     return d;
   } catch (_) {
@@ -3042,6 +3048,9 @@ async function init() {
   setupDomControls();
   const health = await refreshOscBindLine();
   initOscPortBarFromHealth(health);
+  if (readSavedOscPortPreference() != null) {
+    await applyOscPortFromUi();
+  }
   await loadScenesFromApi();
   sortedStreamAddresses().forEach((a) => seenStreamAddresses.add(a));
   applySavedPanelMode();

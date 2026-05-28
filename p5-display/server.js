@@ -162,6 +162,7 @@ function parseArgs(argv) {
     oscPort: 8000,
     httpHost: "0.0.0.0",
     httpPort: 8765,
+    oscBindOnStart: false,
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -173,14 +174,17 @@ function parseArgs(argv) {
       out.httpHost = argv[++i];
     } else if (a === "--http-port" && argv[i + 1]) {
       out.httpPort = parseInt(argv[++i], 10);
+    } else if (a === "--osc-bind-on-start") {
+      out.oscBindOnStart = true;
     } else if (a === "--help" || a === "-h") {
       console.log(`
 Usage: node server.js [options]
 
   --osc-host 0.0.0.0     UDP bind for OSC (default 0.0.0.0; receives LAN broadcast on --osc-port)
-  --osc-port 8000        UDP port for OSC (default 8000; match proxy --out-port / 192.168.10.255:8000)
+  --osc-port 8000        Default OSC UDP port for UI Apply / auto-bind (default 8000)
   --http-host 0.0.0.0    HTTP + WebSocket bind (default 0.0.0.0 for LAN browsers)
   --http-port 8765       HTTP port (default 8765)
+  --osc-bind-on-start    Bind OSC UDP at process start (default: defer until UI Apply)
 `);
       process.exit(0);
     }
@@ -364,6 +368,7 @@ function main() {
           wsClients: clients.size,
           oscHost: opts.oscHost,
           oscPort: opts.oscPort,
+          oscListening: Boolean(udpPort),
           ndi: {
             outputPage: "/ndi-output.html",
             enabled: ndiConfig.enabled,
@@ -660,36 +665,46 @@ function main() {
 
   rebindOscPort = async function rebindOscPortFn(newPort) {
     if (newPort === opts.oscPort && udpPort) {
-      return { oscHost: opts.oscHost, oscPort: opts.oscPort };
+      return { oscHost: opts.oscHost, oscPort: opts.oscPort, oscListening: true };
     }
-    const prevPort = opts.oscPort;
+    const wasListening = Boolean(udpPort);
+    const prevPort = wasListening ? opts.oscPort : null;
     closeOscUdpPort(udpPort);
     udpPort = null;
     try {
       udpPort = await openOscUdpPort(opts.oscHost, newPort, broadcast);
       opts.oscPort = newPort;
       console.log(`[OSC] listening udp://${opts.oscHost}:${opts.oscPort}`);
-      return { oscHost: opts.oscHost, oscPort: opts.oscPort };
+      return { oscHost: opts.oscHost, oscPort: opts.oscPort, oscListening: true };
     } catch (e) {
-      try {
-        udpPort = await openOscUdpPort(opts.oscHost, prevPort, broadcast);
-        opts.oscPort = prevPort;
-        console.warn(
-          `[OSC] rebind failed (${e && e.message ? e.message : e}); reverted to udp://${opts.oscHost}:${opts.oscPort}`
-        );
-      } catch (e2) {
-        console.error("[OSC] fatal: could not restore previous UDP bind", e2);
+      if (wasListening && prevPort != null && prevPort !== newPort) {
+        try {
+          udpPort = await openOscUdpPort(opts.oscHost, prevPort, broadcast);
+          opts.oscPort = prevPort;
+          console.warn(
+            `[OSC] rebind failed (${e && e.message ? e.message : e}); reverted to udp://${opts.oscHost}:${opts.oscPort}`
+          );
+          return { oscHost: opts.oscHost, oscPort: opts.oscPort, oscListening: true };
+        } catch (e2) {
+          console.error("[OSC] could not restore previous UDP bind:", e2 && e2.message ? e2.message : e2);
+        }
       }
       throw e;
     }
   };
 
   (async () => {
-    try {
-      await rebindOscPort(opts.oscPort);
-    } catch (e) {
-      console.error("[OSC] initial bind failed:", e && e.message ? e.message : e);
-      process.exit(1);
+    if (opts.oscBindOnStart) {
+      try {
+        await rebindOscPort(opts.oscPort);
+      } catch (e) {
+        console.error("[OSC] initial bind failed:", e && e.message ? e.message : e);
+        process.exit(1);
+      }
+    } else {
+      console.log(
+        `[OSC] deferred — not listening until UI Apply (default port ${opts.oscPort} on ${opts.oscHost})`
+      );
     }
     server.listen(opts.httpPort, opts.httpHost, () => {
       console.log(`[HTTP] http://${opts.httpHost}:${opts.httpPort}/`);

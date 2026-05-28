@@ -1,0 +1,14 @@
+scene,inputId,label,address,valueType
+wave-agitation.p5,__plotCount,Overlays to visualize,1,control
+wave-agitation.p5,__waveMotionMode,Wave motion,,control
+wave-agitation.p5,__historyLength,Envelope · history (samples),,control
+wave-agitation.p5,__scrollSpeed,Envelope · scroll speed,,control
+wave-agitation.p5,__radiusMode,Radius mode,relative,control
+wave-agitation.p5,__absoluteMean,Absolute · mean (center),0,control
+wave-agitation.p5,__absoluteMax,Absolute · max deviation (outer),1,control
+wave-agitation.p5,plot_0_axis_0,Plot 1 · Δ,/ENOB/deltaNorm,osc
+wave-agitation.p5,plot_0_axis_1,Plot 1 · θ,/ENOB/thetaNorm,osc
+wave-agitation.p5,plot_0_axis_2,Plot 1 · α,/ENOB/alphaNorm,osc
+wave-agitation.p5,plot_0_axis_3,Plot 1 · low β,/ENOB/lowbetaNorm,osc
+wave-agitation.p5,plot_0_axis_4,Plot 1 · high β,/ENOB/highbetaNorm,osc
+wave-agitation.p5,plot_0_color,Plot 1 · color (HEX),,hex
