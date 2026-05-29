@@ -1,18 +1,17 @@
 /**
  * Collective spider plot — neon radar aesthetic (from eeg-alpha-radar.html).
  *
- * Each overlay (plot) = one stream suffix (e.g. alphaNorm).
- * Each branch (axis) = one headset prefix (e.g. ENOB, 2262).
- * Single polygon with fixed per-branch colors; first complete plot drives radii.
+ * One active stream parameter (plot_0): each branch = one headset prefix.
+ * Single polygon with fixed per-branch colors from BRANCH_HEADSETS.
  *
  * Host flags: `__sweepEnabled`, `__trailDecayMs`, `__radiusMode`, branch labels.
  *
- * Max mappable stream groups (OSC rail size). Server reads this exact line for /api/p5-scenes:
- *   const NUM_OVERLAY_PLOTS = 6;
- * Branch count (headsets per group). Server reads:
+ * OSC rail size (legacy API field). Server reads this exact line for /api/p5-scenes:
+ *   const NUM_OVERLAY_PLOTS = 1;
+ * Branch count (headsets). Server reads:
  *   const NUM_SPIDER_BRANCHES = 7;
  */
-const NUM_OVERLAY_PLOTS = 6;
+const NUM_OVERLAY_PLOTS = 1;
 const NUM_SPIDER_BRANCHES = 7;
 
 const BRANCH_HEADSETS = [
@@ -110,13 +109,6 @@ function plotHasAllBranches(p) {
     if (typeof v !== "number" || !isFinite(v)) return false;
   }
   return true;
-}
-
-function firstCompletePlotIndex(nDraw) {
-  for (let p = 0; p < nDraw; p++) {
-    if (plotHasAllBranches(p)) return p;
-  }
-  return -1;
 }
 
 function spiderRadiusMode() {
@@ -584,21 +576,15 @@ draw = () => {
   layoutFromCanvas();
   drawBackground();
 
-  let nDraw = NUM_OVERLAY_PLOTS;
-  if (typeof data?.__plotCount === "number" && isFinite(data.__plotCount)) {
-    nDraw = Math.max(1, Math.min(12, Math.floor(data.__plotCount), NUM_OVERLAY_PLOTS));
-  }
-
-  const plotIdx = firstCompletePlotIndex(nDraw);
   let radii = [];
-  if (plotIdx >= 0) {
-    radii = radiiForSpider(axisValuesForPlot(plotIdx));
+  if (plotHasAllBranches(0)) {
+    radii = radiiForSpider(axisValuesForPlot(0));
   } else {
     radii = new Array(spiderBranchCount()).fill(0.22);
   }
 
   const verts = verticesFromRadii(radii);
-  if (plotIdx >= 0 && frameCount % HISTORY_EVERY_FRAMES === 0) {
+  if (plotHasAllBranches(0) && frameCount % HISTORY_EVERY_FRAMES === 0) {
     vertHistory.push(verts.map((p) => ({ x: p.x, y: p.y })));
     if (vertHistory.length > HISTORY_MAX) vertHistory.shift();
   }

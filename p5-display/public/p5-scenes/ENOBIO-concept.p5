@@ -56,9 +56,9 @@ const VISITOR_PRESETS = {
 };
 
 // ── VISUAL · geodesic wireframe ─────────────────────────────────────────────
-const GEODESIC_RADIUS = 142;
+const GEODESIC_RADIUS = 132;
 const GEODESIC_SUBDIVISIONS = 2;
-const GEODESIC_STROKE_WEIGHT = 0.28;
+const GEODESIC_STROKE_WEIGHT = 1.5;
 const GEODESIC_STROKE_ALPHA = 70;
 
 // ── VISUAL · brain mesh ───────────────────────────────────────────────────────

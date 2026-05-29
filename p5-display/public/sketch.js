@@ -1112,14 +1112,42 @@ function firstCompletePlotIndexForData(maps, branchN, drawN) {
   return -1;
 }
 
-function branchLabelsForCollectivePlot(maps, branchN, drawN) {
+function branchLabelsForCollectivePlot(maps, branchN) {
   const labels = [];
-  const plotIdx = firstCompletePlotIndexForData(maps, branchN, drawN);
-  const labelPlot = plotIdx >= 0 ? plotIdx : 0;
   for (let a = 0; a < branchN; a++) {
-    labels.push(branchLabelFromInputId(maps, `plot_${labelPlot}_axis_${a}`));
+    labels.push(branchLabelFromInputId(maps, `plot_0_axis_${a}`));
   }
   return labels;
+}
+
+/** Copy first populated plot_p mappings into plot_0 when upgrading from multi-group UI. */
+function migrateCollectivePlotMappings(sceneMap, branchN, railN = 12) {
+  if (!sceneMap || typeof sceneMap !== "object") return false;
+  for (let a = 0; a < branchN; a++) {
+    if (sceneMap[`plot_0_axis_${a}`]) return false;
+  }
+  for (let p = 1; p < railN; p++) {
+    let hasAny = false;
+    for (let a = 0; a < branchN; a++) {
+      const src = sceneMap[`plot_${p}_axis_${a}`];
+      if (src) {
+        sceneMap[`plot_0_axis_${a}`] = src;
+        hasAny = true;
+      }
+    }
+    if (hasAny) return true;
+  }
+  return false;
+}
+
+function ensureCollectivePlotMappings(sceneFile, scene) {
+  if (!isSpiderCollectiveScene(scene) || !sceneFile) return;
+  const branchN = getSpiderBranchCount(scene);
+  const allMaps = readMappings();
+  const sceneMap = { ...(allMaps[sceneFile] || {}) };
+  if (!migrateCollectivePlotMappings(sceneMap, branchN)) return;
+  allMaps[sceneFile] = sceneMap;
+  writeMappings(allMaps);
 }
 
 function syncPlotPrefixButtons(groupEl, plotIndex, branchN = 5) {
@@ -1173,11 +1201,17 @@ function buildSceneData() {
   const spiderN = getSpiderPlotCount(scene);
   if (spiderN > 0) {
     const allMaps = readMappings();
-    const maps = allMaps[activeSceneFile] || {};
+    const maps = { ...(allMaps[activeSceneFile] || {}) };
     const branchN = getSpiderBranchCount(scene);
     const out = {};
     const railN = spiderN;
-    const drawN = Math.max(1, Math.min(railN, readSpiderDrawCount(activeSceneFile, railN)));
+    const collective = isSpiderCollectiveScene(scene);
+    if (collective) {
+      migrateCollectivePlotMappings(maps, branchN);
+    }
+    const drawN = collective
+      ? 1
+      : Math.max(1, Math.min(railN, readSpiderDrawCount(activeSceneFile, railN)));
     out.__plotCount = drawN;
     out.__branchCount = branchN;
     const rad = readSpiderRadiusAll(activeSceneFile);
@@ -1188,8 +1222,8 @@ function buildSceneData() {
       out.__dataLineDisplay = readSpiderDataLineDisplay(activeSceneFile);
     }
     if (isSpiderStreamGroupedScene(scene)) {
-      if (isSpiderCollectiveScene(scene)) {
-        const labels = branchLabelsForCollectivePlot(maps, branchN, drawN);
+      if (collective) {
+        const labels = branchLabelsForCollectivePlot(maps, branchN);
         for (let a = 0; a < branchN; a++) {
           out[`__branchLabel_${a}`] = labels[a];
         }
@@ -1210,7 +1244,8 @@ function buildSceneData() {
       out.__historyLength = wa.historyLength;
       out.__scrollSpeed = wa.scrollSpeed;
     }
-    for (let p = 0; p < railN; p++) {
+    const plotDataN = collective ? 1 : railN;
+    for (let p = 0; p < plotDataN; p++) {
       for (let a = 0; a < branchN; a++) {
         const id = `plot_${p}_axis_${a}`;
         const addr = maps[id];
@@ -1221,10 +1256,12 @@ function buildSceneData() {
         if (n !== null) out[id] = n;
       }
     }
-    const hexPer = readSpiderHex()[activeSceneFile] || {};
-    for (let p = 0; p < railN; p++) {
-      const c = hexPer[String(p)];
-      if (c) out[`plot_${p}_color`] = c;
+    if (!collective) {
+      const hexPer = readSpiderHex()[activeSceneFile] || {};
+      for (let p = 0; p < railN; p++) {
+        const c = hexPer[String(p)];
+        if (c) out[`plot_${p}_color`] = c;
+      }
     }
     return out;
   }
@@ -1388,7 +1425,10 @@ function getExpectedMappingFields(scene, sceneFile) {
   const out = [];
   if (spiderN > 0) {
     const axisNames = ["Δ", "θ", "α", "low β", "high β"];
-    out.push({ inputId: "__plotCount", label: "Overlays to visualize", valueType: "control" });
+    const collective = isSpiderCollectiveScene(scene);
+    if (!collective) {
+      out.push({ inputId: "__plotCount", label: "Overlays to visualize", valueType: "control" });
+    }
     if (!streamGrouped && !isWaveAgitationScene(scene)) {
       out.push({ inputId: "__dataLineDisplay", label: "Data line display", valueType: "control" });
     }
@@ -1400,6 +1440,16 @@ function getExpectedMappingFields(scene, sceneFile) {
     out.push({ inputId: "__radiusMode", label: "Radius mode", valueType: "control" });
     out.push({ inputId: "__absoluteMean", label: "Absolute · mean (center)", valueType: "control" });
     out.push({ inputId: "__absoluteMax", label: "Absolute · max deviation (outer)", valueType: "control" });
+    if (collective) {
+      for (let a = 0; a < branchN; a++) {
+        out.push({
+          inputId: `plot_0_axis_${a}`,
+          label: `Collective parameter · Headset branch ${a + 1}`,
+          valueType: "osc",
+        });
+      }
+      return out;
+    }
     for (let p = 0; p < spiderN; p++) {
       for (let a = 0; a < branchN; a++) {
         const id = `plot_${p}_axis_${a}`;
@@ -1811,7 +1861,7 @@ function buildMappingRows() {
 
   const allMaps = readMappings();
   const storedMaps = { ...(allMaps[activeSceneFile] || {}) };
-  const maps = seedEnobioConceptGuiDefaults(storedMaps, scene);
+  let maps = seedEnobioConceptGuiDefaults(storedMaps, scene);
   if (activeSceneFile === "ENOBIO-concept.p5") {
     const changed = Object.keys(maps).some((k) => maps[k] !== storedMaps[k])
       || Object.keys(storedMaps).some((k) => maps[k] !== storedMaps[k]);
@@ -1825,35 +1875,43 @@ function buildMappingRows() {
   if (spiderN > 0) {
     const branchN = getSpiderBranchCount(scene);
     const streamGrouped = isSpiderStreamGroupedScene(scene);
+    const collective = isSpiderCollectiveScene(scene);
     const axisNames = ["Δ", "θ", "α", "low β", "high β"];
     const hexStore = readSpiderHex()[activeSceneFile] || {};
     const drawSelVal = readSpiderDrawCount(activeSceneFile, spiderN);
 
-    const ctrl = document.createElement("div");
-    ctrl.className = "mapping-row mapping-row--control";
-
-    const ctrlLab = document.createElement("label");
-    ctrlLab.htmlFor = "spider-overlay-draw-count";
-    ctrlLab.textContent = "Overlays to visualize";
-
-    const ctrlSel = document.createElement("select");
-    ctrlSel.id = "spider-overlay-draw-count";
-    ctrlSel.className = "mapping-osc mapping-osc--control";
-    for (let k = 1; k <= spiderN; k++) {
-      const opt = document.createElement("option");
-      opt.value = String(k);
-      opt.textContent = String(k);
-      if (k === drawSelVal) opt.selected = true;
-      ctrlSel.appendChild(opt);
+    if (collective) {
+      ensureCollectivePlotMappings(activeSceneFile, scene);
+      maps = { ...(readMappings()[activeSceneFile] || {}) };
     }
-    ctrlSel.addEventListener("change", () => {
-      const v = parseInt(ctrlSel.value, 10);
-      writeSpiderDrawCount(activeSceneFile, Number.isFinite(v) ? v : spiderN);
-    });
 
-    ctrl.appendChild(ctrlLab);
-    ctrl.appendChild(ctrlSel);
-    mappingRowsEl.appendChild(ctrl);
+    if (!collective) {
+      const ctrl = document.createElement("div");
+      ctrl.className = "mapping-row mapping-row--control";
+
+      const ctrlLab = document.createElement("label");
+      ctrlLab.htmlFor = "spider-overlay-draw-count";
+      ctrlLab.textContent = "Overlays to visualize";
+
+      const ctrlSel = document.createElement("select");
+      ctrlSel.id = "spider-overlay-draw-count";
+      ctrlSel.className = "mapping-osc mapping-osc--control";
+      for (let k = 1; k <= spiderN; k++) {
+        const opt = document.createElement("option");
+        opt.value = String(k);
+        opt.textContent = String(k);
+        if (k === drawSelVal) opt.selected = true;
+        ctrlSel.appendChild(opt);
+      }
+      ctrlSel.addEventListener("change", () => {
+        const v = parseInt(ctrlSel.value, 10);
+        writeSpiderDrawCount(activeSceneFile, Number.isFinite(v) ? v : spiderN);
+      });
+
+      ctrl.appendChild(ctrlLab);
+      ctrl.appendChild(ctrlSel);
+      mappingRowsEl.appendChild(ctrl);
+    }
 
     if (!streamGrouped && !isWaveAgitationScene(scene)) {
       const dataLineRow = document.createElement("div");
@@ -2020,17 +2078,18 @@ function buildMappingRows() {
 
     const hint = document.createElement("p");
     hint.className = "mapping-hint";
-    hint.textContent = streamGrouped
-      ? isSpiderCollectiveScene(scene)
-        ? `Up to ${spiderN} stream group(s), ${branchN} headset branch(es) each. Use suffix buttons for auto-fill, or map each branch manually (same headset allowed on multiple branches).`
-        : `Up to ${spiderN} stream group(s), ${branchN} headset branch(es) each. Pick a stream (button or any branch dropdown) to map that stream from every device that publishes it.`
-      : `Up to ${spiderN} plot(s) can be mapped (from NUM_OVERLAY_PLOTS in the .p5 file). Use headset prefix buttons to remap all bands for a plot.`;
+    hint.textContent = collective
+      ? `${branchN} headset branch(es). Pick a stream chip to map that suffix from every device that publishes it, or map each branch manually.`
+      : streamGrouped
+        ? `Up to ${spiderN} stream group(s), ${branchN} headset branch(es) each. Pick a stream (button or any branch dropdown) to map that stream from every device that publishes it.`
+        : `Up to ${spiderN} plot(s) can be mapped (from NUM_OVERLAY_PLOTS in the .p5 file). Use headset prefix buttons to remap all bands for a plot.`;
     mappingRowsEl.appendChild(hint);
 
     const oscPrefixes = discoverOscPrefixes(addrs, maps);
     const streamSuffixes = streamGrouped ? discoverStreamSuffixes(addrs, maps) : [];
+    const plotCount = collective ? 1 : spiderN;
 
-    for (let p = 0; p < spiderN; p++) {
+    for (let p = 0; p < plotCount; p++) {
       const group = document.createElement("section");
       group.className = "mapping-plot-group";
       group.dataset.plotIndex = String(p);
@@ -2040,14 +2099,22 @@ function buildMappingRows() {
 
       const title = document.createElement("span");
       title.className = "mapping-plot-group__title";
-      title.textContent = streamGrouped ? `Stream group ${p + 1}` : `Plot ${p + 1}`;
+      title.textContent = collective
+        ? "Collective parameter"
+        : streamGrouped
+          ? `Stream group ${p + 1}`
+          : `Plot ${p + 1}`;
 
       const quickBar = document.createElement("div");
       quickBar.className = streamGrouped ? "mapping-suffix-bar" : "mapping-prefix-bar";
       quickBar.setAttribute("role", "group");
       quickBar.setAttribute(
         "aria-label",
-        streamGrouped ? `Stream group ${p + 1} stream suffix` : `Plot ${p + 1} headset prefix`
+        collective
+          ? "Collective parameter stream suffix"
+          : streamGrouped
+            ? `Stream group ${p + 1} stream suffix`
+            : `Plot ${p + 1} headset prefix`
       );
 
       if (streamGrouped) {
@@ -2058,7 +2125,9 @@ function buildMappingRows() {
             btn.className = "mapping-suffix-btn mapping-prefix-btn";
             btn.dataset.suffix = suffix;
             btn.textContent = suffix;
-            btn.title = `Map stream group ${p + 1} to …/${suffix} on all devices that stream it`;
+            btn.title = collective
+              ? `Map all branches to …/${suffix} on every device that streams it`
+              : `Map stream group ${p + 1} to …/${suffix} on all devices that stream it`;
             btn.addEventListener("click", () => {
               const patch = applyPlotStreamSuffix(
                 p,
@@ -2125,7 +2194,7 @@ function buildMappingRows() {
         const lab = document.createElement("label");
         lab.htmlFor = `map-${id}`;
         lab.textContent = streamGrouped
-          ? isSpiderCollectiveScene(scene)
+          ? collective
             ? branchLabelFromInputId(maps, id)
             : branchLabelFromMaps(maps, a, branchN)
           : axisNames[a] || `axis ${a + 1}`;
@@ -2150,7 +2219,7 @@ function buildMappingRows() {
 
         sel.addEventListener("change", () => {
           const bulkStreamGrouped =
-            streamGrouped && sel.value && !isSpiderCollectiveScene(scene);
+            streamGrouped && sel.value && !collective;
           if (bulkStreamGrouped) {
             const patch = applyPlotStreamFromAddress(p, sel.value, branchN, addrs);
             if (Object.keys(patch).length) {
@@ -2167,7 +2236,7 @@ function buildMappingRows() {
           writeMappings(next);
           if (streamGrouped) {
             const freshMaps = readMappings()[activeSceneFile] || {};
-            lab.textContent = isSpiderCollectiveScene(scene)
+            lab.textContent = collective
               ? branchLabelFromInputId(freshMaps, id)
               : branchLabelFromMaps(freshMaps, a, branchN);
             syncPlotSuffixButtons(group, p, branchN);
@@ -2183,32 +2252,34 @@ function buildMappingRows() {
 
       group.appendChild(bands);
 
-      const hexRow = document.createElement("div");
-      hexRow.className = "mapping-row mapping-row--hex";
+      if (!collective) {
+        const hexRow = document.createElement("div");
+        hexRow.className = "mapping-row mapping-row--hex";
 
-      const hexLab = document.createElement("label");
-      hexLab.htmlFor = `hex-plot-${p}`;
-      hexLab.textContent = "Color (HEX)";
+        const hexLab = document.createElement("label");
+        hexLab.htmlFor = `hex-plot-${p}`;
+        hexLab.textContent = "Color (HEX)";
 
-      const hexInp = document.createElement("input");
-      hexInp.type = "text";
-      hexInp.id = `hex-plot-${p}`;
-      hexInp.className = "spider-hex";
-      hexInp.dataset.plotIndex = String(p);
-      hexInp.placeholder = "#88aacc";
-      hexInp.autocomplete = "off";
-      hexInp.spellcheck = false;
-      hexInp.value = hexStore[String(p)] || "";
+        const hexInp = document.createElement("input");
+        hexInp.type = "text";
+        hexInp.id = `hex-plot-${p}`;
+        hexInp.className = "spider-hex";
+        hexInp.dataset.plotIndex = String(p);
+        hexInp.placeholder = "#88aacc";
+        hexInp.autocomplete = "off";
+        hexInp.spellcheck = false;
+        hexInp.value = hexStore[String(p)] || "";
 
-      const onHex = () => {
-        writeSpiderHexForScene(activeSceneFile, p, hexInp.value);
-      };
-      hexInp.addEventListener("input", onHex);
-      hexInp.addEventListener("change", onHex);
+        const onHex = () => {
+          writeSpiderHexForScene(activeSceneFile, p, hexInp.value);
+        };
+        hexInp.addEventListener("input", onHex);
+        hexInp.addEventListener("change", onHex);
 
-      hexRow.appendChild(hexLab);
-      hexRow.appendChild(hexInp);
-      group.appendChild(hexRow);
+        hexRow.appendChild(hexLab);
+        hexRow.appendChild(hexInp);
+        group.appendChild(hexRow);
+      }
 
       if (streamGrouped) syncPlotSuffixButtons(group, p, branchN);
       else syncPlotPrefixButtons(group, p, branchN);

@@ -287,14 +287,45 @@ function firstCompletePlotIndexForData(maps, branchN, drawN) {
   return -1;
 }
 
-function branchLabelsForCollectivePlot(maps, branchN, drawN) {
+function branchLabelsForCollectivePlot(maps, branchN) {
   const labels = [];
-  const plotIdx = firstCompletePlotIndexForData(maps, branchN, drawN);
-  const labelPlot = plotIdx >= 0 ? plotIdx : 0;
   for (let a = 0; a < branchN; a++) {
-    labels.push(branchLabelFromInputId(maps, `plot_${labelPlot}_axis_${a}`));
+    labels.push(branchLabelFromInputId(maps, `plot_0_axis_${a}`));
   }
   return labels;
+}
+
+function migrateCollectivePlotMappings(sceneMap, branchN, railN = 12) {
+  if (!sceneMap || typeof sceneMap !== "object") return false;
+  for (let a = 0; a < branchN; a++) {
+    if (sceneMap[`plot_0_axis_${a}`]) return false;
+  }
+  for (let p = 1; p < railN; p++) {
+    let hasAny = false;
+    for (let a = 0; a < branchN; a++) {
+      const src = sceneMap[`plot_${p}_axis_${a}`];
+      if (src) {
+        sceneMap[`plot_0_axis_${a}`] = src;
+        hasAny = true;
+      }
+    }
+    if (hasAny) return true;
+  }
+  return false;
+}
+
+function ensureCollectivePlotMappings(sceneFile, scene) {
+  if (!isSpiderCollectiveScene(scene) || !sceneFile) return;
+  const branchN = getSpiderBranchCount(scene);
+  const allMaps = readMappings();
+  const sceneMap = { ...(allMaps[sceneFile] || {}) };
+  if (!migrateCollectivePlotMappings(sceneMap, branchN)) return;
+  allMaps[sceneFile] = sceneMap;
+  try {
+    localStorage.setItem(LS_MAPPINGS, JSON.stringify(allMaps));
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 function inputValueType(input) {
@@ -339,11 +370,17 @@ function buildSceneData() {
   const spiderN = getSpiderPlotCount(scene);
   if (spiderN > 0) {
     const allMaps = readMappings();
-    const maps = allMaps[sceneFile] || {};
+    let maps = { ...(allMaps[sceneFile] || {}) };
     const branchN = getSpiderBranchCount(scene);
     const out = {};
     const railN = spiderN;
-    const drawN = Math.max(1, Math.min(railN, readSpiderDrawCount(sceneFile, railN)));
+    const collective = isSpiderCollectiveScene(scene);
+    if (collective) {
+      migrateCollectivePlotMappings(maps, branchN);
+    }
+    const drawN = collective
+      ? 1
+      : Math.max(1, Math.min(railN, readSpiderDrawCount(sceneFile, railN)));
     out.__plotCount = drawN;
     out.__branchCount = branchN;
     const rad = readSpiderRadiusAll(sceneFile);
@@ -354,8 +391,8 @@ function buildSceneData() {
       out.__dataLineDisplay = readSpiderDataLineDisplay(sceneFile);
     }
     if (isSpiderStreamGroupedScene(scene)) {
-      if (isSpiderCollectiveScene(scene)) {
-        const labels = branchLabelsForCollectivePlot(maps, branchN, drawN);
+      if (collective) {
+        const labels = branchLabelsForCollectivePlot(maps, branchN);
         for (let a = 0; a < branchN; a++) {
           out[`__branchLabel_${a}`] = labels[a];
         }
@@ -376,7 +413,8 @@ function buildSceneData() {
       out.__historyLength = wa.historyLength;
       out.__scrollSpeed = wa.scrollSpeed;
     }
-    for (let p = 0; p < railN; p++) {
+    const plotDataN = collective ? 1 : railN;
+    for (let p = 0; p < plotDataN; p++) {
       for (let a = 0; a < branchN; a++) {
         const id = `plot_${p}_axis_${a}`;
         const addr = maps[id];
@@ -387,10 +425,12 @@ function buildSceneData() {
         if (n !== null) out[id] = n;
       }
     }
-    const hexPer = readSpiderHex()[sceneFile] || {};
-    for (let p = 0; p < railN; p++) {
-      const c = hexPer[String(p)];
-      if (c) out[`plot_${p}_color`] = c;
+    if (!collective) {
+      const hexPer = readSpiderHex()[sceneFile] || {};
+      for (let p = 0; p < railN; p++) {
+        const c = hexPer[String(p)];
+        if (c) out[`plot_${p}_color`] = c;
+      }
     }
     return out;
   }
