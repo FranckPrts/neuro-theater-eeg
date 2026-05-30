@@ -2,7 +2,7 @@
   "bridges": [
     {
       "id": "bridge-b",
-      "label": "Wave",
+      "label": "Collective spider",
       "host": "127.0.0.1",
       "port": 8766,
       "width": 1920,
@@ -13,6 +13,6 @@
   ],
   "activeBridgeId": "bridge-b",
   "enabled": true,
-  "sceneFile": "wave-agitation.p5",
+  "sceneFile": "spider-plot-collective.p5",
   "syncSceneWithDashboard": true
 }
