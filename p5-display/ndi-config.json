@@ -1,0 +1,18 @@
+{
+  "bridges": [
+    {
+      "id": "bridge-b",
+      "label": "Wave",
+      "host": "127.0.0.1",
+      "port": 8766,
+      "width": 1920,
+      "height": 1080,
+      "fps": 30,
+      "ndiName": ""
+    }
+  ],
+  "activeBridgeId": "bridge-b",
+  "enabled": true,
+  "sceneFile": "wave-agitation.p5",
+  "syncSceneWithDashboard": true
+}

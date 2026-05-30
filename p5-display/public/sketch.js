@@ -27,6 +27,37 @@ const SPIDER_STREAM_GROUPED_FILES = new Set([
 const SPIDER_COLLECTIVE_FILE = "spider-plot-collective.p5";
 const LEGACY_COLLECTIVE_FILE = "spider-plot-alpha-radar.p5";
 
+const {
+  readMappings,
+  readSpiderHex,
+  getSpiderPlotCount,
+  getSpiderBranchCount,
+  isSpiderStreamGroupedScene,
+  isSpiderCollectiveScene,
+  isSignalViewScene,
+  isWaveAgitationScene,
+  readWaveAgitationSettings,
+  readSignalViewSettings,
+  readSpiderDrawCount,
+  readSpiderRadiusAll,
+  normalizeSpiderDataLineDisplay,
+  readSpiderDataLineDisplay,
+  readSpiderRadar,
+  parseOscAddressParts,
+  isDeviceStreamAddress,
+  branchLabelFromMaps,
+  branchLabelFromInputId,
+  migrateCollectivePlotMappings,
+  coerceFirstNumeric,
+  inputValueType,
+  selectInputOptions,
+  defaultSelectValue,
+  parseBoolValue,
+  defaultBoolValue,
+  normalizeWaveMotionMode,
+  buildSceneData: buildSceneDataCore,
+} = window.NtSceneData;
+
 const SIGNAL_VIEW_HISTORY_PRESETS = [300, 500, 800, 1200, 1800, 2400];
 const SIGNAL_VIEW_SPEED_PRESETS = [1, 2, 3, 5, 8, 12];
 
@@ -90,34 +121,6 @@ let hostP5Instance = null;
 
 const rowCacheMain = new Map();
 
-function inputValueType(input) {
-  const t = String(input?.type || input?.valueType || "").trim().toLowerCase();
-  if (t === "bool" || t === "boolean") return "bool";
-  if (t === "select" || t === "preset") return "select";
-  return "osc";
-}
-
-function selectInputOptions(input) {
-  const raw = input?.options || input?.presets || [];
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((o) => {
-      if (typeof o === "string") return { value: o, label: o };
-      return {
-        value: String(o?.value ?? o?.label ?? ""),
-        label: String(o?.label ?? o?.value ?? ""),
-      };
-    })
-    .filter((o) => o.value !== "");
-}
-
-function defaultSelectValue(input) {
-  const opts = selectInputOptions(input);
-  const def = input?.default != null ? String(input.default) : "";
-  if (def && opts.some((o) => o.value === def)) return def;
-  return opts.length ? opts[0].value : def;
-}
-
 function seedEnobioConceptGuiDefaults(sceneMap, scene) {
   if (activeSceneFile !== "ENOBIO-concept.p5" || !scene) return sceneMap;
   const next = { ...sceneMap };
@@ -126,22 +129,6 @@ function seedEnobioConceptGuiDefaults(sceneMap, scene) {
     next.visitor = defaultSelectValue(visitorInp);
   }
   return next;
-}
-
-function parseBoolValue(value, fallback) {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "number") {
-    if (value === 0) return false;
-    if (value === 1) return true;
-  }
-  const normalized = String(value ?? "").trim().toLowerCase();
-  if (["0", "false", "no", "off"].includes(normalized)) return false;
-  if (["1", "true", "yes", "on"].includes(normalized)) return true;
-  return fallback;
-}
-
-function defaultBoolValue(input) {
-  return parseBoolValue(input?.default, false);
 }
 
 function wsUrl() {
@@ -153,12 +140,6 @@ function isDeviceStreamOsc(msg) {
   if (!msg.address || msg.address[0] !== "/") return false;
   if (msg.address.startsWith("/nt/")) return false;
   return Boolean(msg.hardware && msg.stream);
-}
-
-function isDeviceStreamAddress(address) {
-  if (!address || address[0] !== "/" || address.startsWith("/nt/")) return false;
-  const parts = address.split("/").filter(Boolean);
-  return parts.length >= 2;
 }
 
 function formatArg(a) {
@@ -453,33 +434,11 @@ function updateDeviceStreamForGrid(gridRoot, rowCache, msg) {
   if (valEl) valEl.textContent = formatArgs(args);
 }
 
-function readMappings() {
-  try {
-    const raw = localStorage.getItem(LS_MAPPINGS);
-    if (!raw) return {};
-    const o = JSON.parse(raw);
-    return typeof o === "object" && o !== null ? o : {};
-  } catch (_) {
-    return {};
-  }
-}
-
 function writeMappings(all) {
   try {
     localStorage.setItem(LS_MAPPINGS, JSON.stringify(all));
   } catch (_) {
     /* ignore quota */
-  }
-}
-
-function readSpiderHex() {
-  try {
-    const raw = localStorage.getItem(LS_SPIDER_HEX);
-    if (!raw) return {};
-    const o = JSON.parse(raw);
-    return typeof o === "object" && o !== null ? o : {};
-  } catch (_) {
-    return {};
   }
 }
 
@@ -493,75 +452,6 @@ function writeSpiderHexForScene(sceneFile, plotIndex, hex) {
     localStorage.setItem(LS_SPIDER_HEX, JSON.stringify(all));
   } catch (_) {
     /* ignore */
-  }
-}
-
-function getSpiderPlotCount(scene) {
-  if (!scene || !scene.spiderPlot) return 0;
-  const n = scene.spiderPlot.plotCount;
-  return typeof n === "number" && n > 0 ? Math.floor(n) : 0;
-}
-
-function getSpiderBranchCount(scene) {
-  if (!scene || !scene.spiderPlot) return 5;
-  const n = scene.spiderPlot.branchCount;
-  return typeof n === "number" && n >= 3 ? Math.floor(n) : 5;
-}
-
-function isSpiderStreamGroupedScene(scene) {
-  return Boolean(scene && SPIDER_STREAM_GROUPED_FILES.has(scene.file));
-}
-
-function isSpiderCollectiveScene(scene) {
-  return Boolean(scene && scene.file === SPIDER_COLLECTIVE_FILE);
-}
-
-function isSignalViewScene(scene) {
-  return Boolean(scene && /^signal-view/i.test(String(scene.file || "")));
-}
-
-function isWaveAgitationScene(scene) {
-  return Boolean(scene && scene.file === WAVE_AGITATION_FILE);
-}
-
-function normalizeWaveMotionMode(value) {
-  const v = String(value || "")
-    .toLowerCase()
-    .replace(/[^a-z]/g, "");
-  return v === "envelopescroll" ? "envelopeScroll" : "inPlace";
-}
-
-function readWaveAgitationSettings(sceneFile) {
-  const fallback = { motionMode: "inPlace", historyLength: 500, scrollSpeed: 4 };
-  try {
-    const raw = localStorage.getItem(LS_WAVE_AGITATION);
-    const o = raw ? JSON.parse(raw) : {};
-    if (typeof o !== "object" || o === null) return fallback;
-    const per = o[sceneFile];
-    if (!per || typeof per !== "object") return fallback;
-    let historyLength = per.historyLength;
-    historyLength =
-      typeof historyLength === "number" && Number.isFinite(historyLength)
-        ? historyLength
-        : parseInt(String(historyLength), 10);
-    historyLength = Number.isFinite(historyLength)
-      ? Math.max(100, Math.min(4000, Math.floor(historyLength)))
-      : fallback.historyLength;
-    let scrollSpeed = per.scrollSpeed;
-    scrollSpeed =
-      typeof scrollSpeed === "number" && Number.isFinite(scrollSpeed)
-        ? scrollSpeed
-        : parseInt(String(scrollSpeed), 10);
-    scrollSpeed = Number.isFinite(scrollSpeed)
-      ? Math.max(1, Math.min(20, Math.floor(scrollSpeed)))
-      : fallback.scrollSpeed;
-    return {
-      motionMode: normalizeWaveMotionMode(per.motionMode),
-      historyLength,
-      scrollSpeed,
-    };
-  } catch (_) {
-    return fallback;
   }
 }
 
@@ -678,36 +568,6 @@ function appendWaveAgitationMappingControls(parentEl, sceneFile) {
   parentEl.appendChild(speedRow);
 }
 
-function readSignalViewSettings(sceneFile) {
-  const fallback = { historyLength: 500, scrollSpeed: 4 };
-  try {
-    const raw = localStorage.getItem(LS_SIGNAL_VIEW);
-    const o = raw ? JSON.parse(raw) : {};
-    if (typeof o !== "object" || o === null) return fallback;
-    const per = o[sceneFile];
-    if (!per || typeof per !== "object") return fallback;
-    let historyLength = per.historyLength;
-    historyLength =
-      typeof historyLength === "number" && Number.isFinite(historyLength)
-        ? historyLength
-        : parseInt(String(historyLength), 10);
-    historyLength = Number.isFinite(historyLength)
-      ? Math.max(100, Math.min(4000, Math.floor(historyLength)))
-      : fallback.historyLength;
-    let scrollSpeed = per.scrollSpeed;
-    scrollSpeed =
-      typeof scrollSpeed === "number" && Number.isFinite(scrollSpeed)
-        ? scrollSpeed
-        : parseInt(String(scrollSpeed), 10);
-    scrollSpeed = Number.isFinite(scrollSpeed)
-      ? Math.max(1, Math.min(20, Math.floor(scrollSpeed)))
-      : fallback.scrollSpeed;
-    return { historyLength, scrollSpeed };
-  } catch (_) {
-    return fallback;
-  }
-}
-
 function writeSignalViewSettings(sceneFile, patch) {
   try {
     const cur = readSignalViewSettings(sceneFile);
@@ -727,19 +587,6 @@ function writeSignalViewSettings(sceneFile, patch) {
   }
 }
 
-function readSpiderDrawCount(sceneFile, railMax) {
-  try {
-    const raw = localStorage.getItem(LS_SPIDER_DRAW);
-    const o = raw ? JSON.parse(raw) : {};
-    const v = o[sceneFile];
-    const n = typeof v === "number" ? v : parseInt(String(v), 10);
-    if (!Number.isFinite(n) || n < 1) return railMax;
-    return Math.min(railMax, Math.floor(n));
-  } catch (_) {
-    return railMax;
-  }
-}
-
 function writeSpiderDrawCount(sceneFile, n) {
   try {
     const raw = localStorage.getItem(LS_SPIDER_DRAW);
@@ -756,27 +603,6 @@ function writeSpiderDrawCount(sceneFile, n) {
 }
 
 /** Shared spider radius mode + absolute scale (per scene file). */
-function readSpiderRadiusAll(sceneFile) {
-  const fallback = { mode: "relative", mean: 0, max: 1 };
-  try {
-    const raw = localStorage.getItem(LS_SPIDER_RADIUS);
-    const o = raw ? JSON.parse(raw) : {};
-    if (typeof o !== "object" || o === null) return fallback;
-    const per = o[sceneFile];
-    if (!per || typeof per !== "object") return fallback;
-    const mode = String(per.mode || "").toLowerCase() === "absolute" ? "absolute" : "relative";
-    let mean = per.mean;
-    mean = typeof mean === "number" && Number.isFinite(mean) ? mean : parseFloat(String(mean));
-    mean = Number.isFinite(mean) ? mean : 0;
-    let max = per.max;
-    max = typeof max === "number" && Number.isFinite(max) ? max : parseFloat(String(max));
-    max = Number.isFinite(max) && max > 0 ? max : 1;
-    return { mode, mean, max };
-  } catch (_) {
-    return fallback;
-  }
-}
-
 function writeSpiderRadiusAll(sceneFile, patch) {
   try {
     const cur = readSpiderRadiusAll(sceneFile);
@@ -798,22 +624,6 @@ function writeSpiderRadiusAll(sceneFile, patch) {
   }
 }
 
-function normalizeSpiderDataLineDisplay(value) {
-  const v = String(value || "").toLowerCase().replace(/[^a-z]/g, "");
-  return v === "powerbands" || v === "powerbandaxes" ? "powerBands" : "electrodes";
-}
-
-function readSpiderDataLineDisplay(sceneFile) {
-  try {
-    const raw = localStorage.getItem(LS_SPIDER_DATA_LINES);
-    const o = raw ? JSON.parse(raw) : {};
-    if (typeof o !== "object" || o === null) return "electrodes";
-    return normalizeSpiderDataLineDisplay(o[sceneFile]);
-  } catch (_) {
-    return "electrodes";
-  }
-}
-
 function writeSpiderDataLineDisplay(sceneFile, value) {
   try {
     const raw = localStorage.getItem(LS_SPIDER_DATA_LINES);
@@ -830,29 +640,6 @@ function writeSpiderDataLineDisplay(sceneFile, value) {
 }
 
 /** Collective spider plot sweep + trail (per scene file). */
-function readSpiderRadar(sceneFile) {
-  const fallback = { sweepEnabled: true, trailDecayMs: 2000 };
-  try {
-    const raw = localStorage.getItem(LS_SPIDER_RADAR);
-    const o = raw ? JSON.parse(raw) : {};
-    if (typeof o !== "object" || o === null) return fallback;
-    const per = o[sceneFile];
-    if (!per || typeof per !== "object") return fallback;
-    const sweepEnabled = per.sweepEnabled !== false;
-    let trailDecayMs = per.trailDecayMs;
-    trailDecayMs =
-      typeof trailDecayMs === "number" && Number.isFinite(trailDecayMs)
-        ? trailDecayMs
-        : parseInt(String(trailDecayMs), 10);
-    trailDecayMs = Number.isFinite(trailDecayMs)
-      ? Math.max(0, Math.min(5000, Math.floor(trailDecayMs)))
-      : fallback.trailDecayMs;
-    return { sweepEnabled, trailDecayMs };
-  } catch (_) {
-    return fallback;
-  }
-}
-
 function writeSpiderRadar(sceneFile, patch) {
   try {
     const cur = readSpiderRadar(sceneFile);
@@ -896,13 +683,6 @@ const SPIDER_AXIS_DEFAULT_SUFFIX = [
   "lowbetaNorm",
   "highbetaNorm",
 ];
-
-function parseOscAddressParts(address) {
-  if (!isDeviceStreamAddress(address)) return null;
-  const parts = String(address).split("/").filter(Boolean);
-  if (parts.length < 2) return null;
-  return { prefix: parts[0], suffix: parts.slice(1).join("/") };
-}
 
 function composeOscAddress(prefix, suffix) {
   const p = String(prefix || "").replace(/^\/+|\/+$/g, "");
@@ -1071,75 +851,6 @@ function applyStreamGroupPatchToUi(group, plotIndex, patch, branchN) {
   syncPlotSuffixButtons(group, plotIndex, branchN);
 }
 
-function branchLabelFromMaps(maps, branchIndex, branchN) {
-  for (let p = 0; p < 12; p++) {
-    const parsed = parseOscAddressParts(maps[`plot_${p}_axis_${branchIndex}`]);
-    if (parsed && parsed.prefix) return parsed.prefix;
-  }
-  return `Branch ${branchIndex + 1}`;
-}
-
-function branchLabelFromInputId(maps, inputId) {
-  const parsed = parseOscAddressParts(maps[inputId]);
-  if (parsed && parsed.prefix) return parsed.prefix;
-  const m = /^plot_\d+_axis_(\d+)$/.exec(inputId || "");
-  if (m) return `Branch ${parseInt(m[1], 10) + 1}`;
-  return "Branch";
-}
-
-function firstCompletePlotIndexForData(maps, branchN, drawN) {
-  for (let p = 0; p < drawN; p++) {
-    let ok = true;
-    for (let a = 0; a < branchN; a++) {
-      const id = `plot_${p}_axis_${a}`;
-      const addr = maps[id];
-      if (!addr) {
-        ok = false;
-        break;
-      }
-      const rec = latestByAddress[addr];
-      if (!rec || !Array.isArray(rec.args) || !rec.args.length) {
-        ok = false;
-        break;
-      }
-      if (coerceFirstNumeric(rec.args[0]) === null) {
-        ok = false;
-        break;
-      }
-    }
-    if (ok) return p;
-  }
-  return -1;
-}
-
-function branchLabelsForCollectivePlot(maps, branchN) {
-  const labels = [];
-  for (let a = 0; a < branchN; a++) {
-    labels.push(branchLabelFromInputId(maps, `plot_0_axis_${a}`));
-  }
-  return labels;
-}
-
-/** Copy first populated plot_p mappings into plot_0 when upgrading from multi-group UI. */
-function migrateCollectivePlotMappings(sceneMap, branchN, railN = 12) {
-  if (!sceneMap || typeof sceneMap !== "object") return false;
-  for (let a = 0; a < branchN; a++) {
-    if (sceneMap[`plot_0_axis_${a}`]) return false;
-  }
-  for (let p = 1; p < railN; p++) {
-    let hasAny = false;
-    for (let a = 0; a < branchN; a++) {
-      const src = sceneMap[`plot_${p}_axis_${a}`];
-      if (src) {
-        sceneMap[`plot_0_axis_${a}`] = src;
-        hasAny = true;
-      }
-    }
-    if (hasAny) return true;
-  }
-  return false;
-}
-
 function ensureCollectivePlotMappings(sceneFile, scene) {
   if (!isSpiderCollectiveScene(scene) || !sceneFile) return;
   const branchN = getSpiderBranchCount(scene);
@@ -1185,115 +896,10 @@ function writePlotGroupMappings(plotIndex, patchByInputId) {
   }
 }
 
-function coerceFirstNumeric(v) {
-  if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string") {
-    const n = parseFloat(v);
-    return Number.isFinite(n) ? n : null;
-  }
-  return null;
-}
-
 function buildSceneData() {
   const scene = sceneList.find((s) => s.file === activeSceneFile);
   if (!scene) return {};
-
-  const spiderN = getSpiderPlotCount(scene);
-  if (spiderN > 0) {
-    const allMaps = readMappings();
-    const maps = { ...(allMaps[activeSceneFile] || {}) };
-    const branchN = getSpiderBranchCount(scene);
-    const out = {};
-    const railN = spiderN;
-    const collective = isSpiderCollectiveScene(scene);
-    if (collective) {
-      migrateCollectivePlotMappings(maps, branchN);
-    }
-    const drawN = collective
-      ? 1
-      : Math.max(1, Math.min(railN, readSpiderDrawCount(activeSceneFile, railN)));
-    out.__plotCount = drawN;
-    out.__branchCount = branchN;
-    const rad = readSpiderRadiusAll(activeSceneFile);
-    out.__radiusMode = rad.mode;
-    out.__absoluteMean = rad.mean;
-    out.__absoluteMax = rad.max;
-    if (!isSpiderStreamGroupedScene(scene) && !isWaveAgitationScene(scene)) {
-      out.__dataLineDisplay = readSpiderDataLineDisplay(activeSceneFile);
-    }
-    if (isSpiderStreamGroupedScene(scene)) {
-      if (collective) {
-        const labels = branchLabelsForCollectivePlot(maps, branchN);
-        for (let a = 0; a < branchN; a++) {
-          out[`__branchLabel_${a}`] = labels[a];
-        }
-      } else {
-        for (let a = 0; a < branchN; a++) {
-          out[`__branchLabel_${a}`] = branchLabelFromMaps(maps, a, branchN);
-        }
-      }
-    }
-    if (isSpiderCollectiveScene(scene)) {
-      const radar = readSpiderRadar(activeSceneFile);
-      out.__sweepEnabled = radar.sweepEnabled;
-      out.__trailDecayMs = radar.trailDecayMs;
-    }
-    if (isWaveAgitationScene(scene)) {
-      const wa = readWaveAgitationSettings(activeSceneFile);
-      out.__waveMotionMode = wa.motionMode;
-      out.__historyLength = wa.historyLength;
-      out.__scrollSpeed = wa.scrollSpeed;
-    }
-    const plotDataN = collective ? 1 : railN;
-    for (let p = 0; p < plotDataN; p++) {
-      for (let a = 0; a < branchN; a++) {
-        const id = `plot_${p}_axis_${a}`;
-        const addr = maps[id];
-        if (!addr) continue;
-        const rec = latestByAddress[addr];
-        if (!rec || !Array.isArray(rec.args) || !rec.args.length) continue;
-        const n = coerceFirstNumeric(rec.args[0]);
-        if (n !== null) out[id] = n;
-      }
-    }
-    if (!collective) {
-      const hexPer = readSpiderHex()[activeSceneFile] || {};
-      for (let p = 0; p < railN; p++) {
-        const c = hexPer[String(p)];
-        if (c) out[`plot_${p}_color`] = c;
-      }
-    }
-    return out;
-  }
-
-  if (!Array.isArray(scene.inputs) || !scene.inputs.length) return {};
-  const allMaps = readMappings();
-  const maps = allMaps[activeSceneFile] || {};
-  const out = {};
-  if (isSignalViewScene(scene)) {
-    const sv = readSignalViewSettings(activeSceneFile);
-    out.__historyLength = sv.historyLength;
-    out.__scrollSpeed = sv.scrollSpeed;
-  }
-  for (const inp of scene.inputs) {
-    if (inputValueType(inp) === "bool") {
-      out[inp.id] = parseBoolValue(maps[inp.id], defaultBoolValue(inp));
-      continue;
-    }
-    if (inputValueType(inp) === "select") {
-      const v = maps[inp.id];
-      out[inp.id] = v != null && v !== "" ? String(v) : defaultSelectValue(inp);
-      continue;
-    }
-
-    const addr = maps[inp.id];
-    if (!addr) continue;
-    const rec = latestByAddress[addr];
-    if (!rec || !Array.isArray(rec.args) || !rec.args.length) continue;
-    const n = coerceFirstNumeric(rec.args[0]);
-    if (n !== null) out[inp.id] = n;
-  }
-  return out;
+  return buildSceneDataCore(scene, latestByAddress);
 }
 
 function maybeRefreshMappingPrefixBars(addr) {
@@ -2504,7 +2110,7 @@ function setNdiStreamStatus(text, kind) {
 }
 
 async function syncNdiSceneIfNeeded() {
-  if (!ndiConfig || !ndiConfig.enabled || !ndiConfig.syncSceneWithDashboard) return;
+  if (!ndiConfig || !ndiConfig.syncSceneWithDashboard) return;
   const scene = activeSceneFile || "";
   if (scene === ndiConfig.sceneFile) return;
   try {
@@ -3133,6 +2739,7 @@ async function init() {
   try {
     await fetchNdiConfig();
     applyNdiConfigToPanel();
+    await syncNdiSceneIfNeeded();
     startNdiStatusPoll();
   } catch (e) {
     setNdiPanelStatus("NDI config unavailable");

@@ -185,7 +185,7 @@ cd p5-display && npm start -- --http-port 8768
 | `GET/POST /api/ndi-status` | Output page heartbeat (WS open, frames sent) |
 | WebSocket `/ws` | Broadcasts `{ type: "ndi-config", config }` on connect and on change |
 
-Config is persisted to `ndi-config.json` in this directory (gitignored).
+Config is persisted to `ndi-config-<httpPort>.json` in this directory (port **8765** falls back to legacy `ndi-config.json` if present; gitignored).
 
 Phase 1 supports **2D scenes** only; WEBGL scenes (`MUSE.p5`, `ENOBIO.p5`, `head-cube.p5`) are blocked in the NDI tab.
 

@@ -14,9 +14,15 @@ const { WebSocketServer } = require("ws");
 
 const ROOT = path.join(__dirname, "public");
 const MAP_ROOT = path.join(ROOT, "p5-mapping");
-const NDI_CONFIG_PATH = path.join(__dirname, "ndi-config.json");
 
 const MAX_NDI_BRIDGES = 2;
+
+function resolveNdiConfigPath(httpPort) {
+  const portFile = path.join(__dirname, `ndi-config-${httpPort}.json`);
+  const legacy = path.join(__dirname, "ndi-config.json");
+  if (httpPort === 8765 && fs.existsSync(legacy) && !fs.existsSync(portFile)) return legacy;
+  return portFile;
+}
 
 function defaultNdiConfig() {
   return {
@@ -67,9 +73,9 @@ function normalizeBridge(b, index) {
   };
 }
 
-function loadNdiConfigFromDisk() {
+function loadNdiConfigFromDisk(configPath) {
   try {
-    const raw = fs.readFileSync(NDI_CONFIG_PATH, "utf8");
+    const raw = fs.readFileSync(configPath, "utf8");
     const parsed = JSON.parse(raw);
     return mergeNdiConfig(defaultNdiConfig(), parsed);
   } catch (_) {
@@ -106,9 +112,9 @@ function mergeNdiConfig(base, patch) {
   return out;
 }
 
-function persistNdiConfig(config) {
+function persistNdiConfig(config, configPath) {
   try {
-    fs.writeFileSync(NDI_CONFIG_PATH, JSON.stringify(config, null, 2), "utf8");
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
   } catch (e) {
     console.warn("[NDI] could not persist config:", e && e.message ? e.message : e);
   }
@@ -339,6 +345,7 @@ function openOscUdpPort(oscHost, oscPort, broadcast, readyMs = 8000) {
 
 function main() {
   const opts = parseArgs(process.argv);
+  const ndiConfigPath = resolveNdiConfigPath(opts.httpPort);
 
   const clients = new Set();
   /** @type {any} */
@@ -346,7 +353,7 @@ function main() {
   /** @type {null | ((port: number) => Promise<{ oscHost: string; oscPort: number }>)} */
   let rebindOscPort = null;
   /** @type {ReturnType<typeof defaultNdiConfig>} */
-  let ndiConfig = loadNdiConfigFromDisk();
+  let ndiConfig = loadNdiConfigFromDisk(ndiConfigPath);
   /** @type {((payload: object) => void) | null} */
   let broadcastRef = null;
 
@@ -391,7 +398,7 @@ function main() {
       readJsonBody(req)
         .then((body) => {
           ndiConfig = mergeNdiConfig(ndiConfig, body);
-          persistNdiConfig(ndiConfig);
+          persistNdiConfig(ndiConfig, ndiConfigPath);
           broadcastNdiConfig();
           res.writeHead(200, jsonHeaders);
           res.end(JSON.stringify({ ok: true, config: ndiConfig }));
@@ -709,6 +716,7 @@ function main() {
     server.listen(opts.httpPort, opts.httpHost, () => {
       console.log(`[HTTP] http://${opts.httpHost}:${opts.httpPort}/`);
       console.log(`[WS]   ws://${opts.httpHost}:${opts.httpPort}/ws`);
+      console.log(`[NDI]  config → ${path.basename(ndiConfigPath)}`);
     });
   })();
 
