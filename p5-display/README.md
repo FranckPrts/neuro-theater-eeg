@@ -18,7 +18,7 @@ cd p5-display
 npm install
 ```
 
-`postinstall` copies **`p5.min.js`** into `public/vendor/` from the `p5` devDependency so the page works **offline** after a single install.
+`postinstall` copies **`p5.min.js`**, **Three.js r160** (`public/vendor/three/`), and **EEG Brain Graphic fonts** (`public/vendor/fonts/`) from devDependencies so pages work **offline** after a single install (no CDN for [`Brain Electrode Graphic/EEG Brain Graphic.html`](public/Brain%20Electrode%20Graphic/EEG%20Brain%20Graphic.html)).
 
 ## Run
 

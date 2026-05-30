@@ -6,13 +6,20 @@
   "scripts": {
     "start": "node server.js",
     "vendor-p5": "node scripts/vendor-p5.js",
-    "postinstall": "node scripts/vendor-p5.js"
+    "vendor-three": "node scripts/vendor-three.js",
+    "vendor-fonts": "node scripts/vendor-fonts.js",
+    "vendor": "node scripts/vendor-p5.js && node scripts/vendor-three.js && node scripts/vendor-fonts.js",
+    "postinstall": "npm run vendor"
   },
   "dependencies": {
     "osc": "^2.4.5",
     "ws": "^8.18.0"
   },
   "devDependencies": {
-    "p5": "^1.11.3"
+    "@fontsource/jetbrains-mono": "^5.2.5",
+    "@fontsource/orbitron": "^5.2.5",
+    "@fontsource/share-tech-mono": "^5.2.5",
+    "p5": "^1.11.3",
+    "three": "0.160.0"
   }
 }
