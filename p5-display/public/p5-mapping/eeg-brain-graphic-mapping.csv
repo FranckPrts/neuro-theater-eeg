@@ -1,0 +1,6 @@
+scene,inputId,label,address,valueType
+EEG Brain Graphic.html,delta,Delta,/ENOB/delta,osc
+EEG Brain Graphic.html,theta,Theta,/ENOB/theta,osc
+EEG Brain Graphic.html,alpha,Alpha,/ENOB/alpha,osc
+EEG Brain Graphic.html,lowbeta,Low beta,/ENOB/lowbeta,osc
+EEG Brain Graphic.html,highbeta,High beta,/ENOB/highbeta,osc
