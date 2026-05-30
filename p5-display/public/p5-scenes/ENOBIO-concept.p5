@@ -1,16 +1,23 @@
 /* global WEBGL, CENTER, RGB, loadModel, loadFont, createCanvas, resizeCanvas, windowWidth, windowHeight */
 /* global background, ambientLight, directionalLight, orbitControl, push, pop, rotateX, rotateY */
-/* global scale, model, text, textAlign, textSize, noStroke, fill, noFill, constrain, millis, sin, TWO_PI, PI */
+/* global scale, model, text, textAlign, textSize, noStroke, fill, noFill, constrain, millis, PI */
 /* global translate, stroke, strokeWeight, line, sphere, rect, emissiveMaterial, colorMode */
 /* global ambientMaterial, specularMaterial, shininess, lerp, rotateZ, textFont, textStyle, BOLD */
 /* global camera, noLights, LEFT, RIGHT, CENTER, max, min, textWidth, textLeading */
 
-// Brain 3D model credit: https://sketchfab.com/3d-models/brain-7a2c96d2bc5c4068b3f715fd5ed95b67
-const BRAIN_MODEL_PATH = "p5-misc/glass-brain/brain2.obj";
+// Head 3D model: Meshy AI low-poly human head (side-view export)
+const BRAIN_MODEL_PATH = "p5-misc/glass-brain/human-head-low-poly.obj";
 const HUD_FONT_PATH = "fonts/ShareTechMono-Regular.ttf";
-const BRAIN_SCALE = 0.004;
+const BRAIN_SCALE = 0.003;
 const SCROLL_ZOOM_SENSITIVITY = 0.85;
-const BRAIN_ROTATION_X = -0.18;
+// Shared scene orientation (head mesh, geodesic, electrodes, labels).
+const SCENE_ROTATION_X = -Math.PI / 2 + Math.PI * 0.2;
+const SCENE_ROTATION_Y = -Math.PI / 2 + Math.PI * 1.5;
+// Extra mesh-only rotation (OBJ fine-tune; does not move electrodes or wireframe).
+const BRAIN_MESH_ROTATION_X = Math.PI * 0.75;
+const BRAIN_MESH_ROTATION_Y = 0;
+const BRAIN_MESH_ROTATION_Z = 0;
+const BRAIN_MESH_SCALE = 0.85; // mesh-only; 1 = full size, 0.9 = −10%
 
 // ── VISUAL · palette ────────────────────────────────────────────────────────
 const BG_COLOR = [0, 2, 8];
@@ -22,7 +29,7 @@ const CYAN_ALPHA = {
   visitorBorder: 255,
   labelText: 255,
   activeFill: 26,
-  stripe: 10,
+  stripe: 1,
   wireframeOuter: 55,
   wireframeInner: 120,
   labelLine: 150,
@@ -58,72 +65,76 @@ const VISITOR_PRESETS = {
 // ── VISUAL · geodesic wireframe ─────────────────────────────────────────────
 const GEODESIC_RADIUS = 132;
 const GEODESIC_SUBDIVISIONS = 2;
-const GEODESIC_STROKE_WEIGHT = 1.5;
-const GEODESIC_STROKE_ALPHA = 70;
+const GEODESIC_STROKE_WEIGHT = 1;
+const GEODESIC_STROKE_ALPHA = 40;
 
 // ── VISUAL · brain mesh ───────────────────────────────────────────────────────
-const BRAIN_FILL = [12, 32, 30, 200];
-const BRAIN_SPECULAR = [0, 255, 153, 60];
-const BRAIN_SHININESS = 6;
+// const BRAIN_FILL = [12, 32, 30, 200];
+// const BRAIN_SPECULAR = [0, 255, 153, 60];
+// const BRAIN_SHININESS = 6;
 
 // ── VISUAL · electrode markers ────────────────────────────────────────────────
 const MARKER_INTENSITY_WARM = [248, 238, 195];
 const MARKER_INTENSITY_HOT = [255, 95, 48];
+const MARKER_ALPHA = 77; // ~30% opacity (RGB 0–255)
 
 // ── VISUAL · scene lighting ───────────────────────────────────────────────────
 const SCENE_AMBIENT = [28, 42, 38];
 const SCENE_KEY = [72, 120, 100];
 const SCENE_KEY_DIR = [0.25, 0.45, -1];
 
-// ── DATA · marker animation ───────────────────────────────────────────────────
-const DATA_INTENSITY_MIN = 0.2;
-const DATA_INTENSITY_MAX = 1;
+// ── DATA · marker intensity ───────────────────────────────────────────────────
+const DATA_INTENSITY_MIN = 0.1;
+const DATA_INTENSITY_MAX = 0.5;
+const MARKER_DEFAULT_INTENSITY = 0.5;
 const DATA_STALE_MS = 2000;
-const LIGHT_PULSE_PERIOD_MS = 2000;
 
 const markerDataState = {};
 const MONTAGE_BACK_TILT_RADIANS = Math.PI / 6;
+const MONTAGE_OFFSET_X = 0;
+const MONTAGE_OFFSET_Y = -10;
+const MONTAGE_OFFSET_Z = 10;
 
 const ENOBIO_MARKERS = [
-  { id: "Fp1", position: [-30, -74, 34], radius: 2.0 },
-  { id: "Fp2", position: [30, -74, 34], radius: 2.0 },
-  { id: "AF3", position: [-34, -62, 48], radius: 2.0 },
-  { id: "AF4", position: [34, -62, 48], radius: 2.0 },
-  { id: "F7", position: [-70, -44, 24], radius: 2.0 },
-  { id: "F8", position: [70, -44, 24], radius: 2.0 },
-  { id: "F3", position: [-38, -40, 56], radius: 2.0 },
-  { id: "F4", position: [38, -40, 56], radius: 2.0 },
-  { id: "Fz", position: [0, -44, 64], radius: 2.0 },
-  { id: "FC5", position: [-66, -20, 38], radius: 2.0 },
-  { id: "FC6", position: [66, -20, 38], radius: 2.0 },
-  { id: "FC1", position: [-20, -22, 68], radius: 2.0 },
-  { id: "FC2", position: [20, -22, 68], radius: 2.0 },
-  { id: "T7", position: [-84, 0, 10], radius: 2.0 },
-  { id: "T8", position: [84, 0, 10], radius: 2.0 },
-  { id: "C3", position: [-44, 0, 64], radius: 2.0 },
-  { id: "C4", position: [44, 0, 64], radius: 2.0 },
-  { id: "Cz", position: [0, 0, 78], radius: 2.0 },
-  { id: "CP5", position: [-70, 30, 36], radius: 2.0 },
-  { id: "CP6", position: [70, 30, 36], radius: 2.0 },
-  { id: "CP1", position: [-22, 28, 66], radius: 2.0 },
-  { id: "CP2", position: [22, 28, 66], radius: 2.0 },
-  { id: "P7", position: [-76, 58, 18], radius: 2.0 },
-  { id: "P8", position: [76, 58, 18], radius: 2.0 },
-  { id: "P3", position: [-38, 58, 44], radius: 2.0 },
-  { id: "P4", position: [38, 58, 44], radius: 2.0 },
-  { id: "Pz", position: [0, 62, 52], radius: 2.0 },
-  { id: "PO3", position: [-34, 80, 24], radius: 2.0 },
-  { id: "PO4", position: [34, 80, 24], radius: 2.0 },
-  { id: "O1", position: [-30, 94, 6], radius: 2.0 },
-  { id: "O2", position: [30, 94, 6], radius: 2.0 },
-  { id: "Oz", position: [0, 98, 8], radius: 2.0 },
+  { id: "Fp1", position: [-30, -74, 34], radius: 5.0 },
+  { id: "Fp2", position: [30, -74, 34], radius: 5.0 },
+  { id: "AF3", position: [-34, -62, 48], radius: 5.0 },
+  { id: "AF4", position: [34, -62, 48], radius: 5.0 },
+  { id: "F7", position: [-70, -44, 24], radius: 5.0 },
+  { id: "F8", position: [70, -44, 24], radius: 5.0 },
+  { id: "F3", position: [-38, -40, 56], radius: 5.0 },
+  { id: "F4", position: [38, -40, 56], radius: 5.0 },
+  { id: "Fz", position: [0, -44, 64], radius: 5.0 },
+  { id: "FC5", position: [-66, -20, 38], radius: 5.0 },
+  { id: "FC6", position: [66, -20, 38], radius: 5.0 },
+  { id: "FC1", position: [-20, -22, 68], radius: 5.0 },
+  { id: "FC2", position: [20, -22, 68], radius: 5.0 },
+  { id: "T7", position: [-84, 0, 10], radius: 5.0 },
+  { id: "T8", position: [84, 0, 10], radius: 5.0 },
+  { id: "C3", position: [-44, 0, 64], radius: 5.0 },
+  { id: "C4", position: [44, 0, 64], radius: 5.0 },
+  { id: "Cz", position: [0, 0, 78], radius: 5.0 },
+  { id: "CP5", position: [-70, 30, 36], radius: 5.0 },
+  { id: "CP6", position: [70, 30, 36], radius: 5.0 },
+  { id: "CP1", position: [-22, 28, 66], radius: 5.0 },
+  { id: "CP2", position: [22, 28, 66], radius: 5.0 },
+  { id: "P7", position: [-76, 58, 18], radius: 5.0 },
+  { id: "P8", position: [76, 58, 18], radius: 5.0 },
+  { id: "P3", position: [-38, 58, 44], radius: 5.0 },
+  { id: "P4", position: [38, 58, 44], radius: 5.0 },
+  { id: "Pz", position: [0, 62, 52], radius: 5.0 },
+  { id: "PO3", position: [-34, 80, 24], radius: 5.0 },
+  { id: "PO4", position: [34, 80, 24], radius: 5.0 },
+  { id: "O1", position: [-30, 94, 6], radius: 5.0 },
+  { id: "O2", position: [30, 94, 6], radius: 5.0 },
+  { id: "Oz", position: [0, 98, 8], radius: 5.0 },
 ];
 
 const MUSE_MARKERS = [
-  { id: "TP9", position: [-68, -12, 32], radius: 2.0 },
-  { id: "TP10", position: [68, -12, 32], radius: 2.0 },
-  { id: "AF7", position: [-46, 60, 4], radius: 2.0 },
-  { id: "AF8", position: [46, 70, 4], radius: 2.0 },
+  { id: "TP9", position: [-68, -12, -32], radius: 5.0 },
+  { id: "TP10", position: [68, -12, -32], radius: 5.0 },
+  { id: "AF7", position: [-46, 60, 4], radius: 5.0 },
+  { id: "AF8", position: [46, 70, 4], radius: 5.0 },
 ];
 
 let brainModel;
@@ -379,21 +390,28 @@ setup = () => {
 
 function withBrainTransform(drawFn) {
   push();
-  rotateX(BRAIN_ROTATION_X);
-  rotateZ(autoRotation);
+  rotateY(autoRotation);
+  rotateX(SCENE_ROTATION_X);
+  rotateY(SCENE_ROTATION_Y);
   scale(brainWorldScale());
   drawFn();
   pop();
 }
 
-function brainWorldScale() {
-  return Math.min(width, height) * BRAIN_SCALE;
+function withBrainMeshTransform(drawFn) {
+  withBrainTransform(() => {
+    push();
+    rotateX(BRAIN_MESH_ROTATION_X);
+    rotateY(BRAIN_MESH_ROTATION_Y);
+    rotateZ(BRAIN_MESH_ROTATION_Z);
+    scale(BRAIN_MESH_SCALE);
+    drawFn();
+    pop();
+  });
 }
 
-function oscillatingLightFactor() {
-  const phase = ((millis() % LIGHT_PULSE_PERIOD_MS) / LIGHT_PULSE_PERIOD_MS) * TWO_PI;
-  const u = 0.5 + 0.5 * sin(phase);
-  return DATA_INTENSITY_MIN + u * (DATA_INTENSITY_MAX - DATA_INTENSITY_MIN);
+function brainWorldScale() {
+  return Math.min(width, height) * BRAIN_SCALE;
 }
 
 function mapDataToIntensity(raw) {
@@ -423,21 +441,21 @@ function isMarkerDataFresh(markerId) {
 function markerIntensity(marker) {
   const raw = data?.[marker.id];
   if (typeof raw !== "number" || !isFinite(raw)) {
-    return constrain(oscillatingLightFactor(), 0, 1);
+    return MARKER_DEFAULT_INTENSITY;
   }
   const value = constrain(raw, 0, 1);
   updateMarkerDataState(marker.id, value);
   if (isMarkerDataFresh(marker.id)) {
     return mapDataToIntensity(value);
   }
-  return constrain(oscillatingLightFactor(), 0, 1);
+  return MARKER_DEFAULT_INTENSITY;
 }
 
 function markerContactPosition(marker) {
   const [x, y, z] = marker.position;
   const c = Math.cos(MONTAGE_BACK_TILT_RADIANS);
   const s = Math.sin(MONTAGE_BACK_TILT_RADIANS);
-  return [x, y * c - z * s, y * s + z * c];
+  return [x + MONTAGE_OFFSET_X, y * c - z * s + MONTAGE_OFFSET_Y, y * s + z * c + MONTAGE_OFFSET_Z];
 }
 
 function markerLabelPosition(marker) {
@@ -453,17 +471,18 @@ function markerColorFromIntensity(i) {
     Math.round(lerp(MARKER_INTENSITY_WARM[0], MARKER_INTENSITY_HOT[0], t)),
     Math.round(lerp(MARKER_INTENSITY_WARM[1], MARKER_INTENSITY_HOT[1], t)),
     Math.round(lerp(MARKER_INTENSITY_WARM[2], MARKER_INTENSITY_HOT[2], t)),
+    MARKER_ALPHA,
   ];
 }
 
 function drawBrainWireframe() {
   const [tr, tg, tb] = currentBrainTint();
-  withBrainTransform(() => {
-    noStroke();
-    ambientMaterial(...BRAIN_FILL);
-    specularMaterial(...BRAIN_SPECULAR);
-    shininess(BRAIN_SHININESS);
-    model(brainModel);
+  withBrainMeshTransform(() => {
+    // noStroke();
+    // ambientMaterial(...BRAIN_FILL);
+    // specularMaterial(...BRAIN_SPECULAR);
+    // shininess(BRAIN_SHININESS);
+    // model(brainModel);
 
     noFill();
     stroke(tr, tg, tb, CYAN_ALPHA.wireframeOuter);
@@ -495,11 +514,11 @@ function drawElectrodeMarkers() {
       const i = markerIntensity(marker);
       if (i <= 0) continue;
       const [cx, cy, cz] = markerContactPosition(marker);
-      const [r, g, b] = markerColorFromIntensity(i);
+      const [r, g, b, a] = markerColorFromIntensity(i);
       const rad = marker.radius * (0.7 + i * 0.95);
       push();
       translate(cx, cy, cz);
-      emissiveMaterial(r, g, b, 255);
+      emissiveMaterial(r, g, b, a);
       sphere(rad, 10, 8);
       pop();
     }

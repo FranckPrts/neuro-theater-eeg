@@ -248,4 +248,5 @@ Scene code is loaded and executed in the iframe from **trusted local files** onl
 
 ## Attribution
 
-- Brain 3D model: [Brain](https://sketchfab.com/3d-models/brain-7a2c96d2bc5c4068b3f715fd5ed95b67) by [JuanG3D](https://sketchfab.com/JuanG3D), licensed under [Creative Commons Attribution](https://creativecommons.org/licenses/by/4.0/).
+- Human head 3D model (BrainSphere scene): low-poly side-view head generated with [Meshy AI](https://www.meshy.ai/).
+- Brain 3D model (ENOBIO, MUSE scenes): [Brain](https://sketchfab.com/3d-models/brain-7a2c96d2bc5c4068b3f715fd5ed95b67) by [JuanG3D](https://sketchfab.com/JuanG3D), licensed under [Creative Commons Attribution](https://creativecommons.org/licenses/by/4.0/).

@@ -1,0 +1,40 @@
+scene,inputId,label,address,valueType
+ENOBIO-concept.p5,visitor,Visitor,KANTOR,select
+ENOBIO-concept.p5,show_geodesic_sphere,Geodesic wireframe,true,bool
+ENOBIO-concept.p5,rotation,Rotation,true,bool
+ENOBIO-concept.p5,Fp1,Fp1 intensity (0-1),/ENOB/Fp1,osc
+ENOBIO-concept.p5,Fp2,Fp2 intensity (0-1),/ENOB/Fp2,osc
+ENOBIO-concept.p5,AF3,AF3 intensity (0-1),/ENOB/AF3,osc
+ENOBIO-concept.p5,AF4,AF4 intensity (0-1),/ENOB/AF4,osc
+ENOBIO-concept.p5,F7,F7 intensity (0-1),/ENOB/F7,osc
+ENOBIO-concept.p5,F8,F8 intensity (0-1),/ENOB/F8,osc
+ENOBIO-concept.p5,F3,F3 intensity (0-1),/ENOB/F3,osc
+ENOBIO-concept.p5,F4,F4 intensity (0-1),/ENOB/F4,osc
+ENOBIO-concept.p5,Fz,Fz intensity (0-1),/ENOB/Fz,osc
+ENOBIO-concept.p5,FC5,FC5 intensity (0-1),/ENOB/FC5,osc
+ENOBIO-concept.p5,FC6,FC6 intensity (0-1),/ENOB/FC6,osc
+ENOBIO-concept.p5,FC1,FC1 intensity (0-1),/ENOB/FC1,osc
+ENOBIO-concept.p5,FC2,FC2 intensity (0-1),/ENOB/FC2,osc
+ENOBIO-concept.p5,T7,T7 intensity (0-1),/ENOB/T7,osc
+ENOBIO-concept.p5,T8,T8 intensity (0-1),/ENOB/T8,osc
+ENOBIO-concept.p5,C3,C3 intensity (0-1),/ENOB/C3,osc
+ENOBIO-concept.p5,C4,C4 intensity (0-1),/ENOB/C4,osc
+ENOBIO-concept.p5,Cz,Cz intensity (0-1),/ENOB/Cz,osc
+ENOBIO-concept.p5,CP5,CP5 intensity (0-1),/ENOB/CP5,osc
+ENOBIO-concept.p5,CP6,CP6 intensity (0-1),/ENOB/CP6,osc
+ENOBIO-concept.p5,CP1,CP1 intensity (0-1),/ENOB/CP1,osc
+ENOBIO-concept.p5,CP2,CP2 intensity (0-1),/ENOB/CP2,osc
+ENOBIO-concept.p5,P7,P7 intensity (0-1),/ENOB/P7,osc
+ENOBIO-concept.p5,P8,P8 intensity (0-1),/ENOB/P8,osc
+ENOBIO-concept.p5,P3,P3 intensity (0-1),/ENOB/P3,osc
+ENOBIO-concept.p5,P4,P4 intensity (0-1),/ENOB/P4,osc
+ENOBIO-concept.p5,Pz,Pz intensity (0-1),/ENOB/Pz,osc
+ENOBIO-concept.p5,PO3,PO3 intensity (0-1),/ENOB/PO3,osc
+ENOBIO-concept.p5,PO4,PO4 intensity (0-1),/ENOB/PO4,osc
+ENOBIO-concept.p5,O1,O1 intensity (0-1),/ENOB/O1,osc
+ENOBIO-concept.p5,O2,O2 intensity (0-1),/ENOB/O2,osc
+ENOBIO-concept.p5,Oz,Oz intensity (0-1),/ENOB/Oz,osc
+ENOBIO-concept.p5,AF7,AF7 intensity (0-1),/MUSE/AF7,osc
+ENOBIO-concept.p5,AF8,AF8 intensity (0-1),/MUSE/AF8,osc
+ENOBIO-concept.p5,TP9,TP9 intensity (0-1),/MUSE/TP9,osc
+ENOBIO-concept.p5,TP10,TP10 intensity (0-1),/MUSE/TP10,osc

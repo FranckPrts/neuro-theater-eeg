@@ -4,7 +4,7 @@ nodes:
     category: signal
     params:
       buffer:
-        size: 10.0
+        size: 4.0
         axis: -1
         unit: seconds
         reset: false
@@ -22,7 +22,7 @@ nodes:
           viewer_idx: 0
           width: 795
           height: 720
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   oscout0:
@@ -43,8 +43,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 3138
-      - 522
+      - 2892
+      - 224
       viewers: {}
   reduce2:
     _type: Reduce
@@ -70,44 +70,13 @@ nodes:
           collapsed: true
           log_scale_x: false
           log_scale_y: false
-  psd0:
-    _type: PSD
-    category: signal
-    params:
-      psd:
-        method: welch
-        f_min: 2.0
-        f_max: 30.0
-        axis: -1
-      welch:
-        nperseg: 0.5
-        nperseg_unit: fraction
-        noverlap: 0.75
-        noverlap_unit: fraction_nperseg
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 668
-      - 513
-      viewers:
-        psd:
-          viewer_idx: 0
-          width: 525
-          height: 450
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
   lslclient5:
     _type: LSLClient
     category: inputs
     params:
       lsl_stream:
-        source_name: goofi
-        stream_name: recording
+        source_name: ENOBIO-32-NE-Wifi(00:07:80:0D:72:00)
+        stream_name: ENOBIO-EEG
         source_type: ''
         refresh: true
       common:
@@ -165,7 +134,7 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 415
+      - 414
       - 66
       viewers:
         out:
@@ -300,65 +269,7 @@ nodes:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  powerbandeeg0:
-    _type: PowerBandEEG
-    category: analysis
-    params:
-      powerband:
-        power_type: absolute
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 1319
-      - 208
-      viewers:
-        delta:
-          viewer_idx: 0
-          width: 175
-          height: 100
           collapsed: true
-          log_scale_x: false
-          log_scale_y: false
-        theta:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-        alpha:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-        lowbeta:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-        highbeta:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-        gamma:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
           log_scale_x: false
           log_scale_y: false
   lslclient0:
@@ -377,7 +288,7 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 300
+      - 302
       - 1566
       viewers:
         out:
@@ -431,7 +342,7 @@ nodes:
           viewer_idx: 0
           width: 525
           height: 450
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   select0:
@@ -458,7 +369,7 @@ nodes:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   extendedtable0:
@@ -517,7 +428,7 @@ nodes:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   select2:
@@ -544,7 +455,7 @@ nodes:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   reduce1:
@@ -568,7 +479,7 @@ nodes:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   reduce4:
@@ -592,7 +503,7 @@ nodes:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   reduce6:
@@ -616,7 +527,7 @@ nodes:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   constanttable0:
@@ -921,7 +832,7 @@ nodes:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
   clip0:
@@ -1082,7 +993,7 @@ nodes:
     params:
       normalization:
         method: minmax
-        buffer_size: 1024
+        buffer_size: 3000
         reset: false
         axis: -1
       quantile:
@@ -1112,9 +1023,158 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
+  psd0:
+    _type: PSD
+    category: signal
+    params:
+      psd:
+        method: welch
+        f_min: 2.0
+        f_max: 30.0
+        axis: -1
+      welch:
+        nperseg: 0.5
+        nperseg_unit: fraction
+        noverlap: 0.75
+        noverlap_unit: fraction_nperseg
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 930
+      - 361
+      viewers:
+        psd:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  powerbandeeg0:
+    _type: PowerBandEEG
+    category: analysis
+    params:
+      powerband:
+        power_type: relative
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1205
+      - 477
+      viewers:
+        delta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        theta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        alpha:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        lowbeta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        highbeta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        gamma:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select3:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: EEG 032
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 586
+      - 428
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  math8:
+    _type: Math
+    category: array
+    params:
+      math:
+        pre_add: 0.0
+        multiply: 1.0
+        post_add: 0.0
+        round: -1
+        sqrt: false
+        squared: false
+      map:
+        input_min: 0.0
+        input_max: 1.0
+        output_min: 0.0
+        output_max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 737
+      - 647
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
 links:
 - node_out: buffer2
-  node_in: psd0
+  node_in: select3
   slot_out: out
   slot_in: data
 - node_out: reduce2
@@ -1125,10 +1185,6 @@ links:
   node_in: extendedtable1
   slot_out: out
   slot_in: array_input3
-- node_out: psd0
-  node_in: powerbandeeg0
-  slot_out: psd
-  slot_in: data
 - node_out: lslclient5
   node_in: buffer2
   slot_out: out
@@ -1149,6 +1205,10 @@ links:
   node_in: extendedtable1
   slot_out: out
   slot_in: array_input2
+- node_out: extendedtable2
+  node_in: oscout0
+  slot_out: table
+  slot_in: data
 - node_out: reduce10
   node_in: math3
   slot_out: out
@@ -1173,26 +1233,6 @@ links:
   node_in: extendedtable1
   slot_out: out
   slot_in: array_input5
-- node_out: powerbandeeg0
-  node_in: reduce10
-  slot_out: delta
-  slot_in: array
-- node_out: powerbandeeg0
-  node_in: reduce5
-  slot_out: theta
-  slot_in: array
-- node_out: powerbandeeg0
-  node_in: reduce2
-  slot_out: alpha
-  slot_in: array
-- node_out: powerbandeeg0
-  node_in: reduce14
-  slot_out: lowbeta
-  slot_in: array
-- node_out: powerbandeeg0
-  node_in: reduce3
-  slot_out: highbeta
-  slot_in: array
 - node_out: lslclient0
   node_in: buffer0
   slot_out: out
@@ -1297,7 +1337,31 @@ links:
   node_in: tablenormalization0
   slot_out: table
   slot_in: table
-- node_out: tablenormalization0
-  node_in: oscout0
-  slot_out: normalized
+- node_out: psd0
+  node_in: powerbandeeg0
+  slot_out: psd
+  slot_in: data
+- node_out: powerbandeeg0
+  node_in: reduce10
+  slot_out: delta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce5
+  slot_out: theta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce2
+  slot_out: alpha
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce14
+  slot_out: lowbeta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce3
+  slot_out: highbeta
+  slot_in: array
+- node_out: select3
+  node_in: psd0
+  slot_out: out
   slot_in: data

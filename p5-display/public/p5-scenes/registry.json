@@ -45,7 +45,7 @@
     {
       "file": "spider-plot-neon-concept.p5",
       "title": "SPIDER GS",
-      "favorite": true
+      "favorite": false
     },
     {
       "file": "spider-plot-neon-cells.p5",
@@ -58,7 +58,7 @@
     },
     {
       "file": "spider-plot-collective.p5",
-      "title": "Collective spider plot",
+      "title": "Collective spider",
       "favorite": true
     },
     {
@@ -79,7 +79,7 @@
     },
     {
       "file": "ENOBIO-concept.p5",
-      "title": "ENOBIO GS",
+      "title": "BrainSphere",
       "favorite": true,
       "inputs": [
         {
@@ -140,7 +140,7 @@
     {
       "file": "ENOBIO.p5",
       "title": "ENOBIO",
-      "favorite": true,
+      "favorite": false,
       "inputs": [
         { "id": "rotation", "label": "Rotation", "type": "bool", "default": true },
         { "id": "Fp1", "label": "Fp1 intensity (0-1)" },
@@ -193,7 +193,7 @@
     {
       "file": "MUSE.p5",
       "title": "MUSE",
-      "favorite": true,
+      "favorite": false,
       "inputs": [
         { "id": "rotation", "label": "Rotation", "type": "bool", "default": true },
         { "id": "quaternion_mode", "label": "Quaternion mode (off = Euler)", "type": "bool", "default": false },
