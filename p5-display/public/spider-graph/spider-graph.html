@@ -1,0 +1,1253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spider Graph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #000000;
+    --bg-2: #050608;
+    --ink: #e8ecf2;
+    --ink-dim: #6a7585;
+    --ink-faint: #2a3140;
+    --grid: rgba(120, 160, 200, 0.06);
+    --grid-strong: rgba(140, 180, 220, 0.14);
+
+    /* 7 neon headset colors */
+    --c-cosmo:  #b46bff;   /* Cosmonaut — violet */
+    --c-v1:     #ff2d55;   /* Visitor 1 — neon red */
+    --c-v2:     #ffa31a;   /* Visitor 2 — amber */
+    --c-v3:     #ff5fb0;   /* Visitor 3 — hot pink */
+    --c-v4:     #00d18f;   /* Visitor 4 — emerald */
+    --c-v5:     #c6ff3a;   /* Visitor 5 — lime */
+    --c-v6:     #2bd4ff;   /* Visitor 6 — electric cyan */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 50%, rgba(35, 55, 90, 0.18), transparent 70%),
+      radial-gradient(ellipse 40% 30% at 50% 50%, rgba(60, 80, 140, 0.08), transparent 70%),
+      var(--bg);
+    position: relative;
+  }
+
+  /* faint dot grid */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(circle at center, rgba(120,160,200,0.10) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 80%);
+    z-index: 0;
+  }
+
+  /* scanline */
+  body::after {
+    content: "";
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(255,255,255,0.012) 0px,
+      rgba(255,255,255,0.012) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .app {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    height: 100vh;
+    padding: 22px 36px 26px;
+    gap: 14px;
+  }
+
+  /* ===== header ===== */
+  .hdr {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 24px;
+  }
+  .hdr-l, .hdr-r {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .hdr-r { justify-content: flex-end; }
+
+  .pill {
+    border: 1px solid var(--ink-faint);
+    padding: 6px 10px;
+    border-radius: 2px;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--c-v4);
+    box-shadow: 0 0 8px var(--c-v4);
+    animation: blink 1.6s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+
+  .hdr-title {
+    text-align: center;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .hdr-title .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.5em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .hdr-title h1 {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    margin-top: 4px;
+  }
+  .hdr-title h1 .accent {
+    color: var(--c-v6);
+    text-shadow: 0 0 14px rgba(43, 212, 255, 0.7);
+  }
+  .hdr-title .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--ink-dim);
+    margin-top: 4px;
+  }
+
+  /* ===== main grid ===== */
+  .stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    min-width: 0;
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  .headset {
+    border: 1px solid var(--ink-faint);
+    padding: 12px 14px;
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0) 60%);
+    transition: border-color 0.3s ease, transform 0.3s ease;
+  }
+  .headset::before {
+    content: "";
+    position: absolute;
+    top: -1px; left: -1px;
+    width: 8px; height: 8px;
+    border-top: 1px solid var(--hs-color);
+    border-left: 1px solid var(--hs-color);
+  }
+  .headset::after {
+    content: "";
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 8px; height: 8px;
+    border-bottom: 1px solid var(--hs-color);
+    border-right: 1px solid var(--hs-color);
+  }
+
+  .hs-row1 {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .hs-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .hs-id .num { color: var(--hs-color); }
+  .hs-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--hs-color);
+    text-shadow: 0 0 8px color-mix(in oklab, var(--hs-color) 60%, transparent);
+    text-transform: uppercase;
+  }
+  .hs-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    color: var(--c-v4);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .hs-status .pulse {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--c-v4);
+    box-shadow: 0 0 6px var(--c-v4);
+  }
+
+  .hs-readout {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .hs-readout .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .hs-readout .unit {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.12em;
+    padding-bottom: 2px;
+  }
+
+  /* mini bar */
+  .hs-bar {
+    height: 4px;
+    background: rgba(255,255,255,0.04);
+    position: relative;
+    overflow: hidden;
+  }
+  .hs-bar .fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--hs-color);
+    box-shadow: 0 0 8px var(--hs-color);
+    width: var(--fill, 50%);
+    transition: width 0.45s ease;
+  }
+  .hs-bar .ticks {
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(90deg, rgba(0,0,0,0.6) 1px, transparent 1px);
+    background-size: 10% 100%;
+    pointer-events: none;
+  }
+
+  .hs-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-top: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--ink-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .hs-meta .k { color: var(--ink-dim); }
+  .hs-meta .v { color: var(--ink); text-align: right; }
+
+  /* ===== radar ===== */
+  .radar-wrap {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .radar-wrap svg {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    overflow: visible;
+  }
+
+  /* corner brackets in radar area */
+  .frame-corner {
+    position: absolute;
+    width: 22px; height: 22px;
+    border-color: var(--ink-dim);
+    opacity: 0.6;
+  }
+  .frame-corner.tl { top: 0; left: 0; border-top: 1px solid; border-left: 1px solid; }
+  .frame-corner.tr { top: 0; right: 0; border-top: 1px solid; border-right: 1px solid; }
+  .frame-corner.bl { bottom: 0; left: 0; border-bottom: 1px solid; border-left: 1px solid; }
+  .frame-corner.br { bottom: 0; right: 0; border-bottom: 1px solid; border-right: 1px solid; }
+
+  /* axis label SVG text styles */
+  .axis-label-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .axis-label-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+  .axis-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ring-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    fill: var(--ink-dim);
+    letter-spacing: 0.18em;
+  }
+
+  /* ===== trail slider (in footer) ===== */
+  .trail-ctl {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 14px;
+    border: 1px solid var(--ink-faint);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+    position: relative;
+  }
+  .trail-ctl::before {
+    content: "";
+    position: absolute;
+    top: -1px; left: -1px;
+    width: 7px; height: 7px;
+    border-top: 1px solid var(--c-v6);
+    border-left: 1px solid var(--c-v6);
+  }
+  .trail-ctl::after {
+    content: "";
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 7px; height: 7px;
+    border-bottom: 1px solid var(--c-v6);
+    border-right: 1px solid var(--c-v6);
+  }
+  .trail-ctl .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+  .trail-ctl .val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--c-v6);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 8px rgba(43, 212, 255, 0.55);
+    min-width: 42px;
+    text-align: right;
+  }
+  .trail-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 160px;
+    height: 18px;
+    background: transparent;
+    cursor: pointer;
+    margin: 0;
+  }
+  .trail-slider::-webkit-slider-runnable-track {
+    height: 2px;
+    background: linear-gradient(90deg,
+      var(--c-v6) 0%,
+      var(--c-v6) var(--p, 67%),
+      rgba(140, 180, 220, 0.18) var(--p, 67%),
+      rgba(140, 180, 220, 0.18) 100%);
+    box-shadow: 0 0 10px rgba(43, 212, 255, 0.4);
+  }
+  .trail-slider::-moz-range-track {
+    height: 2px;
+    background: rgba(140, 180, 220, 0.18);
+  }
+  .trail-slider::-moz-range-progress {
+    height: 2px;
+    background: var(--c-v6);
+    box-shadow: 0 0 10px rgba(43, 212, 255, 0.6);
+  }
+  .trail-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--c-v6);
+    box-shadow:
+      0 0 0 2px rgba(0,0,0,0.9),
+      0 0 0 3px var(--c-v6),
+      0 0 14px rgba(43, 212, 255, 0.8);
+    margin-top: -5px;
+    cursor: grab;
+  }
+  .trail-slider::-webkit-slider-thumb:active { cursor: grabbing; }
+  .trail-slider::-moz-range-thumb {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    border: none;
+    background: var(--c-v6);
+    box-shadow:
+      0 0 0 2px rgba(0,0,0,0.9),
+      0 0 0 3px var(--c-v6),
+      0 0 14px rgba(43, 212, 255, 0.8);
+    cursor: grab;
+  }
+  .trail-ticks {
+    display: flex;
+    gap: 0;
+    width: 160px;
+    margin-top: 2px;
+    justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+  }
+  .trail-ctl .stack { display: flex; flex-direction: column; gap: 2px; }
+
+  /* ===== sweep toggle ===== */
+  .sweep-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border: 1px solid var(--ink-faint);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+    position: relative;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.2s ease;
+  }
+  .sweep-toggle:hover { border-color: rgba(160,200,255,0.4); }
+  .sweep-toggle::before {
+    content: "";
+    position: absolute;
+    top: -1px; left: -1px;
+    width: 7px; height: 7px;
+    border-top: 1px solid var(--c-v6);
+    border-left: 1px solid var(--c-v6);
+  }
+  .sweep-toggle::after {
+    content: "";
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 7px; height: 7px;
+    border-bottom: 1px solid var(--c-v6);
+    border-right: 1px solid var(--c-v6);
+  }
+  .sweep-toggle .pip {
+    width: 22px;
+    height: 12px;
+    border: 1px solid rgba(160, 200, 255, 0.4);
+    position: relative;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  .sweep-toggle .pip::after {
+    content: "";
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 8px; height: 8px;
+    background: rgba(140, 180, 220, 0.5);
+    transition: left 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
+  }
+  .sweep-toggle[aria-pressed="true"] .pip {
+    border-color: var(--c-v6);
+    background: rgba(43, 212, 255, 0.08);
+  }
+  .sweep-toggle[aria-pressed="true"] .pip::after {
+    left: 11px;
+    background: var(--c-v6);
+    box-shadow: 0 0 8px var(--c-v6);
+  }
+  .sweep-toggle[aria-pressed="true"] .lbl-on { color: var(--c-v6); text-shadow: 0 0 8px rgba(43,212,255,0.55); }
+  .sweep-toggle[aria-pressed="false"] .lbl-on { display: none; }
+  .sweep-toggle[aria-pressed="true"] .lbl-off { display: none; }
+
+  /* ===== footer ===== */
+  .ftr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 32px;
+    align-items: end;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+  }
+
+  /* title block now sits in footer-left */
+  .ftr-title {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .ftr-title .alpha-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: var(--ink);
+    line-height: 1;
+    text-transform: uppercase;
+  }
+  .ftr-title .alpha-title .accent {
+    color: var(--c-v6);
+    text-shadow: 0 0 14px rgba(43, 212, 255, 0.7);
+  }
+  .ftr-title .stats {
+    display: flex;
+    gap: 22px;
+  }
+
+  .ftr-r { display: flex; gap: 22px; justify-content: flex-end; align-items: end; }
+  .ftr .v { color: var(--ink); }
+
+  .max-ind {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px 6px 10px;
+    border: 1px solid var(--max-color, var(--ink-faint));
+    background: linear-gradient(180deg,
+      color-mix(in oklab, var(--max-color, #fff) 12%, transparent),
+      transparent);
+    position: relative;
+    transition: border-color 0.4s ease;
+  }
+  .max-ind::before {
+    content: "";
+    position: absolute;
+    top: -1px; left: -1px;
+    width: 6px; height: 6px;
+    border-top: 1px solid var(--max-color, var(--ink));
+    border-left: 1px solid var(--max-color, var(--ink));
+    transition: border-color 0.4s ease;
+  }
+  .max-ind::after {
+    content: "";
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 6px; height: 6px;
+    border-bottom: 1px solid var(--max-color, var(--ink));
+    border-right: 1px solid var(--max-color, var(--ink));
+    transition: border-color 0.4s ease;
+  }
+  .max-ind .max-eye {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    color: var(--ink-dim);
+  }
+  .max-ind .max-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--max-color, var(--ink));
+    text-shadow: 0 0 10px color-mix(in oklab, var(--max-color, #fff) 70%, transparent);
+    transition: color 0.4s ease;
+  }
+  .max-ind .max-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+  }
+  .max-ind .max-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--max-color, var(--ink));
+    box-shadow: 0 0 10px var(--max-color, var(--ink));
+    transition: background 0.4s ease, box-shadow 0.4s ease;
+  }
+
+  /* legend strip in center */
+  .ftr-c {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+  }
+  .leg {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9.5px;
+  }
+  .leg .sw {
+    width: 10px; height: 10px;
+    background: var(--c);
+    box-shadow: 0 0 8px var(--c);
+  }
+  .leg .lbl { color: var(--ink); letter-spacing: 0.18em; }
+
+  /* sweep animation */
+  @keyframes sweep {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  .sweep-group {
+    transform-origin: 500px 500px;
+    animation: sweep 9s linear infinite;
+  }
+
+  @keyframes pulse-ring {
+    0%   { opacity: 0.7; transform: scale(0.6); }
+    100% { opacity: 0; transform: scale(1.05); }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- STAGE -->
+    <main class="stage">
+      <!-- RADAR -->
+      <div class="radar-wrap" id="radarWrap">
+        <svg viewBox="0 0 1000 1000" id="radar" preserveAspectRatio="xMidYMid meet">
+          <defs>
+            <!-- conic-ish gradient for polygon stroke: we'll achieve color-per-vertex via per-segment paths instead -->
+            <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="rgba(80,140,220,0.18)" />
+              <stop offset="60%" stop-color="rgba(20,40,80,0.06)" />
+              <stop offset="100%" stop-color="rgba(0,0,0,0)" />
+            </radialGradient>
+            <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+            <filter id="hardGlow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2" result="blur"/>
+              <feMerge>
+                <feMergeNode in="blur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+
+          <!-- center glow -->
+          <circle cx="500" cy="500" r="420" fill="url(#centerGlow)" />
+
+          <!-- concentric rings -->
+          <g id="rings" stroke="rgba(140,180,220,0.18)" fill="none" stroke-width="1"></g>
+
+          <!-- ring labels (μV) -->
+          <g id="ringLabels"></g>
+
+          <!-- spokes -->
+          <g id="spokes" stroke="rgba(140,180,220,0.22)" stroke-width="1"></g>
+
+          <!-- minor tick marks along spokes -->
+          <g id="ticks" stroke="rgba(140,180,220,0.35)" stroke-width="1"></g>
+
+          <!-- sweep line -->
+          <g class="sweep-group" id="sweepGroup">
+            <defs>
+              <linearGradient id="sweepGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="rgba(43,212,255,0)" />
+                <stop offset="100%" stop-color="rgba(43,212,255,0.45)" />
+              </linearGradient>
+              <radialGradient id="smearGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="rgba(120, 200, 255, 0.10)" />
+                <stop offset="60%" stop-color="rgba(180, 140, 255, 0.06)" />
+                <stop offset="100%" stop-color="rgba(255, 90, 180, 0.04)" />
+              </radialGradient>
+            </defs>
+            <path d="M 500 500 L 920 500 A 420 420 0 0 0 740 140 Z" fill="url(#sweepGrad)" opacity="0.55"/>
+            <line x1="500" y1="500" x2="920" y2="500" stroke="rgba(43,212,255,0.55)" stroke-width="1.2"/>
+          </g>
+
+          <!-- trail history (drawn behind the live polygon) -->
+          <g id="trailLayer"></g>
+
+          <!-- data polygon (segmented for per-vertex color) -->
+          <g id="dataLayer"></g>
+
+          <!-- axis labels -->
+          <g id="axisLabels"></g>
+
+          <!-- center hub -->
+          <g>
+            <circle cx="500" cy="500" r="22" fill="rgba(0,0,0,0.85)" stroke="rgba(160,200,255,0.4)" stroke-width="1"/>
+            <circle cx="500" cy="500" r="14" fill="none" stroke="rgba(160,200,255,0.25)" stroke-width="1"/>
+            <circle cx="500" cy="500" r="3" fill="#2bd4ff" filter="url(#hardGlow)"/>
+          </g>
+
+        </svg>
+      </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="ftr">
+      <div class="ftr-title">
+        <div class="alpha-title">ALPHA BAND <span class="accent">⟨ 8 – 12 Hz ⟩</span></div>
+        <div class="stats">
+          <span>MEAN α&nbsp;&nbsp;<span class="v" id="meanA">—</span></span>
+          <span>PEAK α&nbsp;&nbsp;<span class="v" id="maxName" style="color: var(--max-color, var(--ink)); text-shadow: 0 0 10px color-mix(in oklab, var(--max-color, #fff) 70%, transparent); transition: color 0.4s ease;">—</span></span>
+        </div>
+      </div>
+      <div class="ftr-c" style="justify-self: end; display: flex; align-items: end; gap: 12px;">
+        <div id="spiderHudControls" style="display: flex; align-items: end; gap: 12px;">
+          <button type="button" class="sweep-toggle" id="sweepToggle" aria-pressed="true">
+            <span class="pip"></span>
+            <span>Sweep&nbsp;·&nbsp;<span class="lbl-on">ON</span><span class="lbl-off">OFF</span></span>
+          </button>
+          <div class="trail-ctl" id="trailCtl">
+            <span class="lbl">Trail Decay</span>
+            <div class="stack">
+              <input type="range" class="trail-slider" id="trailSlider" min="0" max="5000" step="50" value="2000" />
+              <div class="trail-ticks"><span>0s</span><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s</span></div>
+            </div>
+            <span class="val" id="trailVal">2.00s</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+<script src="../osc-ws-client.js"></script>
+<script src="spider-graph-osc.js"></script>
+<script>
+/* =========================================================================
+   EEG Alpha-Band Radar — futuristic neon visualization
+   ========================================================================= */
+
+const HEADSETS = [
+  { id: "01", name: "Cosmonaut", color: "#b46bff", base: 0.78, code: "ENOB", rig: "OMNI-7"  },
+  { id: "02", name: "Visitor 1", color: "#ff2d55", base: 0.66, code: "2262", rig: "AURA-3"  },
+  { id: "03", name: "Visitor 2", color: "#ffa31a", base: 0.71, code: "1D1A", rig: "AURA-3"  },
+  { id: "04", name: "Visitor 3", color: "#ff5fb0", base: 0.58, code: "4F77", rig: "NOVA-2"  },
+  { id: "05", name: "Visitor 4", color: "#00d18f", base: 0.74, code: "9B30", rig: "NOVA-2"  },
+  { id: "06", name: "Visitor 5", color: "#c6ff3a", base: 0.69, code: "7AC1", rig: "AURA-3"  },
+  { id: "07", name: "Visitor 6", color: "#2bd4ff", base: 0.82, code: "3E0F", rig: "OMNI-7"  },
+];
+
+// radar config
+const CX = 500, CY = 500, R_MAX = 380;
+const N = HEADSETS.length;
+const ANGLE = (i) => (-Math.PI / 2) + (i * 2 * Math.PI / N); // start at top
+
+// Normalized 0–1; ring labels show percent
+const RING_VALUES = [20, 40, 60, 80, 100];
+
+const svg = document.getElementById("radar");
+const ns = "http://www.w3.org/2000/svg";
+
+function el(tag, attrs = {}) {
+  const e = document.createElementNS(ns, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+/* ---------- build rings ---------- */
+const ringsG = document.getElementById("rings");
+const ringLabelsG = document.getElementById("ringLabels");
+
+RING_VALUES.forEach((v, i) => {
+  const r = R_MAX * ((i + 1) / RING_VALUES.length);
+  const isOuter = i === RING_VALUES.length - 1;
+
+  const ring = el("circle", {
+    cx: CX, cy: CY, r,
+    fill: "none",
+    stroke: isOuter ? "rgba(160,200,255,0.32)" : "rgba(140,180,220,0.12)",
+    "stroke-width": isOuter ? 1.2 : 1,
+    "stroke-dasharray": isOuter ? "" : "2 4",
+  });
+  ringsG.appendChild(ring);
+
+  // label on top spoke
+  const lblY = CY - r - 4;
+  const label = el("text", {
+    x: CX + 6, y: lblY,
+    class: "ring-label",
+    "text-anchor": "start",
+  });
+  label.textContent = `${v}%`;
+  ringLabelsG.appendChild(label);
+});
+
+/* ---------- spokes + ticks ---------- */
+const spokesG = document.getElementById("spokes");
+const ticksG = document.getElementById("ticks");
+HEADSETS.forEach((_, i) => {
+  const a = ANGLE(i);
+  const x2 = CX + R_MAX * Math.cos(a);
+  const y2 = CY + R_MAX * Math.sin(a);
+  spokesG.appendChild(el("line", { x1: CX, y1: CY, x2, y2 }));
+
+  // small ticks at each ring intersection
+  for (let k = 1; k <= RING_VALUES.length; k++) {
+    const r = R_MAX * (k / RING_VALUES.length);
+    const tx = CX + r * Math.cos(a);
+    const ty = CY + r * Math.sin(a);
+    const perpX = Math.cos(a + Math.PI / 2);
+    const perpY = Math.sin(a + Math.PI / 2);
+    const t = el("line", {
+      x1: tx - perpX * 4, y1: ty - perpY * 4,
+      x2: tx + perpX * 4, y2: ty + perpY * 4,
+      stroke: "rgba(160,200,255,0.35)",
+      "stroke-width": 1,
+    });
+    ticksG.appendChild(t);
+  }
+});
+
+/* ---------- axis labels (positioned outside the radar) ---------- */
+const axisLabelsG = document.getElementById("axisLabels");
+HEADSETS.forEach((h, i) => {
+  const a = ANGLE(i);
+  const lr = R_MAX + 58;
+  const lx = CX + lr * Math.cos(a);
+  const ly = CY + lr * Math.sin(a);
+
+  // anchor based on quadrant
+  let anchor = "middle";
+  if (Math.cos(a) > 0.25) anchor = "start";
+  else if (Math.cos(a) < -0.25) anchor = "end";
+
+  // small ID line
+  const idText = el("text", {
+    x: lx, y: ly - 20,
+    "text-anchor": anchor,
+    class: "axis-label-id",
+    fill: h.color,
+    style: `text-shadow: 0 0 8px color-mix(in oklab, ${h.color} 60%, transparent);`,
+    id: `axisid-${i}`,
+  });
+  idText.textContent = h.code;
+  axisLabelsG.appendChild(idText);
+
+  // headset name in its neon color
+  const nameText = el("text", {
+    x: lx, y: ly + 8,
+    "text-anchor": anchor,
+    class: "axis-label-name",
+    fill: h.color,
+    filter: "url(#hardGlow)",
+    style: `text-shadow: 0 0 10px ${h.color};`,
+  });
+  nameText.textContent = h.name.toUpperCase();
+  axisLabelsG.appendChild(nameText);
+
+  // current % value (live updated) — in the headset's neon color
+  const valText = el("text", {
+    x: lx, y: ly + 32,
+    "text-anchor": anchor,
+    class: "axis-value",
+    fill: h.color,
+    style: `text-shadow: 0 0 8px color-mix(in oklab, ${h.color} 60%, transparent);`,
+    id: `axisval-${i}`,
+  });
+  valText.textContent = "—";
+  axisLabelsG.appendChild(valText);
+});
+
+/* ---------- data layer ---------- */
+const dataLayer = document.getElementById("dataLayer");
+
+// fill (single semi-transparent polygon for atmosphere)
+const fillPoly = el("path", {
+  d: "",
+  fill: "rgba(80, 180, 255, 0.05)",
+  stroke: "none",
+  id: "fillPoly",
+});
+dataLayer.appendChild(fillPoly);
+
+// per-vertex segment paths — each segment uses a linearGradient from vertex i color to vertex i+1 color
+const defs = svg.querySelector("defs");
+HEADSETS.forEach((h, i) => {
+  const next = HEADSETS[(i + 1) % N];
+  const grad = el("linearGradient", { id: `seg-${i}`, gradientUnits: "userSpaceOnUse" });
+  // start/end coords will be set on update
+  const s1 = el("stop", { offset: "0%", "stop-color": h.color });
+  const s2 = el("stop", { offset: "100%", "stop-color": next.color });
+  grad.appendChild(s1); grad.appendChild(s2);
+  defs.appendChild(grad);
+});
+
+// segment paths (with glow) — each one is a smooth cubic Bezier piece of the spline
+const segments = [];
+for (let i = 0; i < N; i++) {
+  // outer glow segment
+  const segGlow = el("path", {
+    d: "",
+    fill: "none",
+    stroke: `url(#seg-${i})`,
+    "stroke-width": 6,
+    "stroke-linecap": "round",
+    opacity: 0.35,
+    filter: "url(#softGlow)",
+  });
+  // crisp segment
+  const seg = el("path", {
+    d: "",
+    fill: "none",
+    stroke: `url(#seg-${i})`,
+    "stroke-width": 2,
+    "stroke-linecap": "round",
+  });
+  dataLayer.appendChild(segGlow);
+  dataLayer.appendChild(seg);
+  segments.push({ glow: segGlow, seg });
+}
+
+/* ---------- trail layers ---------- */
+const trailLayer = document.getElementById("trailLayer");
+const UPDATE_MS    = 50;
+const TRAIL_STRIDE = 2;   // sample every N update frames (50ms each)
+const TRAIL_COUNT  = 50;  // # of ghost frames preallocated → capacity = 50*2*50ms = 5.0s
+const HISTORY_MAX  = TRAIL_COUNT * TRAIL_STRIDE + 2;
+let trailDurationMs = 2000; // controlled by the slider; 0–5000
+const history = []; // each entry: array of {x,y}
+const trailLayers = [];
+for (let t = 0; t < TRAIL_COUNT; t++) {
+  const g = el("g", { opacity: 0 });
+  // —— SMEAR FILL: a soft semi-transparent fill for this past snapshot.
+  // Using lighten blend so overlapping snapshots build up into a glowing slug-trail.
+  const fillSmear = el("path", {
+    d: "",
+    fill: "url(#smearGrad)",
+    stroke: "none",
+    style: "mix-blend-mode: screen;",
+  });
+  g.appendChild(fillSmear);
+
+  const paths = [];
+  for (let i = 0; i < N; i++) {
+    // older trails use solid headset color (cheaper than per-frame gradient updates)
+    const p = el("path", {
+      d: "",
+      fill: "none",
+      stroke: HEADSETS[i].color,
+      "stroke-width": 1.4,
+      "stroke-linecap": "round",
+    });
+    g.appendChild(p);
+    paths.push(p);
+  }
+  trailLayer.appendChild(g);
+  trailLayers.push({ group: g, paths, fillSmear });
+}
+
+// vertex dots
+const dots = [];
+HEADSETS.forEach((h, i) => {
+  const ringOuter = el("circle", {
+    r: 14, fill: "none",
+    stroke: h.color,
+    "stroke-width": 1,
+    opacity: 0.35,
+  });
+  const ringPulse = el("circle", {
+    r: 6, fill: "none",
+    stroke: h.color,
+    "stroke-width": 1.5,
+    opacity: 0.0,
+  });
+  const ringPulse2 = el("circle", {
+    r: 6, fill: "none",
+    stroke: h.color,
+    "stroke-width": 1.5,
+    opacity: 0.0,
+  });
+  const core = el("circle", {
+    r: 5,
+    fill: h.color,
+    filter: "url(#softGlow)",
+  });
+  const inner = el("circle", {
+    r: 2.2,
+    fill: "#fff",
+  });
+  dataLayer.appendChild(ringOuter);
+  dataLayer.appendChild(ringPulse);
+  dataLayer.appendChild(ringPulse2);
+  dataLayer.appendChild(core);
+  dataLayer.appendChild(inner);
+  dots.push({ ringOuter, ringPulse, ringPulse2, core, inner });
+});
+
+
+/* ---------- simulation: drifting values ---------- */
+// each headset has a base alpha amplitude (μV) and drifts smoothly
+const state = HEADSETS.map(h => ({
+  v: h.base,
+  target: h.base,
+  base: h.base,
+  peak: 9.5 + Math.random() * 2,
+  imp: 4 + Math.random() * 3,
+  sqi: 92 + Math.random() * 7,
+}));
+
+let tick = 0;
+function update() {
+  tick++;
+
+  // drift targets occasionally
+  if (tick % 18 === 0) {
+    state.forEach((s, i) => {
+      const swing = 0.2;
+      s.target = s.base + (Math.random() - 0.5) * 2 * swing;
+      s.target = Math.max(0.12, Math.min(0.95, s.target));
+      s.peak = 9 + Math.random() * 3;
+      s.imp = 3.5 + Math.random() * 3.5;
+      s.sqi = 92 + Math.random() * 7.5;
+    });
+  }
+
+  // OSC overrides target per branch (0–1); simulation drift when absent
+  state.forEach((s, i) => {
+    const { address } = window.__ntSpiderResolveBranch?.(i) || {};
+    if (address && window.NtOscWs) {
+      const raw = window.NtOscWs.getOscValue(address);
+      if (raw !== null) s.target = raw;
+    }
+    s.v += (s.target - s.v) * 0.08;
+    s.v += (Math.random() - 0.5) * 0.004;
+  });
+
+  // compute vertex positions
+  const verts = state.map((s, i) => {
+    const a = ANGLE(i);
+    const r = s.v * R_MAX;
+    return { x: CX + r * Math.cos(a), y: CY + r * Math.sin(a), v: s.v, a, r };
+  });
+
+  // ---- smooth-curve helpers (Catmull-Rom → cubic Bezier on a closed loop) ----
+  // returns control points for segment i → i+1 derived from neighbors i-1 and i+2
+  function ctrl(pts, i) {
+    const n = pts.length;
+    const p0 = pts[(i - 1 + n) % n];
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % n];
+    const p3 = pts[(i + 2) % n];
+    const TENSION = 0.18; // 1/6 ≈ 0.167 = classic Catmull-Rom; slightly higher for a softer curve
+    return {
+      p1, p2,
+      c1: { x: p1.x + (p2.x - p0.x) * TENSION, y: p1.y + (p2.y - p0.y) * TENSION },
+      c2: { x: p2.x - (p3.x - p1.x) * TENSION, y: p2.y - (p3.y - p1.y) * TENSION },
+    };
+  }
+  function segPath(c) {
+    return `M ${c.p1.x} ${c.p1.y} C ${c.c1.x} ${c.c1.y} ${c.c2.x} ${c.c2.y} ${c.p2.x} ${c.p2.y}`;
+  }
+  function smoothClosedPath(pts) {
+    let d = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 0; i < pts.length; i++) {
+      const c = ctrl(pts, i);
+      d += ` C ${c.c1.x} ${c.c1.y} ${c.c2.x} ${c.c2.y} ${c.p2.x} ${c.p2.y}`;
+    }
+    return d + " Z";
+  }
+
+  // fill (smooth closed spline)
+  fillPoly.setAttribute("d", smoothClosedPath(verts));
+
+  // record snapshot in history (newest at end)
+  history.push(verts.map(p => ({ x: p.x, y: p.y })));
+  if (history.length > HISTORY_MAX) history.shift();
+
+  // render trail layers — each layer = a snapshot from the past, with decay
+  // trailDurationMs controls how many of the preallocated layers are active.
+  const activeLayers = Math.max(0, Math.round(trailDurationMs / (TRAIL_STRIDE * UPDATE_MS)));
+  for (let t = 0; t < TRAIL_COUNT; t++) {
+    const layer = trailLayers[t];
+    if (t >= activeLayers) { layer.group.setAttribute("opacity", 0); continue; }
+
+    // (t+1)*TRAIL_STRIDE frames into the past (skip current frame)
+    const idx = history.length - 1 - (t + 1) * TRAIL_STRIDE;
+    if (idx < 0) { layer.group.setAttribute("opacity", 0); continue; }
+    const snap = history[idx];
+
+    // ease-out cubic decay scaled to the active range so the falloff matches the chosen duration
+    const age = activeLayers <= 1 ? 0 : t / (activeLayers - 1); // 0 = newest, 1 = oldest
+    const k = 1 - age;
+    const op = (k * k * k) * 0.55;
+    layer.group.setAttribute("opacity", op);
+
+    for (let i = 0; i < N; i++) {
+      const c = ctrl(snap, i);
+      layer.paths[i].setAttribute("d", segPath(c));
+    }
+    // also update the smear fill (same closed spline as the live fillPoly)
+    layer.fillSmear.setAttribute("d", smoothClosedPath(snap));
+  }
+
+  // segments (smooth, per-pair Bezier with the gradient still pinned to the chord endpoints)
+  for (let i = 0; i < N; i++) {
+    const c = ctrl(verts, i);
+    const d = segPath(c);
+    const grad = document.getElementById(`seg-${i}`);
+    grad.setAttribute("x1", c.p1.x); grad.setAttribute("y1", c.p1.y);
+    grad.setAttribute("x2", c.p2.x); grad.setAttribute("y2", c.p2.y);
+    segments[i].glow.setAttribute("d", d);
+    segments[i].seg.setAttribute("d", d);
+  }
+
+  // dots
+  verts.forEach((p, i) => {
+    dots[i].ringOuter.setAttribute("cx", p.x);
+    dots[i].ringOuter.setAttribute("cy", p.y);
+    dots[i].ringPulse.setAttribute("cx", p.x);
+    dots[i].ringPulse.setAttribute("cy", p.y);
+    dots[i].ringPulse2.setAttribute("cx", p.x);
+    dots[i].ringPulse2.setAttribute("cy", p.y);
+    dots[i].core.setAttribute("cx", p.x);
+    dots[i].core.setAttribute("cy", p.y);
+    dots[i].inner.setAttribute("cx", p.x);
+    dots[i].inner.setAttribute("cy", p.y);
+
+    // pulse ring expansion (every 90 frames)
+    const phase = (tick + i * 13) % 90;
+    if (phase < 60) {
+      const t = phase / 60;
+      dots[i].ringPulse.setAttribute("r", 6 + t * 18);
+      dots[i].ringPulse.setAttribute("opacity", (1 - t) * 0.55);
+    } else {
+      dots[i].ringPulse.setAttribute("opacity", 0);
+    }
+    const phase2 = (tick + i * 13 + 45) % 90;
+    if (phase2 < 60) {
+      const t = phase2 / 60;
+      dots[i].ringPulse2.setAttribute("r", 6 + t * 18);
+      dots[i].ringPulse2.setAttribute("opacity", (1 - t) * 0.4);
+    } else {
+      dots[i].ringPulse2.setAttribute("opacity", 0);
+    }
+
+    const resolved = window.__ntSpiderResolveBranch?.(i) || {};
+    const axisId = document.getElementById(`axisid-${i}`);
+    if (axisId && resolved.prefix) axisId.textContent = resolved.prefix;
+
+    const axisVal = document.getElementById(`axisval-${i}`);
+    if (axisVal) axisVal.textContent = `${Math.round(p.v * 100)}%`;
+
+  });
+
+  // footer stats
+  const values = state.map(s => s.v);
+  const mean = values.reduce((a,b)=>a+b,0) / values.length;
+
+  // find max-alpha headset
+  let maxIdx = 0;
+  for (let i = 1; i < values.length; i++) if (values[i] > values[maxIdx]) maxIdx = i;
+  const maxH = HEADSETS[maxIdx];
+
+  document.getElementById("meanA").textContent = `${Math.round(mean * 100)}%`;
+
+  const maxNameEl = document.getElementById("maxName");
+  maxNameEl.style.setProperty("--max-color", maxH.color);
+  maxNameEl.textContent = maxH.name.toUpperCase();
+}
+
+setInterval(update, UPDATE_MS);
+update();
+
+/* ---------- sweep toggle wiring ---------- */
+(function () {
+  const btn = document.getElementById("sweepToggle");
+  const sweep = document.getElementById("sweepGroup");
+  function apply() {
+    const on = btn.getAttribute("aria-pressed") === "true";
+    sweep.style.display = on ? "" : "none";
+  }
+  btn.addEventListener("click", () => {
+    const on = btn.getAttribute("aria-pressed") === "true";
+    btn.setAttribute("aria-pressed", on ? "false" : "true");
+    apply();
+  });
+  apply();
+})();
+
+/* ---------- trail slider wiring ---------- */
+(function () {
+  const slider = document.getElementById("trailSlider");
+  const valOut = document.getElementById("trailVal");
+  function apply() {
+    trailDurationMs = +slider.value;
+    valOut.textContent = `${(trailDurationMs / 1000).toFixed(2)}s`;
+    // paint the filled portion of the WebKit track
+    const pct = (trailDurationMs / +slider.max) * 100;
+    slider.style.setProperty("--p", pct + "%");
+  }
+  slider.addEventListener("input", apply);
+  apply();
+})();
+
+/* ---------- HUD shortcut: H hides sweep + trail controls ---------- */
+(function () {
+  const hud = document.getElementById("spiderHudControls");
+  if (!hud) return;
+  document.body.title = "Spider graph — press H to hide sweep and trail controls";
+  document.addEventListener("keydown", (e) => {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+    if (e.key !== "h" && e.key !== "H") return;
+    const hidden = hud.style.display === "none";
+    hud.style.display = hidden ? "" : "none";
+    hud.setAttribute("aria-hidden", hidden ? "false" : "true");
+  });
+})();
+
+</script>
+</body>
+</html>

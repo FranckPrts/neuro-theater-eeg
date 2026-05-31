@@ -598,7 +598,7 @@ draw = () => {
   drawSweep();
   drawTrailLayers();
   drawClosedFill(verts);
-  drawPolygonSegments(verts, 6, 0.35, 1);
+  //drawPolygonSegments(verts, 6, 0.35, 1);
   drawVertexDots(verts);
   drawCenterHub();
   drawBranchLabels(radii);

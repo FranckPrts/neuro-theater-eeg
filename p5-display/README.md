@@ -265,6 +265,7 @@ cd p5-display && npm install && npm start
 | ---- | --- |
 | Dashboard (scenes + mapping) | `http://127.0.0.1:8765/` |
 | Brain graphic (standalone) | `http://127.0.0.1:8765/brain-graph/brain-graph.html` |
+| Spider graph (standalone) | `http://127.0.0.1:8765/spider-graph/spider-graph.html` (press **H** to hide sweep/trail controls) |
 | NDI clean output | `http://127.0.0.1:8765/ndi-output.html` |
 | Health | `http://127.0.0.1:8765/health` |
 
