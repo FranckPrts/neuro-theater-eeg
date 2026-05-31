@@ -1,0 +1,6 @@
+scene,inputId,label,address,valueType
+brain-graph.html,delta,Delta,/ENOB/delta,osc
+brain-graph.html,theta,Theta,/ENOB/theta,osc
+brain-graph.html,alpha,Alpha,/ENOB/alpha,osc
+brain-graph.html,lowbeta,Low beta,/ENOB/lowbeta,osc
+brain-graph.html,highbeta,High beta,/ENOB/highbeta,osc

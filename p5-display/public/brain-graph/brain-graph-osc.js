@@ -1,9 +1,9 @@
 /**
- * OSC wiring for EEG Brain Graphic.html — loads band mapping CSV and connects /ws.
+ * OSC wiring for brain-graph.html — loads band mapping CSV and connects /ws.
  */
 (function () {
-  const CSV_URL = "../p5-mapping/eeg-brain-graphic-mapping.csv";
-  const SCENE = "EEG Brain Graphic.html";
+  const CSV_URL = "../p5-mapping/brain-graph-mapping.csv";
+  const SCENE = "brain-graph.html";
 
   /** @type {Record<string, string>} band key (alpha, delta, …) → OSC address */
   window.__ntBandAddressByKey = Object.create(null);
@@ -42,7 +42,7 @@
   fetch(CSV_URL)
     .then((r) => (r.ok ? r.text() : Promise.reject(new Error("HTTP " + r.status))))
     .then(parseMappingCsv)
-    .catch((err) => console.warn("[eeg-brain-graphic-osc] mapping CSV:", err));
+    .catch((err) => console.warn("[brain-graph-osc] mapping CSV:", err));
 
   if (window.NtOscWs) window.NtOscWs.connectOscWs();
 })();

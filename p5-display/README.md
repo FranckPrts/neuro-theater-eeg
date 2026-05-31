@@ -18,7 +18,7 @@ cd p5-display
 npm install
 ```
 
-`postinstall` copies **`p5.min.js`**, **Three.js r160** (`public/vendor/three/`), and **EEG Brain Graphic fonts** (`public/vendor/fonts/`) from devDependencies so pages work **offline** after a single install (no CDN for [`Brain Electrode Graphic/EEG Brain Graphic.html`](public/Brain%20Electrode%20Graphic/EEG%20Brain%20Graphic.html)).
+`postinstall` copies **`p5.min.js`**, **Three.js r160** (`public/vendor/three/`), and **brain-graph fonts** (`public/vendor/fonts/`) from devDependencies so pages work **offline** after a single install (no CDN for [`brain-graph/brain-graph.html`](public/brain-graph/brain-graph.html)).
 
 ## Run
 
@@ -250,3 +250,57 @@ Scene code is loaded and executed in the iframe from **trusted local files** onl
 
 - Human head 3D model (BrainSphere scene): low-poly side-view head generated with [Meshy AI](https://www.meshy.ai/).
 - Brain 3D model (ENOBIO, MUSE scenes): [Brain](https://sketchfab.com/3d-models/brain-7a2c96d2bc5c4068b3f715fd5ed95b67) by [JuanG3D](https://sketchfab.com/JuanG3D), licensed under [Creative Commons Attribution](https://creativecommons.org/licenses/by/4.0/).
+
+## TL;DR cheat sheet
+
+**Boot**
+
+```bash
+cd p5-display && npm install && npm start
+```
+
+**URLs** (default port **8765**)
+
+| Page | URL |
+| ---- | --- |
+| Dashboard (scenes + mapping) | `http://127.0.0.1:8765/` |
+| Brain graphic (standalone) | `http://127.0.0.1:8765/brain-graph/brain-graph.html` |
+| NDI clean output | `http://127.0.0.1:8765/ndi-output.html` |
+| Health | `http://127.0.0.1:8765/health` |
+
+**OSC → browser (typical show path)**
+
+```bash
+# Terminal A — proxy (LAN broadcast)
+python osc-io/osc_proxy_failover.py --out-host 192.168.10.255 --out-port 8000
+
+# Terminal B — already running npm start
+# Browser → Stream tab → Apply on port 8000
+```
+
+Local-only loopback: proxy `--out-host 127.0.0.1 --out-port 8000`.
+
+**Dashboard workflow**
+
+1. **Stream** → **Apply** UDP port (match your proxy/sender).
+2. **Scene** → pick a `*.p5` sketch (or **None** for blank).
+3. Map OSC addresses in **Manual mapping** (or **Load CSV map** from `public/p5-mapping/`).
+4. Optional **NDI** tab → point at [`ndi-bridge`](../ndi-bridge/) → **Enable NDI**.
+
+**Two UIs at once**
+
+```bash
+node server.js --http-port 8765   # e.g. UDP 8000
+node server.js --http-port 8768   # e.g. UDP 7999
+```
+
+Only one process per UDP port; each browser origin has its own saved settings.
+
+**Defaults**
+
+| What | Value |
+| ---- | ----- |
+| HTTP + WebSocket | `:8765`, path `/ws` |
+| OSC UDP (after Apply) | `0.0.0.0:8000` |
+| Scene files | `public/p5-scenes/*.p5` |
+| Mapping CSVs | `public/p5-mapping/*.csv` |
