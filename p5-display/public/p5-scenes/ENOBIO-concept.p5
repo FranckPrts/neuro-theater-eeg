@@ -18,7 +18,7 @@ const BRAIN_MESH_ROTATION_X = Math.PI * 0.75;
 const BRAIN_MESH_ROTATION_Y = 0;
 const BRAIN_MESH_ROTATION_Z = 0;
 const BRAIN_MESH_SCALE = 0.85; // mesh-only; 1 = full size, 0.9 = −10%
-
+  
 // ── VISUAL · palette ────────────────────────────────────────────────────────
 const BG_COLOR = [0, 2, 8];
 const HUD_BAR_BG = [0, 3, 8];
@@ -29,8 +29,8 @@ const CYAN_ALPHA = {
   visitorBorder: 255,
   labelText: 255,
   activeFill: 26,
-  stripe: 1,
-  wireframeOuter: 55,
+  stripe: 10,
+    wireframeOuter: 55,
   wireframeInner: 120,
   labelLine: 150,
   labelBox: 210,
@@ -76,7 +76,7 @@ const GEODESIC_STROKE_ALPHA = 40;
 // ── VISUAL · electrode markers ────────────────────────────────────────────────
 const MARKER_INTENSITY_WARM = [248, 238, 195];
 const MARKER_INTENSITY_HOT = [255, 95, 48];
-const MARKER_ALPHA = 77; // ~30% opacity (RGB 0–255)
+const MARKER_ALPHA = 50; // ~20% opacity (RGB 0–255)
 
 // ── VISUAL · scene lighting ───────────────────────────────────────────────────
 const SCENE_AMBIENT = [28, 42, 38];
@@ -525,37 +525,38 @@ function drawElectrodeMarkers() {
   });
 }
 
+// Electrode ID labels and cyan leader lines disabled (restore block below if needed).
 function drawMarkerLabels() {
-  withBrainTransform(() => {
-    noLights();
-    textAlign(CENTER, CENTER);
-    textSize(4.2);
-    rectMode(CORNER);
-
-    for (const marker of currentMarkers()) {
-      const i = markerIntensity(marker);
-      if (i <= 0.05) continue;
-      const [cx, cy, cz] = markerContactPosition(marker);
-      const [lx, ly, lz] = markerLabelPosition(marker);
-
-      stroke(...CYAN, CYAN_ALPHA.labelLine);
-      strokeWeight(0.25);
-      line(cx, cy, cz, lx, ly, lz);
-
-      push();
-      translate(lx, ly, lz);
-
-      const alpha = constrain(i, 0.05, 1);
-      const tw = marker.id.length * 2.0 + 3.0;
-
-      noStroke();
-      fill(0, 0, 0, CYAN_ALPHA.labelBox * alpha);
-      rect(-tw / 2, -3.0, tw, 6.0, 0.45);
-      fill(...CYAN, CYAN_ALPHA.labelText * alpha);
-      text(marker.id, 0, 0.15);
-      pop();
-    }
-  });
+  // withBrainTransform(() => {
+  //   noLights();
+  //   textAlign(CENTER, CENTER);
+  //   textSize(4.2);
+  //   rectMode(CORNER);
+  //
+  //   for (const marker of currentMarkers()) {
+  //     const i = markerIntensity(marker);
+  //     if (i <= 0.05) continue;
+  //     const [cx, cy, cz] = markerContactPosition(marker);
+  //     const [lx, ly, lz] = markerLabelPosition(marker);
+  //
+  //     stroke(...CYAN, CYAN_ALPHA.labelLine);
+  //     strokeWeight(0.25);
+  //     line(cx, cy, cz, lx, ly, lz);
+  //
+  //     push();
+  //     translate(lx, ly, lz);
+  //
+  //     const alpha = constrain(i, 0.05, 1);
+  //     const tw = marker.id.length * 2.0 + 3.0;
+  //
+  //     noStroke();
+  //     fill(0, 0, 0, CYAN_ALPHA.labelBox * alpha);
+  //     rect(-tw / 2, -3.0, tw, 6.0, 0.45);
+  //     fill(...CYAN, CYAN_ALPHA.labelText * alpha);
+  //     text(marker.id, 0, 0.15);
+  //     pop();
+  //   }
+  // });
 }
 
 draw = () => {
@@ -570,6 +571,6 @@ draw = () => {
   drawGeodesicWireframe();
   drawBrainWireframe();
   drawElectrodeMarkers();
-  drawMarkerLabels();
+  // drawMarkerLabels();
   drawToggleBarHeader();
 };
