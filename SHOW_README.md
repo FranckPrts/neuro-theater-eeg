@@ -16,21 +16,29 @@ Full docs: [README.md](README.md) · [p5-display/README.md](p5-display/README.md
 
 ## OSC proxy
 
-**Show / multi-head:**
+**LAN (show — TouchDesigner, p5, collaborators on subnet):**
 
 ```bash
 python osc-io/osc_proxy_failover.py \
   --config osc-io/proxy_config.json \
   --allowed-hardware 22FC,2265,2262,1D1A,1FD6,2615,1E58,ENOB \
-  --in-port 8001 --out-port 8000
+  --in-port 8001 --out-port 8000 \
+  --out-host 192.168.10.255
 ```
 
-- **In** `8001` ← goofi; **out** `8000` ← TouchDesigner, audio, p5, etc.
+**Local (one machine — proxy + p5 on same Mac, no broadcast):**
+
+```bash
+python osc-io/osc_proxy_failover.py \
+  --config osc-io/proxy_config.json \
+  --allowed-hardware 22FC,2265,2262,1D1A,1FD6,2615,1E58,ENOB \
+  --in-port 8001 --out-port 8000 \
+  --out-host 127.0.0.1
+```
+
+- **In** `8001` ← goofi; **out** `8000` ← consumers. Only `--out-host` differs above.
 - With `--config`, [`osc-io/proxy_config.json`](osc-io/proxy_config.json) may also fan out to **7999** and **8000** (`output_ports`); CLI `--out-port` overrides single-port behavior.
 - Failover clips: `hardware_recordings` in that JSON (`22FC`, `ENOB`, …).
-
-**LAN broadcast:** `python osc-io/osc_proxy_failover.py --out-host 192.168.10.255 --out-port 8000`  
-**Loopback only:** `--out-host 127.0.0.1 --out-port 8000`
 
 Record · replay: `python osc-io/osc_recorder.py --port 8001` · `python osc-io/osc_replay.py osc-io/recordings/failovers/ENOBIO.json --port 8001 --loop`
 
