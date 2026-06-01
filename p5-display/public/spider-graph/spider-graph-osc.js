@@ -1,24 +1,30 @@
 /**
- * OSC wiring for spider-graph.html — CSV defaults, live prefix discovery, /ws.
+ * OSC wiring for spider-graph.html — live LAN prefix discovery, /ws.
+ * ENOB → Cosmonaut; other 4-char prefixes → Visitors 1–6; FA## for missing slots.
  */
 (function () {
   const CSV_URL = "../p5-mapping/spider-graph-mapping.csv";
   const SCENE = "spider-graph.html";
-  const STREAM_SUFFIX = "alpha";
   const BRANCH_COUNT = 7;
-  const FALLBACK_PREFIXES = ["ENOB", "2262", "1D1A", "4F77", "9B30", "7AC1", "3E0F"];
+  const COSMONAUT_PREFIX = "ENOB";
+  const VISITOR_COUNT = 6;
+  const ALPHA_SUFFIXES = ["alpha", "alphaNorm"];
+  const HARDWARE_ID_RE = /^[A-Za-z0-9]{4}$/;
 
-  /** @type {Record<string, string>} branch_0 … → default OSC address */
+  /** @type {Record<string, string>} branch_0 … → CSV OSC address (documentation only) */
   window.__ntBranchAddressByKey = Object.create(null);
-  /** @type {Record<string, string>} branch_0 … → default device prefix */
+  /** @type {Record<string, string>} branch_0 … → CSV device prefix */
   window.__ntBranchDefaultPrefix = Object.create(null);
 
-  let networkPrefixes = [];
-  /** @type {({ address: string, prefix: string }|null)[]} */
+  /** @type {(string|null)[]} stable FA## per visitor branch slot (indices 0–5 → branches 1–6) */
+  const simulatedPrefixesBySlot = new Array(VISITOR_COUNT).fill(null);
+
+  /** @type {({ address: string, prefix: string, simulated: boolean, role: string }|null)[]} */
   let resolvedByBranch = new Array(BRANCH_COUNT).fill(null);
 
   function isDeviceStreamAddress(address) {
     if (typeof address !== "string" || !address.startsWith("/")) return false;
+    if (address.startsWith("/nt/")) return false;
     const parts = address.split("/").filter(Boolean);
     return parts.length >= 2;
   }
@@ -37,77 +43,122 @@
     return `/${p}/${s}`;
   }
 
-  function defaultPrefixForBranch(i) {
-    const key = `branch_${i}`;
-    const fromCsv = window.__ntBranchDefaultPrefix[key];
-    if (fromCsv) return fromCsv;
-    const addr = window.__ntBranchAddressByKey[key];
-    const parsed = parseOscAddressParts(addr);
-    return parsed ? parsed.prefix : "";
+  function isHardwarePrefix(prefix) {
+    return typeof prefix === "string" && HARDWARE_ID_RE.test(prefix);
   }
 
-  function defaultAddressForBranch(i) {
-    const key = `branch_${i}`;
-    const addr = window.__ntBranchAddressByKey[key];
-    if (addr) return addr;
-    const prefix = defaultPrefixForBranch(i);
-    return prefix ? composeOscAddress(prefix, STREAM_SUFFIX) : "";
-  }
-
-  function refreshNetworkPrefixes() {
-    const latest = window.NtOscWs?.latestByAddress;
-    if (!latest) {
-      networkPrefixes = [];
-      return;
-    }
+  /** Unique 4-char hardware IDs seen on the LAN (any stream suffix). */
+  function discoverHardwarePrefixes(latest) {
     const set = new Set();
-    for (const addr of Object.keys(latest)) {
+    for (const addr of Object.keys(latest || {})) {
       const parsed = parseOscAddressParts(addr);
-      if (parsed && parsed.suffix === STREAM_SUFFIX) set.add(parsed.prefix);
+      if (parsed && isHardwarePrefix(parsed.prefix)) set.add(parsed.prefix);
     }
-    networkPrefixes = [...set].sort();
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }
+
+  /** Prefer /prefix/alpha, then /prefix/alphaNorm. */
+  function pickAlphaAddress(prefix, latest) {
+    for (const suffix of ALPHA_SUFFIXES) {
+      const address = composeOscAddress(prefix, suffix);
+      if (address && address in latest) return { address, suffix };
+    }
+    return { address: composeOscAddress(prefix, "alpha"), suffix: "alpha" };
+  }
+
+  function allocateFaPrefix(used) {
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const digits = String(Math.floor(Math.random() * 100)).padStart(2, "0");
+      const prefix = `FA${digits}`;
+      if (!used.has(prefix)) return prefix;
+    }
+    let n = 0;
+    while (used.has(`FA${String(n).padStart(2, "0")}`)) n++;
+    return `FA${String(n).padStart(2, "0")}`;
+  }
+
+  function branchRole(i) {
+    return i === 0 ? "cosmonaut" : "visitor";
+  }
+
+  function liveBranch(prefix, latest) {
+    const { address } = pickAlphaAddress(prefix, latest);
+    return {
+      address,
+      prefix,
+      simulated: false,
+      role: branchRole(0),
+    };
   }
 
   function rebuildResolved() {
-    refreshNetworkPrefixes();
     const latest = window.NtOscWs?.latestByAddress || Object.create(null);
-    const used = new Set();
+    const discovered = discoverHardwarePrefixes(latest);
+    const discoveredSet = new Set(discovered);
+    const used = new Set(discovered);
     const next = new Array(BRANCH_COUNT).fill(null);
 
-    for (let i = 0; i < BRANCH_COUNT; i++) {
-      const defPrefix = defaultPrefixForBranch(i);
-      const defAddr = composeOscAddress(defPrefix, STREAM_SUFFIX);
-      if (defPrefix && defAddr in latest && !used.has(defPrefix)) {
-        next[i] = { address: defAddr, prefix: defPrefix };
-        used.add(defPrefix);
-      }
+    // Branch 0 — Cosmonaut (ENOB)
+    if (discoveredSet.has(COSMONAUT_PREFIX)) {
+      const picked = pickAlphaAddress(COSMONAUT_PREFIX, latest);
+      next[0] = {
+        address: picked.address,
+        prefix: COSMONAUT_PREFIX,
+        simulated: false,
+        role: "cosmonaut",
+      };
+    } else {
+      next[0] = {
+        address: "",
+        prefix: COSMONAUT_PREFIX,
+        simulated: true,
+        role: "cosmonaut",
+      };
     }
 
-    for (let i = 0; i < BRANCH_COUNT; i++) {
-      if (next[i]) continue;
-      const spare = networkPrefixes.find((p) => !used.has(p));
-      if (spare) {
-        const addr = composeOscAddress(spare, STREAM_SUFFIX);
-        next[i] = { address: addr, prefix: spare };
-        used.add(spare);
-      } else {
-        const defPrefix = defaultPrefixForBranch(i);
-        const defAddr = defaultAddressForBranch(i);
-        if (defAddr) next[i] = { address: defAddr, prefix: defPrefix };
+    const visitors = discovered.filter((p) => p !== COSMONAUT_PREFIX);
+
+    for (let v = 0; v < VISITOR_COUNT; v++) {
+      const branchIndex = v + 1;
+      const prefix = visitors[v];
+      if (prefix) {
+        simulatedPrefixesBySlot[v] = null;
+        const picked = pickAlphaAddress(prefix, latest);
+        next[branchIndex] = {
+          address: picked.address,
+          prefix,
+          simulated: false,
+          role: "visitor",
+        };
+        continue;
       }
+
+      if (!simulatedPrefixesBySlot[v]) {
+        simulatedPrefixesBySlot[v] = allocateFaPrefix(used);
+      }
+      used.add(simulatedPrefixesBySlot[v]);
+      next[branchIndex] = {
+        address: "",
+        prefix: simulatedPrefixesBySlot[v],
+        simulated: true,
+        role: "visitor",
+      };
     }
 
     resolvedByBranch = next;
   }
 
   window.__ntSpiderResolveBranch = function (i) {
-    if (i < 0 || i >= BRANCH_COUNT) return { address: "", prefix: "" };
+    if (i < 0 || i >= BRANCH_COUNT) {
+      return { address: "", prefix: "", simulated: false, role: "visitor" };
+    }
     const r = resolvedByBranch[i];
     if (r) return r;
-    const defPrefix = defaultPrefixForBranch(i);
     return {
-      address: defaultAddressForBranch(i),
-      prefix: defPrefix,
+      address: "",
+      prefix: i === 0 ? COSMONAUT_PREFIX : "",
+      simulated: true,
+      role: branchRole(i),
     };
   };
 
@@ -140,14 +191,6 @@
     rebuildResolved();
   }
 
-  for (let i = 0; i < BRANCH_COUNT; i++) {
-    const key = `branch_${i}`;
-    const prefix = FALLBACK_PREFIXES[i];
-    if (prefix) {
-      window.__ntBranchDefaultPrefix[key] = prefix;
-      window.__ntBranchAddressByKey[key] = composeOscAddress(prefix, STREAM_SUFFIX);
-    }
-  }
   rebuildResolved();
 
   fetch(CSV_URL)

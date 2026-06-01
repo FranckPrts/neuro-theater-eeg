@@ -1055,10 +1055,11 @@ function update() {
     });
   }
 
-  // OSC overrides target per branch (0–1); simulation drift when absent
+  // OSC overrides target per branch (0–1); simulation drift when absent or simulated
   state.forEach((s, i) => {
-    const { address } = window.__ntSpiderResolveBranch?.(i) || {};
-    if (address && window.NtOscWs) {
+    const resolved = window.__ntSpiderResolveBranch?.(i) || {};
+    const { address, simulated } = resolved;
+    if (!simulated && address && window.NtOscWs) {
       const raw = window.NtOscWs.getOscValue(address);
       if (raw !== null) s.target = raw;
     }
