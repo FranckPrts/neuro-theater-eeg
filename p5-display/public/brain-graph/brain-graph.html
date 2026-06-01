@@ -972,5 +972,20 @@ animate(0);
 </script>
 <script src="../osc-ws-client.js"></script>
 <script src="brain-graph-osc.js"></script>
+<script>
+/* HUD shortcut: H hides sphere toggle */
+(function () {
+  const hud = document.getElementById("haloBtn");
+  if (!hud) return;
+  document.body.title = "Brain graph — press H to hide sphere toggle";
+  document.addEventListener("keydown", (e) => {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+    if (e.key !== "h" && e.key !== "H") return;
+    const hidden = hud.style.display === "none";
+    hud.style.display = hidden ? "" : "none";
+    hud.setAttribute("aria-hidden", hidden ? "false" : "true");
+  });
+})();
+</script>
 </body>
 </html>
