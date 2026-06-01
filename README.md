@@ -400,6 +400,9 @@ xdf.to_csv("out.csv", ...)  # see docstring on XdfExplorer.to_csv
 ---
 
 ## Cheat sheet
+
+Live show one-pager: **[SHOW_README.md](SHOW_README.md)**.
+
 To start the OSC proxy on ports 8001 (input) and 8000 (output), use:
 
 ```bash
