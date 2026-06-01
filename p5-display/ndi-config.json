@@ -13,6 +13,6 @@
   ],
   "activeBridgeId": "bridge-b",
   "enabled": true,
-  "sceneFile": "ENOBIO-concept.p5",
+  "sceneFile": "",
   "syncSceneWithDashboard": true
 }

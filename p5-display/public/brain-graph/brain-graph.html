@@ -112,6 +112,9 @@ body{
   color:#00ff99;border-color:#00ff99;background:rgba(0,255,153,.10);
   box-shadow:inset 0 0 12px rgba(0,255,153,.18);font-weight:bold;
 }
+.vt-btn.simulated{
+  opacity:.5;font-style:italic;
+}
 #toggle-bar::before,#toggle-bar::after{
   content:'';position:absolute;top:0;bottom:0;width:24%;
   background:repeating-linear-gradient(-45deg,transparent,transparent 6px,rgba(0,255,153,.04) 6px,rgba(0,255,153,.04) 7px);
@@ -260,18 +263,18 @@ body::after{
     <div id="enobio-sub" class="visitor-tog" style="display:flex">
       <span class="vt-lbl">SUBJECT</span>
       <div class="vt-row">
-        <button class="vt-btn on" data-color="#b855ff" style="flex:1;cursor:default">KANTOR</button>
+        <button id="btnKantor" class="vt-btn on" data-color="#b855ff" style="flex:1;cursor:default">ENOB</button>
       </div>
     </div>
     <div id="visitor-tog" class="visitor-tog" style="display:none">
       <span class="vt-lbl">VISITOR</span>
       <div class="vt-row">
-        <button class="vt-btn on" data-v="1" data-color="#ff3d4a" onclick="setVisitor(1)">1</button>
-        <button class="vt-btn"    data-v="2" data-color="#ff9b3d" onclick="setVisitor(2)">2</button>
-        <button class="vt-btn"    data-v="3" data-color="#ff3d9b" onclick="setVisitor(3)">3</button>
-        <button class="vt-btn"    data-v="4" data-color="#3df0a0" onclick="setVisitor(4)">4</button>
-        <button class="vt-btn"    data-v="5" data-color="#e6f24a" onclick="setVisitor(5)">5</button>
-        <button class="vt-btn"    data-v="6" data-color="#3dd9f0" onclick="setVisitor(6)">6</button>
+        <button class="vt-btn on" data-v="1" data-color="#ff3d4a" onclick="setVisitor(1)">—</button>
+        <button class="vt-btn"    data-v="2" data-color="#ff9b3d" onclick="setVisitor(2)">—</button>
+        <button class="vt-btn"    data-v="3" data-color="#ff3d9b" onclick="setVisitor(3)">—</button>
+        <button class="vt-btn"    data-v="4" data-color="#3df0a0" onclick="setVisitor(4)">—</button>
+        <button class="vt-btn"    data-v="5" data-color="#e6f24a" onclick="setVisitor(5)">—</button>
+        <button class="vt-btn"    data-v="6" data-color="#3dd9f0" onclick="setVisitor(6)">—</button>
       </div>
     </div>
   </div>
@@ -443,6 +446,34 @@ const bandState = MAPPING.map((m,i)=>({
   wavePhase: 0,
 }));
 
+let __ntBrainBandStreamKey = '';
+
+function bandStreamKey() {
+  const museOn = document.getElementById('btnMuse')?.classList.contains('on');
+  const slot = window.__ntBrainActiveSlot?.() ?? 0;
+  const resolved = window.__ntBrainResolveSlot?.(slot) || {};
+  const prefix = resolved.prefix || '';
+  return `${museOn ? 'muse' : 'enobio'}:${slot}:${prefix}`;
+}
+
+/** Clear band panel when the active OSC prefix / slot changes. */
+window.__ntBrainSyncBandStream = function (force) {
+  const key = bandStreamKey();
+  if (!force && key === __ntBrainBandStreamKey) return false;
+  const isFirstBind = __ntBrainBandStreamKey === '';
+  __ntBrainBandStreamKey = key;
+  if (isFirstBind && !force) return false;
+  bandState.forEach((s) => {
+    s.v = 0;
+    s.target = 0;
+    s.envelope.length = 0;
+  });
+  document.querySelectorAll('#band-rows-host [data-val]').forEach((el) => {
+    el.textContent = '0.00';
+  });
+  return true;
+};
+
 const host = document.getElementById('band-rows-host');
 MAPPING.forEach((m,i)=>{
   const last = i === MAPPING.length - 1;
@@ -487,8 +518,10 @@ function bandLoop(ts){
   bandLast = ts;
 
   bandState.forEach((s,i)=>{
-    const addr = window.__ntBandAddressByKey && window.__ntBandAddressByKey[MAPPING[i].band];
-    if (addr && window.NtOscWs) {
+    const slot = window.__ntBrainActiveSlot?.() ?? 0;
+    const resolved = window.__ntBrainResolveSlot?.(slot) || {};
+    const addr = window.__ntBrainBandAddress?.(MAPPING[i].band);
+    if (addr && window.NtOscWs && !resolved.simulated) {
       const raw = window.NtOscWs.getOscValue(addr);
       if (raw !== null) s.target = raw;
     }
@@ -915,12 +948,26 @@ function paintVisitorButtons(){
     b.style.boxShadow   = '';
   });
 }
+window.__ntBrainPaintVisitorButtons = paintVisitorButtons;
+
 // Repaint after every visitor change
 const _origSetVisitor = window.setVisitor;
-window.setVisitor = function(n){ _origSetVisitor(n); paintVisitorButtons(); };
+window.setVisitor = function(n){
+  _origSetVisitor(n);
+  window.__ntBrainSyncBandStream?.();
+  paintVisitorButtons();
+  window.__ntBrainRefreshPrefixLabels?.();
+};
 const _origSetMontage = window.setMontage;
-window.setMontage = function(name){ _origSetMontage(name); paintVisitorButtons(); };
+window.setMontage = function(name){
+  _origSetMontage(name);
+  window.__ntBrainSyncBandStream?.();
+  paintVisitorButtons();
+  window.__ntBrainRefreshPrefixLabels?.();
+};
 paintVisitorButtons();
+window.__ntBrainRefreshPrefixLabels?.();
+window.__ntBrainSyncBandStream?.();
 
 // ── ANIMATION LOOP ───────────────────────────────────────
 let T=0,lastTs=0;
@@ -930,9 +977,10 @@ function animate(ts){
   T += dt;
 
   elState.forEach((s,i)=>{
-    if (window.NtOscWs && elMeshes[i]?.userData?.name) {
-      const prefix = window.__ntMontageHardwarePrefix ? window.__ntMontageHardwarePrefix() : 'ENOB';
-      const raw = window.NtOscWs.getOscValue(`/${prefix}/${elMeshes[i].userData.name}`);
+    const slot = window.__ntBrainActiveSlot?.() ?? 0;
+    const resolved = window.__ntBrainResolveSlot?.(slot) || {};
+    if (window.NtOscWs && elMeshes[i]?.userData?.name && !resolved.simulated && resolved.prefix) {
+      const raw = window.NtOscWs.getOscValue(`/${resolved.prefix}/${elMeshes[i].userData.name}`);
       if (raw !== null) s.target = raw;
     }
     s.v += (s.target-s.v) * dt * 1.1;
