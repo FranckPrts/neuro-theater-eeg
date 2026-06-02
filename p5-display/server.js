@@ -715,6 +715,7 @@ function main() {
     }
     server.listen(opts.httpPort, opts.httpHost, () => {
       console.log(`[HTTP] http://${opts.httpHost}:${opts.httpPort}/`);
+      console.log(`[HTTP] http://127.0.0.1:${opts.httpPort}/`);
       console.log(`[WS]   ws://${opts.httpHost}:${opts.httpPort}/ws`);
       console.log(`[NDI]  config → ${path.basename(ndiConfigPath)}`);
     });
