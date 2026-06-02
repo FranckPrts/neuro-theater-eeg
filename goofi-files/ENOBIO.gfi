@@ -4,7 +4,7 @@ nodes:
     category: signal
     params:
       buffer:
-        size: 4.0
+        size: 5.0
         axis: -1
         unit: seconds
         reset: false
@@ -15,14 +15,14 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - -258
-      - 369
+      - 35
+      - 348
       viewers:
         out:
           viewer_idx: 0
-          width: 795
-          height: 720
-          collapsed: true
+          width: 325
+          height: 250
+          collapsed: false
           log_scale_x: false
           log_scale_y: false
   oscout0:
@@ -43,8 +43,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2892
-      - 224
+      - 2705
+      - 532
       viewers: {}
   reduce2:
     _type: Reduce
@@ -60,8 +60,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1586
-      - 483
+      - 1248
+      - 517
       viewers:
         out:
           viewer_idx: 0
@@ -75,7 +75,7 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: ENOBIO-32-NE-Wifi(00:07:80:0D:72:00)
+        source_name: ''
         stream_name: ENOBIO-EEG
         source_type: ''
         refresh: true
@@ -86,13 +86,13 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 678
-      - 69
+      - 235
+      - 15
       viewers:
         out:
           viewer_idx: 0
-          width: 355
-          height: 280
+          width: 275
+          height: 200
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -110,38 +110,14 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 415
-      - 157
+      - 10
+      - 65
       viewers:
         out:
           viewer_idx: 0
           width: 175
           height: 100
           collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  constantstring1:
-    _type: ConstantString
-    category: inputs
-    params:
-      constant:
-        value: ENOBIO-32-NE-Wifi(00:07:80:0D:72:00)
-        overwrite_timeout: 5.0
-      common:
-        autotrigger: true
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 414
-      - 66
-      viewers:
-        out:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: true
           log_scale_x: false
           log_scale_y: false
   reduce5:
@@ -158,8 +134,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1585
-      - 398
+      - 1247
+      - 432
       viewers:
         out:
           viewer_idx: 0
@@ -190,8 +166,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2441
-      - 385
+      - 2100
+      - 401
       viewers:
         table:
           viewer_idx: 0
@@ -214,8 +190,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1584
-      - 312
+      - 1246
+      - 346
       viewers:
         out:
           viewer_idx: 0
@@ -238,8 +214,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1585
-      - 570
+      - 1247
+      - 604
       viewers:
         out:
           viewer_idx: 0
@@ -262,8 +238,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1584
-      - 656
+      - 1246
+      - 690
       viewers:
         out:
           viewer_idx: 0
@@ -277,7 +253,7 @@ nodes:
     category: inputs
     params:
       lsl_stream:
-        source_name: ENOBIO-32-NE-Wifi(00:07:80:0D:72:00) Acc
+        source_name: ''
         stream_name: ENOBIO-Accelerometer
         source_type: Accelerometer
         refresh: true
@@ -288,13 +264,13 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 302
-      - 1566
+      - 553
+      - 20
       viewers:
         out:
           viewer_idx: 0
-          width: 175
-          height: 100
+          width: 255
+          height: 180
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -316,8 +292,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2045
-      - 1560
+      - 2705
+      - 597
       viewers: {}
   buffer0:
     _type: Buffer
@@ -335,14 +311,14 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 524
-      - 1572
+      - 1221
+      - 1012
       viewers:
         out:
           viewer_idx: 0
           width: 525
           height: 450
-          collapsed: true
+          collapsed: false
           log_scale_x: false
           log_scale_y: false
   select0:
@@ -362,8 +338,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 736
-      - 1459
+      - 1806
+      - 967
       viewers:
         out:
           viewer_idx: 0
@@ -394,8 +370,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1804
-      - 1297
+      - 2874
+      - 805
       viewers:
         table:
           viewer_idx: 0
@@ -421,8 +397,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 741
-      - 1659
+      - 1811
+      - 1167
       viewers:
         out:
           viewer_idx: 0
@@ -448,8 +424,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 741
-      - 1861
+      - 1811
+      - 1369
       viewers:
         out:
           viewer_idx: 0
@@ -472,8 +448,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 965
-      - 1463
+      - 2035
+      - 971
       viewers:
         out:
           viewer_idx: 0
@@ -496,8 +472,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 964
-      - 1659
+      - 2034
+      - 1167
       viewers:
         out:
           viewer_idx: 0
@@ -520,8 +496,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 967
-      - 1865
+      - 2037
+      - 1373
       viewers:
         out:
           viewer_idx: 0
@@ -561,8 +537,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 305
-      - 1308
+      - 1375
+      - 816
       viewers:
         table:
           viewer_idx: 0
@@ -594,8 +570,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1343
-      - 1387
+      - 2413
+      - 895
       viewers:
         out:
           viewer_idx: 0
@@ -627,8 +603,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1341
-      - 1577
+      - 2411
+      - 1085
       viewers:
         out:
           viewer_idx: 0
@@ -660,8 +636,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1347
-      - 1769
+      - 2417
+      - 1277
       viewers:
         out:
           viewer_idx: 0
@@ -693,8 +669,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1797
-      - 317
+      - 1486
+      - 348
       viewers:
         out:
           viewer_idx: 0
@@ -726,8 +702,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1799
-      - 401
+      - 1485
+      - 432
       viewers:
         out:
           viewer_idx: 0
@@ -759,8 +735,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1797
-      - 484
+      - 1486
+      - 515
       viewers:
         out:
           viewer_idx: 0
@@ -792,8 +768,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1796
-      - 566
+      - 1485
+      - 597
       viewers:
         out:
           viewer_idx: 0
@@ -825,8 +801,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1795
-      - 651
+      - 1484
+      - 682
       viewers:
         out:
           viewer_idx: 0
@@ -849,8 +825,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2112
-      - -28
+      - 1775
+      - -16
       viewers:
         out:
           viewer_idx: 0
@@ -873,8 +849,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2113
-      - 159
+      - 1772
+      - 175
       viewers:
         out:
           viewer_idx: 0
@@ -897,8 +873,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2111
-      - 347
+      - 1770
+      - 363
       viewers:
         out:
           viewer_idx: 0
@@ -921,8 +897,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2113
-      - 536
+      - 1772
+      - 552
       viewers:
         out:
           viewer_idx: 0
@@ -945,81 +921,13 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 2115
-      - 725
+      - 1774
+      - 741
       viewers:
         out:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  extendedtable1:
-    _type: ExtendedTable
-    category: inputs
-    params:
-      table:
-        param1: delta
-        param2: theta
-        param3: alpha
-        param4: lowbeta
-        param5: highbeta
-        param6: ''
-        param7: ''
-        param8: ''
-        param9: ''
-        param10: ''
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 1652
-      - -137
-      viewers:
-        table:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  tablenormalization0:
-    _type: TableNormalization
-    category: signal
-    params:
-      normalization:
-        method: minmax
-        buffer_size: 3000
-        reset: false
-        axis: -1
-      quantile:
-        n_quantiles: 1000
-        output_distribution: uniform
-      robust:
-        quantile_min: 25
-        quantile_max: 75
-        unit_variance: false
-      minmax:
-        feature_min: 0.0
-        feature_max: 1.0
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 2452
-      - 60
-      viewers:
-        normalized:
-          viewer_idx: 0
-          width: 295
-          height: 220
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -1044,13 +952,13 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 930
-      - 361
+      - 585
+      - 351
       viewers:
         psd:
           viewer_idx: 0
-          width: 175
-          height: 100
+          width: 345
+          height: 270
           collapsed: false
           log_scale_x: false
           log_scale_y: false
@@ -1067,8 +975,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 1205
-      - 477
+      - 987
+      - 210
       viewers:
         delta:
           viewer_idx: 0
@@ -1129,8 +1037,8 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 586
-      - 428
+      - 391
+      - 517
       viewers:
         out:
           viewer_idx: 0
@@ -1139,22 +1047,41 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  math8:
-    _type: Math
-    category: array
+  constantstring1:
+    _type: ConstantString
+    category: inputs
     params:
-      math:
-        pre_add: 0.0
-        multiply: 1.0
-        post_add: 0.0
-        round: -1
-        sqrt: false
-        squared: false
-      map:
-        input_min: 0.0
-        input_max: 1.0
-        output_min: 0.0
-        output_max: 1.0
+      constant:
+        value: ENOBIO-32-NE-Wifi(00:07:80:0D:71:FF)
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -37
+      - -298
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  joinstring0:
+    _type: JoinString
+    category: misc
+    params:
+      join:
+        separator: ' '
+        string1: true
+        string2: true
+        string3: true
+        string4: true
+        string5: true
       common:
         autotrigger: false
         max_frequency: 30.0
@@ -1162,14 +1089,38 @@ nodes:
         process_group: ''
     gui_kwargs:
       pos:
-      - 737
-      - 647
+      - 294
+      - -279
+      viewers:
+        output:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  constantstring2:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: Acc
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -36
+      - -213
       viewers:
         out:
           viewer_idx: 0
           width: 175
           height: 100
-          collapsed: false
+          collapsed: true
           log_scale_x: false
           log_scale_y: false
 links:
@@ -1181,10 +1132,6 @@ links:
   node_in: math5
   slot_out: out
   slot_in: data
-- node_out: reduce2
-  node_in: extendedtable1
-  slot_out: out
-  slot_in: array_input3
 - node_out: lslclient5
   node_in: buffer2
   slot_out: out
@@ -1193,18 +1140,10 @@ links:
   node_in: lslclient5
   slot_out: out
   slot_in: stream_name
-- node_out: constantstring1
-  node_in: lslclient5
-  slot_out: out
-  slot_in: source_name
 - node_out: reduce5
   node_in: math4
   slot_out: out
   slot_in: data
-- node_out: reduce5
-  node_in: extendedtable1
-  slot_out: out
-  slot_in: array_input2
 - node_out: extendedtable2
   node_in: oscout0
   slot_out: table
@@ -1213,26 +1152,14 @@ links:
   node_in: math3
   slot_out: out
   slot_in: data
-- node_out: reduce10
-  node_in: extendedtable1
-  slot_out: out
-  slot_in: array_input1
 - node_out: reduce14
   node_in: math6
   slot_out: out
   slot_in: data
-- node_out: reduce14
-  node_in: extendedtable1
-  slot_out: out
-  slot_in: array_input4
 - node_out: reduce3
   node_in: math7
   slot_out: out
   slot_in: data
-- node_out: reduce3
-  node_in: extendedtable1
-  slot_out: out
-  slot_in: array_input5
 - node_out: lslclient0
   node_in: buffer0
   slot_out: out
@@ -1333,10 +1260,6 @@ links:
   node_in: extendedtable2
   slot_out: out
   slot_in: array_input5
-- node_out: extendedtable1
-  node_in: tablenormalization0
-  slot_out: table
-  slot_in: table
 - node_out: psd0
   node_in: powerbandeeg0
   slot_out: psd
@@ -1365,3 +1288,19 @@ links:
   node_in: psd0
   slot_out: out
   slot_in: data
+- node_out: constantstring1
+  node_in: lslclient5
+  slot_out: out
+  slot_in: source_name
+- node_out: constantstring1
+  node_in: joinstring0
+  slot_out: out
+  slot_in: string1
+- node_out: joinstring0
+  node_in: lslclient0
+  slot_out: output
+  slot_in: source_name
+- node_out: constantstring2
+  node_in: joinstring0
+  slot_out: out
+  slot_in: string2

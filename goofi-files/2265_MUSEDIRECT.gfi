@@ -1403,74 +1403,6 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
-  extendedtable2:
-    _type: ExtendedTable
-    category: inputs
-    params:
-      table:
-        param1: deltaNorm
-        param2: thetaNorm
-        param3: alphaNorm
-        param4: lowbetaNorm
-        param5: highbetaNorm
-        param6: value6
-        param7: value7
-        param8: value8
-        param9: value9
-        param10: value10
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 1973
-      - -202
-      viewers:
-        table:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
-  tablenormalization0:
-    _type: TableNormalization
-    category: signal
-    params:
-      normalization:
-        method: minmax
-        buffer_size: 1024
-        reset: false
-        axis: -1
-      quantile:
-        n_quantiles: 1000
-        output_distribution: uniform
-      robust:
-        quantile_min: 25
-        quantile_max: 75
-        unit_variance: false
-      minmax:
-        feature_min: 0.0
-        feature_max: 1.0
-      common:
-        autotrigger: false
-        max_frequency: 30.0
-        frequency_mode: updates-per-second
-        process_group: ''
-    gui_kwargs:
-      pos:
-      - 2210
-      - 43
-      viewers:
-        normalized:
-          viewer_idx: 0
-          width: 175
-          height: 100
-          collapsed: false
-          log_scale_x: false
-          log_scale_y: false
 links:
 - node_out: buffer2
   node_in: psd0
@@ -1504,10 +1436,6 @@ links:
   node_in: math2
   slot_out: out
   slot_in: data
-- node_out: reduce2
-  node_in: extendedtable2
-  slot_out: out
-  slot_in: array_input3
 - node_out: psd0
   node_in: powerbandeeg0
   slot_out: psd
@@ -1588,34 +1516,18 @@ links:
   node_in: math0
   slot_out: out
   slot_in: data
-- node_out: reduce7
-  node_in: extendedtable2
-  slot_out: out
-  slot_in: array_input2
 - node_out: reduce12
   node_in: math1
   slot_out: out
   slot_in: data
-- node_out: reduce12
-  node_in: extendedtable2
-  slot_out: out
-  slot_in: array_input1
 - node_out: reduce14
   node_in: math3
   slot_out: out
   slot_in: data
-- node_out: reduce14
-  node_in: extendedtable2
-  slot_out: out
-  slot_in: array_input4
 - node_out: reduce18
   node_in: math4
   slot_out: out
   slot_in: data
-- node_out: reduce18
-  node_in: extendedtable2
-  slot_out: out
-  slot_in: array_input5
 - node_out: extendedtable0
   node_in: extendedtable1
   slot_out: table
@@ -1740,7 +1652,3 @@ links:
   node_in: clip4
   slot_out: out
   slot_in: array
-- node_out: extendedtable2
-  node_in: tablenormalization0
-  slot_out: table
-  slot_in: table
