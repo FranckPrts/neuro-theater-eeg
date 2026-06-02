@@ -621,7 +621,7 @@ camera.position.set(1.0,1.2,6.2);
 
 const orbit = new OrbitControls(camera,cvs);
 orbit.enableDamping=true; orbit.dampingFactor=.07;
-orbit.autoRotate=true; orbit.autoRotateSpeed=.42;
+orbit.autoRotate=true; orbit.autoRotateSpeed=.5;
 orbit.enableZoom=true; orbit.minDistance=3; orbit.maxDistance=14;
 orbit.target.set(0,0.15,0);
 
@@ -1009,8 +1009,8 @@ function animate(ts){
     window._faceMat.emissive.setRGB(.06+.03*pulse, .06+.03*pulse, .08+.04*pulse);
   }
 
-  pMesh.rotation.y = T*.016;
-  pMesh.rotation.x = Math.sin(T*.055)*.032;
+  pMesh.rotation.y = T*.034;
+  pMesh.rotation.x = Math.sin(T*.09)*.032;
 
   orbit.update();
   composer.render();
