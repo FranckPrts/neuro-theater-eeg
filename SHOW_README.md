@@ -39,6 +39,7 @@ python osc-io/osc_proxy_failover.py \
 - **In** `8001` ← goofi; **out** `8000` ← consumers. Only `--out-host` differs above.
 - With `--config`, [`osc-io/proxy_config.json`](osc-io/proxy_config.json) may also fan out to **7999** and **8000** (`output_ports`); CLI `--out-port` overrides single-port behavior.
 - Failover clips: `hardware_recordings` in that JSON (`22FC`, `ENOB`, …).
+- **Suffix exclusions** (optional): in `proxy_config.json` → `session.excluded_suffixes`, e.g. `["*/alphaNorm"]` drops every `/<id>/alphaNorm` from proxy output while `/<id>/alpha` still passes. CLI: `--exclude-suffixes alphaNorm,thetaNorm`.
 
 Record · replay: `python osc-io/osc_recorder.py --port 8001` · `python osc-io/osc_replay.py osc-io/recordings/failovers/ENOBIO.json --port 8001 --loop`
 

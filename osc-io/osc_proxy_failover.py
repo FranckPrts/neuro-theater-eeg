@@ -58,6 +58,30 @@ When a session allowlist is active:
 Without an allowlist, streams are created only after the first live packet per address (no
 bootstrap).
 
+Excluded stream suffixes (optional)
+------------------------------------
+Drop specific stream paths (suffix after ``/<hardware_id>/``) from live ingress, fallback
+tracks, matrix cloning, and proxy output. Configure under ``session.excluded_suffixes`` or
+``--exclude-suffixes`` (CLI overrides config when non-empty).
+
+**Pattern rules** — exact suffix match after ``/<hw>/``:
+
+- ``alphaNorm`` or ``*/alphaNorm`` — any ``/<hw>/alphaNorm``
+- ``22FC/alphaNorm`` or ``/22FC/alphaNorm`` — only ``/22FC/alphaNorm``
+
+**Config**::
+
+    "session": {
+      "excluded_suffixes": ["*/alphaNorm", "*/thetaNorm"]
+    }
+
+**CLI**::
+
+    python osc_proxy_failover.py --exclude-suffixes alphaNorm,thetaNorm
+
+Applied to fallback tracks before allowlist matrix expansion so excluded suffixes are never
+cloned across headsets. Live packets matching an exclusion are dropped at ingest.
+
 Dependencies:
     pip install python-osc
 
@@ -70,6 +94,7 @@ Usage:
     python osc_proxy_failover.py --status --status-port 8888 --status-hz 10
     python osc_proxy_failover.py --console-hz 1
     python osc_proxy_failover.py --config proxy_config.json --allowed-hardware 22FC,2265,2262,1D1A,1FD6,2615,1E58,ENOB --in-port 8001 --out-port 8000
+    python osc_proxy_failover.py --config proxy_config.json --exclude-suffixes alphaNorm,thetaNorm
 """
 
 from __future__ import annotations
@@ -84,6 +109,9 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+# (hardware_id or None for any headset, stream suffix)
+ExcludedSuffixRule = tuple[str | None, str]
 
 from pythonosc import dispatcher, osc_server, udp_client
 
@@ -226,11 +254,15 @@ class StreamState:
 
 
 class ProxyEngine:
-    """Blend live OSC with per-address fallback tracks; optional session filter on headset IDs.
+    """Blend live OSC with per-address fallback tracks; optional session filters.
 
     ``allowed_hardware``: when set, only addresses ``/<id>/...`` with ``id`` in the frozenset are
-    ingested or emitted; ``main()`` also filters ``fallback_tracks`` to those IDs. Call
-    ``seed_streams_from_fallback()`` once after construction (see ``main``) so session runs
+    ingested or emitted; ``main()`` also filters ``fallback_tracks`` to those IDs.
+
+    ``excluded_suffix_rules``: when set, addresses matching a rule (exact suffix after ``/<id>/``)
+    are dropped from ingest and emit.
+
+    Call ``seed_streams_from_fallback()`` once after construction (see ``main``) so session runs
     bootstrap every fallback address before live data exists.
     """
 
@@ -247,6 +279,7 @@ class ProxyEngine:
         output_hz: float,
         fallback_tracks: dict[str, FallbackTrack],
         allowed_hardware: frozenset[str] | None = None,
+        excluded_suffix_rules: list[ExcludedSuffixRule] | None = None,
         *,
         status_enabled: bool = False,
         status_host: str | None = None,
@@ -282,10 +315,15 @@ class ProxyEngine:
         self.output_hz = max(1.0, output_hz)
         self.fallback_tracks = fallback_tracks
         self.allowed_hardware = allowed_hardware
+        self.excluded_suffix_rules = excluded_suffix_rules
         self.streams: dict[str, StreamState] = {}
         self.lock = threading.RLock()
 
     def _address_allowed(self, address: str) -> bool:
+        if self.excluded_suffix_rules and address_matches_exclusion(
+            address, self.excluded_suffix_rules
+        ):
+            return False
         if self.allowed_hardware is None:
             return True
         hw = _extract_hardware_prefix(address)
@@ -684,6 +722,66 @@ def parse_allowed_hardware_cli(value: str | None) -> frozenset[str] | None:
     return frozenset(out) if out else None
 
 
+def parse_excluded_suffix_pattern(pattern: str) -> ExcludedSuffixRule:
+    """Parse one exclusion entry into ``(hardware or None, suffix)``."""
+    p = pattern.strip()
+    if not p:
+        raise ValueError("exclusion pattern must be non-empty")
+    if p.startswith("/"):
+        p = p.lstrip("/")
+    if p.startswith("*/"):
+        suffix = p[2:].strip()
+        if not suffix:
+            raise ValueError(f"invalid exclusion pattern (missing suffix): {pattern!r}")
+        return None, suffix
+    if "/" in p:
+        hw, suffix = p.split("/", 1)
+        hw, suffix = hw.strip(), suffix.strip()
+        if not hw or not suffix:
+            raise ValueError(f"invalid exclusion pattern: {pattern!r}")
+        return hw, suffix
+    return None, p
+
+
+def parse_excluded_suffixes_from_config(config: dict[str, Any]) -> list[ExcludedSuffixRule] | None:
+    """Read ``session.excluded_suffixes`` from proxy JSON.
+
+    Returns:
+        List of rules, or ``None`` if absent or empty (no suffix filtering).
+
+    Raises:
+        ValueError: invalid ``session`` shape or pattern types.
+    """
+    session = config.get("session")
+    if session is None:
+        return None
+    if not isinstance(session, dict):
+        raise ValueError("'session' must be an object.")
+    raw = session.get("excluded_suffixes", [])
+    if raw is None or raw == []:
+        return None
+    if not isinstance(raw, list):
+        raise ValueError("'session.excluded_suffixes' must be a list of strings.")
+    rules: list[ExcludedSuffixRule] = []
+    for item in raw:
+        if not isinstance(item, str):
+            raise ValueError("'session.excluded_suffixes' entries must be strings.")
+        rules.append(parse_excluded_suffix_pattern(item))
+    return rules if rules else None
+
+
+def parse_excluded_suffixes_cli(value: str | None) -> list[ExcludedSuffixRule] | None:
+    """Parse ``--exclude-suffixes`` (comma-separated). Empty → ``None`` (use config)."""
+    if value is None or not str(value).strip():
+        return None
+    parts = [p.strip() for p in str(value).split(",")]
+    rules: list[ExcludedSuffixRule] = []
+    for part in parts:
+        if part:
+            rules.append(parse_excluded_suffix_pattern(part))
+    return rules if rules else None
+
+
 def filter_fallback_tracks_by_session(
     tracks: dict[str, FallbackTrack], allowed_hardware: frozenset[str]
 ) -> tuple[dict[str, FallbackTrack], int, int]:
@@ -712,6 +810,52 @@ def _stream_suffix_after_hw(address: str) -> tuple[str, str] | None:
     if not address.startswith(prefix):
         return None
     return hw, address[len(prefix) :]
+
+
+def address_matches_exclusion(address: str, rules: list[ExcludedSuffixRule]) -> bool:
+    """Return True if ``address`` matches any exclusion rule (exact suffix equality)."""
+    if not rules:
+        return False
+    pair = _stream_suffix_after_hw(address)
+    if pair is None:
+        return False
+    hw, suffix = pair
+    for rule_hw, rule_suffix in rules:
+        if rule_suffix != suffix:
+            continue
+        if rule_hw is None or rule_hw == hw:
+            return True
+    return False
+
+
+def filter_fallback_tracks_by_excluded_suffixes(
+    tracks: dict[str, FallbackTrack], rules: list[ExcludedSuffixRule]
+) -> tuple[dict[str, FallbackTrack], int, int]:
+    """Remove fallback tracks whose address matches an exclusion rule.
+
+    Returns:
+        ``(kept_tracks, n_before, n_dropped)``
+    """
+    if not rules:
+        return tracks, len(tracks), 0
+    kept: dict[str, FallbackTrack] = {}
+    for address, track in tracks.items():
+        if address_matches_exclusion(address, rules):
+            continue
+        kept[address] = track
+    n_before = len(tracks)
+    return kept, n_before, n_before - len(kept)
+
+
+def format_excluded_suffix_rules(rules: list[ExcludedSuffixRule]) -> str:
+    """Human-readable summary of active exclusion rules."""
+    parts: list[str] = []
+    for hw, suffix in rules:
+        if hw is None:
+            parts.append(f"*/{suffix}")
+        else:
+            parts.append(f"{hw}/{suffix}")
+    return ", ".join(parts)
 
 
 def expand_allowlist_fallback_matrix(
@@ -1004,6 +1148,14 @@ def main():
         "filter + bootstrap (recording on wire until live). Example: 22FC,2265,1D1A",
     )
     parser.add_argument(
+        "--exclude-suffixes",
+        type=str,
+        default=None,
+        metavar="PATTERNS",
+        help="Comma-separated stream suffix exclusions; overrides session.excluded_suffixes. "
+        "Examples: alphaNorm,*/thetaNorm,22FC/IMU",
+    )
+    parser.add_argument(
         "--status",
         action="store_true",
         help="Enable monitoring OSC on /nt/proxy/stream/.../status (default: off).",
@@ -1071,6 +1223,14 @@ def main():
         sys.exit(1)
 
     try:
+        excluded_suffix_rules = parse_excluded_suffixes_cli(args.exclude_suffixes)
+        if excluded_suffix_rules is None:
+            excluded_suffix_rules = parse_excluded_suffixes_from_config(config)
+    except ValueError as exc:
+        print(f"✗ Invalid excluded_suffixes config: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
         fallback_tracks, fallback_source_counts, default_recording_path = load_fallback_tracks(
             cli_recording=args.recording,
             config=config,
@@ -1091,6 +1251,20 @@ def main():
             print("✗ Session allowlist removed all fallback tracks.", file=sys.stderr)
             sys.exit(1)
 
+    if excluded_suffix_rules:
+        n_before = len(fallback_tracks)
+        fallback_tracks, _, dropped = filter_fallback_tracks_by_excluded_suffixes(
+            fallback_tracks, excluded_suffix_rules
+        )
+        print(
+            f"[session] excluded suffixes: {len(fallback_tracks)} kept, {dropped} dropped "
+            f"(patterns: {format_excluded_suffix_rules(excluded_suffix_rules)}, was {n_before} addresses)"
+        )
+        if not fallback_tracks:
+            print("✗ Excluded suffixes removed all fallback tracks.", file=sys.stderr)
+            sys.exit(1)
+
+    if allowed_hardware is not None:
         n_mat_before = len(fallback_tracks)
         fallback_tracks, n_cloned = expand_allowlist_fallback_matrix(fallback_tracks, allowed_hardware)
         if n_cloned:
@@ -1156,6 +1330,7 @@ def main():
         output_hz=output_hz,
         fallback_tracks=fallback_tracks,
         allowed_hardware=allowed_hardware,
+        excluded_suffix_rules=excluded_suffix_rules,
         status_enabled=status_enabled,
         status_host=status_host_val,
         status_port=status_port_val,
@@ -1186,6 +1361,11 @@ def main():
     if allowed_hardware is not None:
         ids = ", ".join(sorted(allowed_hardware))
         print(f"  session allow   : {ids} (other OSC dropped)")
+    if excluded_suffix_rules:
+        print(
+            f"  excluded suffix : {format_excluded_suffix_rules(excluded_suffix_rules)} "
+            "(matching streams dropped)"
+        )
     print(f"  stale default   : {stale_default}s")
     print(f"  fade in/out     : {fade_to_fallback_s}s / {fade_to_live_s}s")
     print(f"  tick rate       : {output_hz} Hz")
