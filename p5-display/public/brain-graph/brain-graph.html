@@ -15,8 +15,11 @@ body{
 
 #app{
   position:relative;
-  width:min(100vw, calc(100vh * 9/16));
-  height:min(100vh, calc(100vw * 16/9));
+  --frame-w:864;
+  --frame-h:1920;
+  aspect-ratio:var(--frame-w) / var(--frame-h);
+  width:min(100vw, calc(100vh * var(--frame-w) / var(--frame-h)));
+  height:min(100vh, calc(100vw * var(--frame-h) / var(--frame-w)));
   background:#000208;
   display:grid;
   grid-template-rows: auto minmax(0, 1fr) minmax(280px, 38%);
