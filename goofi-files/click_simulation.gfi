@@ -1,0 +1,80 @@
+nodes:
+  oscout0:
+    _type: OSCOut
+    category: outputs
+    params:
+      osc:
+        address: localhost
+        port: 4000
+        prefix: ''
+        bundle: false
+        broadcast: false
+        require_change: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 644
+      - 325
+      viewers: {}
+  table0:
+    _type: Table
+    category: inputs
+    params:
+      table:
+        new_entry_key: click
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 340
+      - 306
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  constantarray0:
+    _type: ConstantArray
+    category: inputs
+    params:
+      constant:
+        value: 1.0
+        shape: '1'
+        graph: none
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 93
+      - 226
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+links:
+- node_out: table0
+  node_in: oscout0
+  slot_out: table
+  slot_in: data
+- node_out: constantarray0
+  node_in: table0
+  slot_out: out
+  slot_in: new_entry
