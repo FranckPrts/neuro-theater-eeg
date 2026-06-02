@@ -319,6 +319,50 @@ const ENVELOPE_OVERLAY_ALPHA = 0.37;
 const ENVELOPE_HISTORY = 500;
 const ENVELOPE_SCROLL = 4;
 
+const SPINDLE = {
+  active: false,
+  t0: 0,
+  duration: 0.96,
+  hz: 12,
+  peak: 0.55,
+  bandPeak: 0.58,
+  bandNeighbor: 0.38,
+  bandSweepMs: 96,
+};
+
+function spindleEnvelope(t) {
+  if (t <= 0 || t >= SPINDLE.duration) return 0;
+  const x = t / SPINDLE.duration;
+  return Math.sin(Math.PI * x) ** 2;
+}
+
+function spindleSample(nowMs) {
+  if (!SPINDLE.active) return { env: 0, t: 0, activeBand: -1, bandFocus: 0 };
+  const t = (nowMs - SPINDLE.t0) / 1000;
+  if (t >= SPINDLE.duration) {
+    SPINDLE.active = false;
+    return { env: 0, t: 0, activeBand: -1, bandFocus: 0 };
+  }
+  const env = spindleEnvelope(t);
+  const activeBand = Math.floor(t / (SPINDLE.bandSweepMs / 1000)) % MAPPING.length;
+  return { env, t, activeBand, bandFocus: env };
+}
+
+function spindleBandBoost(i, env, activeBand) {
+  if (env <= 0 || activeBand < 0) return 0;
+  const dist = Math.abs(i - activeBand);
+  if (dist === 0) return env * SPINDLE.bandPeak;
+  if (dist === 1) return env * SPINDLE.bandPeak * SPINDLE.bandNeighbor;
+  return 0;
+}
+
+window.__ntBrainSpindle = SPINDLE;
+window.__ntBrainSpindleSample = spindleSample;
+window.__ntBrainTriggerSpindle = function () {
+  SPINDLE.active = true;
+  SPINDLE.t0 = performance.now();
+};
+
 const MAPPING = [
   {band:'alpha',    sym:'α', name:'ALPHA',     freq:'8–13 hz',  featName:'COHERENCE',   color:'#fbbf24', hz:10.5,  hzScale:0.32},
   {band:'highBeta', sym:'β', name:'HIGH-BETA', freq:'20–30 hz', featName:'VOCABULARY',  color:'#f472b6', hz:25,    hzScale:0.22},
@@ -366,7 +410,7 @@ function effectiveHz(row){
 function envelopeY(cy, rowH, v){
   return cy + lerp(rowH * MIN_AMP, -rowH * MAX_AMP_FRAC, clamp(v, 0, 1));
 }
-function drawEnvelopeScrollCanvas(ctx, w, h, s, m, dt){
+function drawEnvelopeScrollCanvas(ctx, w, h, s, m, dt, hzMul = 1){
   const cy = h * 0.5;
   const rgb = parseHexColor(m.color);
   const power = s.v;
@@ -418,7 +462,7 @@ function drawEnvelopeScrollCanvas(ctx, w, h, s, m, dt){
   }
 
   const ampPx = h * lerp(MIN_AMP, MAX_AMP_FRAC, power);
-  const hz = effectiveHz(m);
+  const hz = effectiveHz(m) * hzMul;
   s.wavePhase += dt * hz * Math.PI * 2;
   const spatialK = (Math.PI * 2 * WAVE_SPATIAL_CYCLES) / w;
   const steps = Math.max(40, Math.floor(w / 5));
@@ -520,6 +564,8 @@ function bandLoop(ts){
   const dt = bandLast ? Math.min((ts-bandLast)/1000, .05) : .016;
   bandLast = ts;
 
+  const sp = spindleSample(ts);
+
   bandState.forEach((s,i)=>{
     const slot = window.__ntBrainActiveSlot?.() ?? 0;
     const resolved = window.__ntBrainResolveSlot?.(slot) || {};
@@ -529,7 +575,8 @@ function bandLoop(ts){
       if (raw !== null) s.target = raw;
     }
     s.v += (s.target - s.v) * AMP_SMOOTH;
-    for(let n=0; n<ENVELOPE_SCROLL; n++) s.envelope.push(s.v);
+    const envVal = clamp(s.v + spindleBandBoost(i, sp.env, sp.activeBand), 0, 1);
+    for(let n=0; n<ENVELOPE_SCROLL; n++) s.envelope.push(envVal);
     while(s.envelope.length > ENVELOPE_HISTORY) s.envelope.shift();
   });
 
@@ -542,8 +589,10 @@ function bandLoop(ts){
     if(!w||!h) return;
 
     const ctx = cv.getContext('2d');
-    drawEnvelopeScrollCanvas(ctx, w, h, s, m, dt);
-    document.querySelector(`[data-val="${idx}"]`).textContent = s.v.toFixed(2);
+    const hzMul = sp.env > 0 && idx === sp.activeBand ? 2.5 : 1;
+    drawEnvelopeScrollCanvas(ctx, w, h, s, m, dt, hzMul);
+    const displayV = clamp(s.v + spindleBandBoost(idx, sp.env, sp.activeBand), 0, 1);
+    document.querySelector(`[data-val="${idx}"]`).textContent = displayV.toFixed(2);
   });
 }
 requestAnimationFrame(bandLoop);
@@ -988,16 +1037,26 @@ function animate(ts){
     }
     s.v += (s.target-s.v) * dt * 1.1;
     if(!elMeshes[i]) return;
-    const fast = .1*Math.sin(6.283*10*T + s.phase);
-    const act  = Math.max(0, Math.min(1, s.v+fast));
+    const sp = window.__ntBrainSpindleSample?.(ts) || { env: 0, t: 0 };
+    const spindleHz = window.__ntBrainSpindle?.hz ?? 12;
+    const spindlePeak = window.__ntBrainSpindle?.peak ?? 0.55;
+    const spindleOsc = sp.env * spindlePeak * 0.68 * Math.sin(6.283 * spindleHz * sp.t + s.phase);
+    const fast = sp.env > 0
+      ? spindleOsc
+      : 0.1 * Math.sin(6.283 * 10 * T + s.phase);
+    const act  = Math.max(0, Math.min(1, s.v + fast));
     elMeshes[i].material.color.copy(actColor(act));
     if(elMeshes[i]!==hovEl) elMeshes[i].scale.setScalar(.88 + act*.92);
     // Pulse the halo ring (sparse mode)
     if(elMeshes[i].userData.ring){
       const r = elMeshes[i].userData.ring;
-      const pulse = 1 + 0.18*Math.sin(T*3 + s.phase);
+      const pulse = sp.env > 0
+        ? 1 + 0.5 * sp.env * Math.sin(6.283 * spindleHz * sp.t + s.phase)
+        : 1 + 0.18 * Math.sin(T * 3 + s.phase);
       r.scale.setScalar(pulse);
-      r.material.opacity = 0.35 + 0.25*Math.sin(T*3 + s.phase);
+      r.material.opacity = sp.env > 0
+        ? 0.4 + 0.55 * sp.env * (0.5 + 0.5 * Math.sin(6.283 * spindleHz * sp.t + s.phase))
+        : 0.35 + 0.25 * Math.sin(T * 3 + s.phase);
     }
   });
 
@@ -1024,17 +1083,22 @@ animate(0);
 <script src="../osc-ws-client.js"></script>
 <script src="brain-graph-osc.js"></script>
 <script>
-/* HUD shortcut: H hides sphere toggle */
+/* HUD shortcuts: H hides sphere toggle; S triggers spindle burst */
 (function () {
   const hud = document.getElementById("haloBtn");
-  if (!hud) return;
-  document.body.title = "Brain graph — press H to hide sphere toggle";
+  document.body.title = "Brain graph — H hide sphere · S spindle burst";
   document.addEventListener("keydown", (e) => {
     if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
-    if (e.key !== "h" && e.key !== "H") return;
-    const hidden = hud.style.display === "none";
-    hud.style.display = hidden ? "" : "none";
-    hud.setAttribute("aria-hidden", hidden ? "false" : "true");
+    if (e.key === "h" || e.key === "H") {
+      if (!hud) return;
+      const hidden = hud.style.display === "none";
+      hud.style.display = hidden ? "" : "none";
+      hud.setAttribute("aria-hidden", hidden ? "false" : "true");
+      return;
+    }
+    if (e.key === "s" || e.key === "S") {
+      window.__ntBrainTriggerSpindle?.();
+    }
   });
 })();
 </script>

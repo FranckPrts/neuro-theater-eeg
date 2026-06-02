@@ -52,7 +52,7 @@ cd p5-display && npm start
 | View | URL |
 |------|-----|
 | Dashboard | http://127.0.0.1:8765/ |
-| **Brain graphic** | http://127.0.0.1:8765/brain-graph/brain-graph.html (**H** = hide sphere button) |
+| **Brain graphic** | http://127.0.0.1:8765/brain-graph/brain-graph.html (**H** = hide sphere button · **S** = spindle burst) |
 | **Spider graph** | http://127.0.0.1:8765/spider-graph/spider-graph.html (**H** = hide sweep/trail UI) |
 | Health | http://127.0.0.1:8765/health |
 
