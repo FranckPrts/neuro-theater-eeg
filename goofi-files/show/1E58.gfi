@@ -1,0 +1,1296 @@
+nodes:
+  buffer2:
+    _type: Buffer
+    category: signal
+    params:
+      buffer:
+        size: 3.0
+        axis: -1
+        unit: seconds
+        reset: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 350
+      - 635
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  buffer3:
+    _type: Buffer
+    category: signal
+    params:
+      buffer:
+        size: 10.0
+        axis: -1
+        unit: samples
+        reset: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 357
+      - 1103
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  powerbandeeg0:
+    _type: PowerBandEEG
+    category: analysis
+    params:
+      powerband:
+        power_type: relative
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 874
+      - 201
+      viewers:
+        delta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        theta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        alpha:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        lowbeta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        highbeta:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        gamma:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  oscout0:
+    _type: OSCOut
+    category: outputs
+    params:
+      osc:
+        address: localhost
+        port: 8001
+        prefix: /1E58
+        bundle: true
+        broadcast: false
+        require_change: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 2008
+      - 1343
+      viewers: {}
+  reduce2:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: mean
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1086
+      - 521
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  psd0:
+    _type: PSD
+    category: signal
+    params:
+      psd:
+        method: welch
+        f_min: 1.0
+        f_max: 25.0
+        axis: -1
+      welch:
+        nperseg: 0.5
+        nperseg_unit: fraction
+        noverlap: 0.75
+        noverlap_unit: fraction_nperseg
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 577
+      - 644
+      viewers:
+        psd:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  lslclient5:
+    _type: LSLClient
+    category: inputs
+    params:
+      lsl_stream:
+        source_name: EEG
+        stream_name: Muse-1FD6
+        source_type: EEG
+        refresh: true
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 132
+      - 620
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  buffer0:
+    _type: Buffer
+    category: signal
+    params:
+      buffer:
+        size: 10.0
+        axis: -1
+        unit: samples
+        reset: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 356
+      - 889
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  lslclient2:
+    _type: LSLClient
+    category: inputs
+    params:
+      lsl_stream:
+        source_name: PPG
+        stream_name: ''
+        source_type: PPG
+        refresh: true
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 137
+      - 1350
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  buffer1:
+    _type: Buffer
+    category: signal
+    params:
+      buffer:
+        size: 10.0
+        axis: -1
+        unit: seconds
+        reset: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 354
+      - 1362
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable1:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: IMU1
+        param2: IMU2
+        param3: IMU3
+        param4: HRV
+        param5: HR
+        param6: ''
+        param7: ''
+        param8: ''
+        param9: ''
+        param10: ''
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1534
+      - 977
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 395
+          height: 320
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  lslclient0:
+    _type: LSLClient
+    category: inputs
+    params:
+      lsl_stream:
+        source_name: Accelerometer
+        stream_name: ''
+        source_type: Accel
+        refresh: true
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 144
+      - 864
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  cardiorespiratoryvariability0:
+    _type: CardioRespiratoryVariability
+    category: analysis
+    params:
+      cardiorespiratory:
+        input_type: ppg
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 920
+      - 1366
+      viewers:
+        Mean:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        SDNN:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+        SDSD:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        RMSSD:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        VLF:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        LF:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        HF:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        LF/HF:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        Peaks:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+        Rate:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  select1:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: PPG2
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 571
+      - 1364
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 315
+          height: 240
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  lslclient1:
+    _type: LSLClient
+    category: inputs
+    params:
+      lsl_stream:
+        source_name: Gyroscope
+        stream_name: ''
+        source_type: Gyro
+        refresh: true
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 141
+      - 1102
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  reduce0:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: mean
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1193
+      - 1368
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 225
+          height: 150
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  constantstring5:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: Muse-
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -545
+      - 608
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  joinstring0:
+    _type: JoinString
+    category: misc
+    params:
+      join:
+        separator: ''
+        string1: true
+        string2: true
+        string3: true
+        string4: true
+        string5: true
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -257
+      - 834
+      viewers:
+        output:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  reduce7:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: mean
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1090
+      - 392
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  reduce12:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: mean
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1086
+      - 274
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  reduce14:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: mean
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1087
+      - 643
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  reduce18:
+    _type: Reduce
+    category: array
+    params:
+      reduce:
+        method: mean
+        axis: 0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1088
+      - 767
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable0:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: delta
+        param2: theta
+        param3: alpha
+        param4: lowbeta
+        param5: highbeta
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1881
+      - 426
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 305
+          height: 230
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  select0:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: Accel1
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 978
+      - 992
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select2:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: Accel2
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 977
+      - 1075
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  select3:
+    _type: Select
+    category: array
+    params:
+      select:
+        axis: 0
+        selection_mode: by_name
+        include: Accel3
+        exclude: ''
+        expand_asterisk: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 974
+      - 1159
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: true
+          log_scale_x: false
+          log_scale_y: false
+  clip0:
+    _type: Clip
+    category: array
+    params:
+      clip:
+        min: 0.0
+        max: 0.9
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1598
+      - 55
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  clip1:
+    _type: Clip
+    category: array
+    params:
+      clip:
+        min: 0.0
+        max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1595
+      - 258
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  clip2:
+    _type: Clip
+    category: array
+    params:
+      clip:
+        min: 0.0
+        max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1592
+      - 489
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  clip3:
+    _type: Clip
+    category: array
+    params:
+      clip:
+        min: 0.0
+        max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1590
+      - 597
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  clip4:
+    _type: Clip
+    category: array
+    params:
+      clip:
+        min: 0.0
+        max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1589
+      - 707
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  imufusion0:
+    _type: ImuFusion
+    category: signal
+    params:
+      fusion:
+        ALPHA: 0.97
+        UPDATE_HZ: 30.0
+        output_format: euler_deg
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 586
+      - 923
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 295
+          height: 220
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  math0:
+    _type: Math
+    category: array
+    params:
+      math:
+        pre_add: 0.0
+        multiply: 2.0
+        post_add: 0.0
+        round: -1
+        sqrt: false
+        squared: false
+      map:
+        input_min: 0.0
+        input_max: 1.0
+        output_min: 0.0
+        output_max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1370
+      - 232
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  math1:
+    _type: Math
+    category: array
+    params:
+      math:
+        pre_add: 0.0
+        multiply: 0.8
+        post_add: 0.0
+        round: -1
+        sqrt: false
+        squared: false
+      map:
+        input_min: 0.0
+        input_max: 1.0
+        output_min: 0.0
+        output_max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1371
+      - 42
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  math2:
+    _type: Math
+    category: array
+    params:
+      math:
+        pre_add: 0.0
+        multiply: 2.0
+        post_add: 0.0
+        round: -1
+        sqrt: false
+        squared: false
+      map:
+        input_min: 0.0
+        input_max: 1.0
+        output_min: 0.0
+        output_max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1369
+      - 424
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  math3:
+    _type: Math
+    category: array
+    params:
+      math:
+        pre_add: 0.0
+        multiply: 2.0
+        post_add: 0.0
+        round: -1
+        sqrt: false
+        squared: false
+      map:
+        input_min: 0.0
+        input_max: 1.0
+        output_min: 0.0
+        output_max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1360
+      - 595
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  math4:
+    _type: Math
+    category: array
+    params:
+      math:
+        pre_add: 0.0
+        multiply: 3.0
+        post_add: 0.0
+        round: -1
+        sqrt: false
+        squared: false
+      map:
+        input_min: 0.0
+        input_max: 1.0
+        output_min: 0.0
+        output_max: 1.0
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1360
+      - 783
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  constantstring0:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: 1E58
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - -565
+      - 831
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+links:
+- node_out: buffer2
+  node_in: psd0
+  slot_out: out
+  slot_in: data
+- node_out: buffer3
+  node_in: imufusion0
+  slot_out: out
+  slot_in: gyro
+- node_out: powerbandeeg0
+  node_in: reduce12
+  slot_out: delta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce7
+  slot_out: theta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce2
+  slot_out: alpha
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce14
+  slot_out: lowbeta
+  slot_in: array
+- node_out: powerbandeeg0
+  node_in: reduce18
+  slot_out: highbeta
+  slot_in: array
+- node_out: reduce2
+  node_in: math2
+  slot_out: out
+  slot_in: data
+- node_out: psd0
+  node_in: powerbandeeg0
+  slot_out: psd
+  slot_in: data
+- node_out: lslclient5
+  node_in: buffer2
+  slot_out: out
+  slot_in: val
+- node_out: buffer0
+  node_in: imufusion0
+  slot_out: out
+  slot_in: acc
+- node_out: lslclient2
+  node_in: buffer1
+  slot_out: out
+  slot_in: val
+- node_out: buffer1
+  node_in: select1
+  slot_out: out
+  slot_in: data
+- node_out: extendedtable1
+  node_in: oscout0
+  slot_out: table
+  slot_in: data
+- node_out: lslclient0
+  node_in: buffer0
+  slot_out: out
+  slot_in: val
+- node_out: cardiorespiratoryvariability0
+  node_in: extendedtable1
+  slot_out: SDNN
+  slot_in: array_input4
+- node_out: cardiorespiratoryvariability0
+  node_in: reduce0
+  slot_out: Rate
+  slot_in: array
+- node_out: select1
+  node_in: cardiorespiratoryvariability0
+  slot_out: out
+  slot_in: data
+- node_out: lslclient1
+  node_in: buffer3
+  slot_out: out
+  slot_in: val
+- node_out: reduce0
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input5
+- node_out: constantstring5
+  node_in: joinstring0
+  slot_out: out
+  slot_in: string1
+- node_out: joinstring0
+  node_in: lslclient5
+  slot_out: output
+  slot_in: stream_name
+- node_out: joinstring0
+  node_in: lslclient0
+  slot_out: output
+  slot_in: stream_name
+- node_out: joinstring0
+  node_in: lslclient1
+  slot_out: output
+  slot_in: stream_name
+- node_out: joinstring0
+  node_in: lslclient2
+  slot_out: output
+  slot_in: stream_name
+- node_out: reduce7
+  node_in: math0
+  slot_out: out
+  slot_in: data
+- node_out: reduce12
+  node_in: math1
+  slot_out: out
+  slot_in: data
+- node_out: reduce14
+  node_in: math3
+  slot_out: out
+  slot_in: data
+- node_out: reduce18
+  node_in: math4
+  slot_out: out
+  slot_in: data
+- node_out: extendedtable0
+  node_in: extendedtable1
+  slot_out: table
+  slot_in: base
+- node_out: select0
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input1
+- node_out: select2
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input2
+- node_out: select3
+  node_in: extendedtable1
+  slot_out: out
+  slot_in: array_input3
+- node_out: clip0
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input1
+- node_out: clip1
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input2
+- node_out: clip2
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input3
+- node_out: clip3
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input4
+- node_out: clip4
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input5
+- node_out: imufusion0
+  node_in: select0
+  slot_out: out
+  slot_in: data
+- node_out: imufusion0
+  node_in: select2
+  slot_out: out
+  slot_in: data
+- node_out: imufusion0
+  node_in: select3
+  slot_out: out
+  slot_in: data
+- node_out: math0
+  node_in: clip1
+  slot_out: out
+  slot_in: array
+- node_out: math1
+  node_in: clip0
+  slot_out: out
+  slot_in: array
+- node_out: math2
+  node_in: clip2
+  slot_out: out
+  slot_in: array
+- node_out: math3
+  node_in: clip3
+  slot_out: out
+  slot_in: array
+- node_out: math4
+  node_in: clip4
+  slot_out: out
+  slot_in: array
+- node_out: constantstring0
+  node_in: joinstring0
+  slot_out: out
+  slot_in: string2

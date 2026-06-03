@@ -310,8 +310,8 @@ body::after{
 <script>
 // Order matches the sketch: α  βH  βL  θ  δ
 // Each row maps a frequency band to a language feature.
-const MIN_AMP = 0.06;
-const MAX_AMP_FRAC = 0.42;
+const MIN_AMP = 0.02;
+const MAX_AMP_FRAC = 0.95;
 const AMP_SMOOTH = 0.12;
 const WAVE_SPATIAL_CYCLES = 2.4;
 const FREQ_HZ_SCALE = 0.55;
@@ -407,11 +407,18 @@ function effectiveHz(row){
   const scale = typeof row.hzScale === 'number' && isFinite(row.hzScale) ? row.hzScale : 1;
   return row.hz * FREQ_HZ_SCALE * scale;
 }
-function envelopeY(cy, rowH, v){
-  return cy + lerp(rowH * MIN_AMP, -rowH * MAX_AMP_FRAC, clamp(v, 0, 1));
+function bandWaveLayout(h){
+  const top = 2;
+  const bottom = h - 2;
+  return { top, bottom, baseline: bottom, span: bottom - top };
+}
+function envelopeY(layout, v){
+  const t = clamp(v, 0, 1);
+  return layout.baseline - layout.span * lerp(MIN_AMP, MAX_AMP_FRAC, t);
 }
 function drawEnvelopeScrollCanvas(ctx, w, h, s, m, dt, hzMul = 1){
-  const cy = h * 0.5;
+  const layout = bandWaveLayout(h);
+  const { baseline } = layout;
   const rgb = parseHexColor(m.color);
   const power = s.v;
   const buf = s.envelope;
@@ -422,21 +429,21 @@ function drawEnvelopeScrollCanvas(ctx, w, h, s, m, dt, hzMul = 1){
   ctx.strokeStyle = 'rgba(0,255,153,0.10)';
   ctx.lineWidth = 0.5;
   ctx.beginPath();
-  ctx.moveTo(0, cy);
-  ctx.lineTo(w, cy);
+  ctx.moveTo(0, baseline);
+  ctx.lineTo(w, baseline);
   ctx.stroke();
 
   if(count >= 2){
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, 2, w, h - 4);
+    ctx.rect(0, layout.top, w, layout.span);
     ctx.clip();
 
     ctx.beginPath();
     for(let j=0; j<count; j++){
       const v = buf[buf.length - count + j];
       const x = (j / (count - 1)) * w;
-      const y = envelopeY(cy, h, v);
+      const y = envelopeY(layout, v);
       j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
     ctx.strokeStyle = m.color;
@@ -448,20 +455,20 @@ function drawEnvelopeScrollCanvas(ctx, w, h, s, m, dt, hzMul = 1){
     ctx.shadowBlur = 0;
 
     ctx.beginPath();
-    ctx.moveTo(0, cy);
+    ctx.moveTo(0, baseline);
     for(let j=0; j<count; j++){
       const v = buf[buf.length - count + j];
       const x = (j / (count - 1)) * w;
-      ctx.lineTo(x, envelopeY(cy, h, v));
+      ctx.lineTo(x, envelopeY(layout, v));
     }
-    ctx.lineTo(w, cy);
+    ctx.lineTo(w, baseline);
     ctx.closePath();
     ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.11)`;
     ctx.fill();
     ctx.restore();
   }
 
-  const ampPx = h * lerp(MIN_AMP, MAX_AMP_FRAC, power);
+  const ampPx = layout.span * lerp(MIN_AMP, MAX_AMP_FRAC, power);
   const hz = effectiveHz(m) * hzMul;
   s.wavePhase += dt * hz * Math.PI * 2;
   const spatialK = (Math.PI * 2 * WAVE_SPATIAL_CYCLES) / w;
@@ -470,12 +477,13 @@ function drawEnvelopeScrollCanvas(ctx, w, h, s, m, dt, hzMul = 1){
 
   ctx.save();
   ctx.beginPath();
-  ctx.rect(0, 2, w, h - 4);
+  ctx.rect(0, layout.top, w, layout.span);
   ctx.clip();
   ctx.beginPath();
   for(let si=0; si<=steps; si++){
     const x = (si / steps) * w;
-    const y = cy + ampPx * Math.sin(s.wavePhase - x * spatialK);
+    const wave01 = 0.5 + 0.5 * Math.sin(s.wavePhase - x * spatialK);
+    const y = baseline - ampPx * wave01;
     si === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   }
   ctx.strokeStyle = `rgba(${neon[0]},${neon[1]},${neon[2]},${255 * ENVELOPE_OVERLAY_ALPHA})`;
