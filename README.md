@@ -54,6 +54,16 @@ flowchart TD
     mainComputer["MainComputer\n- LSL in\n- Goofi Pipe\n- OSC out\n- OSC proxy failover"]
   end
 
+  subgraph stageProjection [Stage projection – Windows GPU node]
+    displayGpu["Display GPU node (Windows)\n- OSC UDP :8000 → p5-display\n- HTTP + WebSocket :8765\n- OBS + DistroAV → NDI out\n- NDI SDK + NDI Tools"]
+    brainGraph["brain-graph.html\n864×1920 portrait"]
+    spiderGraph["spider-graph.html\nstage projection frame"]
+    ndiGraphOut["NDI graph feeds\n(DistroAV)"]
+    displayGpu --> brainGraph
+    displayGpu --> spiderGraph
+    displayGpu --> ndiGraphOut
+  end
+
   subgraph consumers [Consumers]
     touchDesigner[TouchDesigner]
     audioEngine[AudioEngine]
@@ -72,6 +82,7 @@ flowchart TD
   8000 --> videoController
   8000 --> streamingDiffusion
   8000 --> telepromter
+  8000 -->|"OSC (ethernet)"| displayGpu
 ```
 
 - Each MuseHeadsets x6 group connects over Bluetooth to its own tablet.
@@ -80,7 +91,10 @@ flowchart TD
 - Tablet traffic reaches the main router over Wi-Fi.
 - The main router links by Ethernet to the main motherboard computer.
 - The main computer runs Goofi Pipe, OSC out, and OSC proxy failover; **OSC is sent back onto the LAN via the router** so every downstream consumer can subscribe on the same network.
-- **DHCP reservations** are configured on the router for **each node that joins this network** (tablet, main computer, and consumer machines), so addresses stay stable across reboots and sessions.
+- A dedicated **Windows GPU / display PC** on the same LAN **offloads WebGL/GPU rendering** from the main acquisition machine. It runs [`p5-display`](p5-display/) (`npm start`) and uses two paths for the stage graphs:
+  - **OSC (control):** proxied EEG metrics on **UDP 8000** → `p5-display` → **WebSocket** → [`brain-graph.html`](p5-display/public/brain-graph/brain-graph.html) (**864×1920** portrait) and [`spider-graph.html`](p5-display/public/spider-graph/spider-graph.html) (square stage frame), each at projection aspect in a fullscreen browser.
+  - **NDI (video):** **OBS Studio** captures those browser outputs; the **[DistroAV](https://distroav.org/)** plugin (formerly OBS-NDI) publishes them on the LAN using the **[NDI SDK](https://ndi.video/download-ndi-sdk/)** and **[NDI Tools / Runtime](https://ndi.video/tools/)** so projectors and media servers can subscribe without loading the main computer. (On macOS dev machines you can instead use repo [`ndi-bridge/`](ndi-bridge/) — see **NDI output from p5** below.)
+- **DHCP reservations** are configured on the router for **each node that joins this network** (tablets, main computer, display GPU node, and consumer machines), so addresses stay stable across reboots and sessions.
 
 ---
 
@@ -88,13 +102,31 @@ flowchart TD
 
 **p5-display** is a small **Node.js** app that listens for **OSC over UDP** (for example the same proxied stream you send to TouchDesigner), forwards packets to the browser over **WebSocket**, and runs **p5.js** sketches from [`p5-display/public/p5-scenes/`](p5-display/public/p5-scenes/). The **Scene** strip maps OSC addresses to scene inputs, with optional **CSV** presets under [`public/p5-mapping/`](p5-display/public/p5-mapping/). The **spider** scene supports multiple overlays, per-plot colors, and **relative** (share of total band magnitude) versus **absolute** radius (distance from a shared **mean** scaled by a shared **max**); those options persist in the browser (`localStorage`, including `nt.p5osc.spiderRadius`). Install, default ports (`7999` OSC, `8765` HTTP), and CSV fields such as `__radiusMode`, `__absoluteMean`, and `__absoluteMax` are documented in [`p5-display/README.md`](p5-display/README.md).
 
+**Stage projection (show):** a separate **Windows GPU node** runs `p5-display` on the LAN so the main computer stays focused on LSL, Goofi, and proxy failover.
+
+| Path | Stack | Role |
+|------|--------|------|
+| **OSC** | Proxied UDP **:8000** → `p5-display` → WebSocket | Live band/electrode values into the graphs |
+| **NDI** | Browser → **OBS** → **[DistroAV](https://distroav.org/)** + **NDI SDK** + **NDI Tools** | Full-bleed graph video to the stage and other NDI receivers |
+
+Open the standalone pages at projection resolution (each page letterboxes to its built-in aspect ratio):
+
+| View | URL (on the display node) |
+|------|---------------------------|
+| Brain graphic | `http://<display-host>:8765/brain-graph/brain-graph.html` (**864×1920**) |
+| Spider graph | `http://<display-host>:8765/spider-graph/spider-graph.html` (square stage frame; **H** hides sweep/trail UI) |
+
+Point the OSC bridge at proxied output (**8000** on the show LAN, or **Stream → Apply** in the dashboard). Install **NDI Runtime** (via NDI Tools) and **DistroAV** on the display PC before show; confirm sources in **NDI Studio Monitor** or your receiver. See [`SHOW_README.md`](SHOW_README.md) for boot order and URLs on a single machine.
+
 ---
 
 ## NDI output from p5 (optional, separate GPL bridge)
 
-To publish a **clean full-bleed canvas** (no OSC mapping strip) as an **NDI source** on the LAN—for TouchDesigner, OBS, vMix, etc.—use the separate **[`ndi-bridge/`](ndi-bridge/)** package. It is **not** installed by `p5-display` `npm install` and is licensed **GPL-3.0-or-later** (this repository root remains **Apache-2.0**).
+**Show (Windows display GPU node):** graph video is sent with **OBS + [DistroAV](https://distroav.org/)** and the system **NDI SDK / NDI Tools** install (see **Stage projection** under Browser OSC visual). That path does not require `ndi-bridge`.
 
-**Prerequisites:** [NDI SDK](https://ndi.video/download-ndi-sdk/) and [NDI Runtime / NDI Tools](https://ndi.video/tools/) on the sender Mac and on each consumer machine. See [`ndi-bridge/README.md`](ndi-bridge/README.md) for SDK setup and `npm run install:all`.
+**Dev / macOS alternative:** to publish a **clean full-bleed canvas** (no OSC mapping strip) as an **NDI source** on the LAN—for TouchDesigner, OBS, vMix, etc.—use the separate **[`ndi-bridge/`](ndi-bridge/)** package. It is **not** installed by `p5-display` `npm install` and is licensed **GPL-3.0-or-later** (this repository root remains **Apache-2.0**).
+
+**Prerequisites (ndi-bridge):** [NDI SDK](https://ndi.video/download-ndi-sdk/) and [NDI Runtime / NDI Tools](https://ndi.video/tools/) on the sender Mac and on each consumer machine. See [`ndi-bridge/README.md`](ndi-bridge/README.md) for SDK setup and `npm run install:all`.
 
 **Data flow:** launch `ndi-bridge` on the CLI with fixed `--port` / `--width` / `--height`; register matching presets in the p5-display **NDI** tab; enable NDI to open a managed output window that resizes the canvas and sends RGBA to `ndi-bridge`. Config is stored in `GET/POST /api/ndi-config` and broadcast on WebSocket `/ws`.
 
@@ -435,7 +467,7 @@ and to record:
 python osc-io/osc_recorder.py --port 8001
 ```
 
-To run the **p5** browser OSC bridge (listens on UDP **7999** by default, serves the UI at **http://127.0.0.1:8765/**; point your OSC proxy output at the same host/port):
+To run the **p5** browser OSC bridge (listens on UDP **7999** by default, serves the UI at **http://127.0.0.1:8765/**; point your OSC proxy output at the same host/port). On show LAN, run this on the **Windows display GPU node** (not the main acquisition Mac): open **brain-graph** + **spider-graph** fullscreen, capture in **OBS**, enable **DistroAV** NDI output (NDI SDK + NDI Tools installed):
 
 ```bash
 cd p5-display && npm start
