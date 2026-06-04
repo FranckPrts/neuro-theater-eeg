@@ -1,0 +1,115 @@
+nodes:
+  constantstring0:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: default_value
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 371
+      - 243
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  extendedtable0:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: value1
+        param2: value2
+        param3: value3
+        param4: value4
+        param5: value5
+        param6: on_display
+        param7: kantor_next
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 628
+      - 214
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  constantstring1:
+    _type: ConstantString
+    category: inputs
+    params:
+      constant:
+        value: If I write here *****
+        overwrite_timeout: 5.0
+      common:
+        autotrigger: true
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 331
+      - 440
+      viewers:
+        out:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
+  oscout0:
+    _type: OSCOut
+    category: outputs
+    params:
+      osc:
+        address: localhost
+        port: 4000
+        prefix: ''
+        bundle: true
+        broadcast: true
+        require_change: false
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 880
+      - 438
+      viewers: {}
+links:
+- node_out: constantstring0
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: string_input1
+- node_out: extendedtable0
+  node_in: oscout0
+  slot_out: table
+  slot_in: data
+- node_out: constantstring1
+  node_in: extendedtable0
+  slot_out: out
+  slot_in: string_input2

@@ -834,7 +834,7 @@ nodes:
     gui_kwargs:
       pos:
       - 1592
-      - 489
+      - 471
       viewers:
         out:
           viewer_idx: 0
@@ -922,7 +922,7 @@ nodes:
     params:
       math:
         pre_add: 0.0
-        multiply: 3.0
+        multiply: 2.0
         post_add: 0.0
         round: -1
         sqrt: false
@@ -1105,6 +1105,38 @@ nodes:
           collapsed: false
           log_scale_x: false
           log_scale_y: false
+  extendedtable2:
+    _type: ExtendedTable
+    category: inputs
+    params:
+      table:
+        param1: deltaNorm
+        param2: thetaNorm
+        param3: alphaNorm
+        param4: value4
+        param5: value5
+        param6: value6
+        param7: value7
+        param8: value8
+        param9: value9
+        param10: value10
+      common:
+        autotrigger: false
+        max_frequency: 30.0
+        frequency_mode: updates-per-second
+        process_group: ''
+    gui_kwargs:
+      pos:
+      - 1887
+      - 1
+      viewers:
+        table:
+          viewer_idx: 0
+          width: 175
+          height: 100
+          collapsed: false
+          log_scale_x: false
+          log_scale_y: false
 links:
 - node_out: buffer2
   node_in: psd0
@@ -1242,12 +1274,24 @@ links:
   node_in: extendedtable0
   slot_out: out
   slot_in: array_input1
+- node_out: clip0
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input1
 - node_out: clip1
   node_in: extendedtable0
   slot_out: out
   slot_in: array_input2
+- node_out: clip1
+  node_in: extendedtable2
+  slot_out: out
+  slot_in: array_input2
 - node_out: clip2
   node_in: extendedtable0
+  slot_out: out
+  slot_in: array_input3
+- node_out: clip2
+  node_in: extendedtable2
   slot_out: out
   slot_in: array_input3
 - node_out: clip3
@@ -1294,3 +1338,7 @@ links:
   node_in: joinstring0
   slot_out: out
   slot_in: string2
+- node_out: extendedtable2
+  node_in: extendedtable0
+  slot_out: table
+  slot_in: base
